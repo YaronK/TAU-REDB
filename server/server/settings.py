@@ -9,10 +9,19 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
+import os
+
+# getting the db's path, relatively to the settings file.
+cur_file_path = os.path.realpath(__file__)
+db_dir  = os.path.dirname(os.path.dirname(cur_file_path))
+db_path = os.path.join(db_dir, "db", "redb.db")
+
+print db_path
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'C:\\project_year4\\REDB\\server\\DB\\REDB_DB',
+        'NAME': db_path,
         'USER': '',
         'PASSWORD': '',
         'HOST': '',
