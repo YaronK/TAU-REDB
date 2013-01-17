@@ -32,10 +32,6 @@ def post_multipart(host, selector, fields, files):
     h.send(body)
     errcode, errmsg, headers = h.getreply()  # @UnusedVariable
     return_data = h.file.read()
-    # DEBUG Only:
-    # h2 = open("c:\\htm.html","wb")
-    # h2.write(return_data)
-    # h2.close()
     return return_data
 
 
@@ -56,7 +52,7 @@ def encode_multipart_formdata(fields, files):
         L.append(value)
     for (key, filename, value) in files:
         L.append('--' + BOUNDARY)
-        L.append('Content-Disposition: form-data; name="%s"; filename="%s"' %
+        L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % \
                   (key, filename))
         L.append('Content-Type: %s' % get_content_type(filename))
         L.append('')
@@ -97,11 +93,6 @@ def send_request(request):
         response = None
 
     return response
-
-"""
-Given an address of a server and an instance of Submit,
-it send the Submit instance to the server.
-"""
 
 
 def send_submit(submit):

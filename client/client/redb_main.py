@@ -7,7 +7,8 @@ import idaapi
 
 # local application/library specific imports
 import redb_action
-import redb_preprocess
+import redb_item
+import idc
 
 
 #==============================================================================
@@ -24,7 +25,7 @@ class REDB (idaapi.plugin_t):
     wanted_hotkey = ""
 
     def init(self):
-        self._redb_item = redb_preprocess.REDBItem()
+        self._redb_item = redb_item.REDBItem()
         return idaapi.PLUGIN_KEEP
 
     def run(self, arg):
@@ -32,7 +33,9 @@ class REDB (idaapi.plugin_t):
         This function is called by IDA when the user uses one of the plugins'
         hotkeys.
         """
-        redb_action.ClientAction(self._redb_item, arg)
+        action = redb_action.ClientAction(self._redb_item, arg,
+                                          idc.ScreenEA())
+        action.run()
 
     def term(self):
         """

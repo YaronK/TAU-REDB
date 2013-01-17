@@ -20,7 +20,7 @@ class REDBItem:
         # Main dictionary holding all handled functions information.
         # The keys are the functions' first addresses.
         # The values are REDB_Functions - one for each handled function.
-        self._handled_functions = {}
+        self._redb_functions = {}
         self._string_addresses = []
         self._imported_modules = []
 
@@ -58,9 +58,9 @@ class REDBItem:
         idaapi.hide_wait_box()
 
         # Restore user descriptions so that they will be saved by IDA.
-        for function in self._handled_functions.values():
+        for function in self._redb_functions.values():
             function.restore_user_description()
 
         # Remove all tags added by the plugin.
-        for function in self._handled_functions:
+        for function in self._redb_functions:
             redb_client_utils.Tag(int(function)).remove_tag()
