@@ -214,7 +214,8 @@ class ClientAction:
 
         # CodeRefsFrom current function
         for item in self._cur_func._func_items:
-            neighbors_list += list(idautils.CodeRefsFrom(item, 0))
+            if idaapi.get_func(item).startEA != self._start_addr:
+                neighbors_list += list(idautils.CodeRefsFrom(item, 0))
 
         # Prompting the user for desired action
         prompt_string = (str(len(neighbors_list)) +
@@ -225,6 +226,8 @@ class ClientAction:
         # Request neighbor function
         if (answer):
             for func_addr in neighbors_list:
-                client = ClientAction(self._redb_item, self._arg, func_addr,
+                client = ClientAction(self._redb_item,
+                                      self._callback_functions,
+                                      self._arg, func_addr,
                                       self._plugin_configuration)
                 client._request_one()
