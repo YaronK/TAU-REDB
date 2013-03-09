@@ -50,20 +50,32 @@ class PluginConfig:
         parser = ConfigParser.SafeConfigParser()
         parser.add_section('REDB')
 
-        host = idc.AskStr(self.host,
-                          "REDB: Please enter the server's ip and port:")
-        if host is not None:
-            parser.set('REDB', 'host', host)
+        # host from user
+        host = None
+        while host is None:
+            try:
+                host = \
+                    idc.AskStr(self.host,
+                               "REDB: Please enter the server's ip and port:")
+            except:
+                pass
+        parser.set('REDB', 'host', host)
 
-        max_descriptions_returned = \
-                int(idc.AskStr(str(self.max_descriptions_returned),
-                               ("REDB: Please enter the maximum number " + \
-                                "of descriptions that you want to be " + \
-                                "returned from the server:")))
-        if max_descriptions_returned is not None:
-            parser.set('REDB', 'max_descriptions_returned',
-                       str(max_descriptions_returned))
+        # max descriptions returned
+        max_descriptions_returned = None
+        while max_descriptions_returned is None:
+            try:
+                max_descriptions_returned = \
+                    int(idc.AskStr(str(self.max_descriptions_returned),
+                                   ("REDB: Please enter the maximum number " +
+                                    "of descriptions that you want to be " +
+                                    "returned from the server:")))
+            except:
+                pass
+        parser.set('REDB', 'max_descriptions_returned',
+                   str(max_descriptions_returned))
 
+        # writing configurations to file
         parser.write(cfgfile)
         cfgfile.close()
 
@@ -445,7 +457,6 @@ def _create_callback_func_table():
     last_index = list_lines.index(';REDB CALLBACK_FUNCTIONS PARSER: EXIT\n')
     CALLBACK_FUNCTIONS = []
     list_lines = list_lines[first_index:last_index]
-    print list_lines
     for line in list_lines:
         split_line = line.split("\t")
         CALLBACK_FUNCTIONS.append((split_line[0], split_line[2],
