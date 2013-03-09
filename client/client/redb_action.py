@@ -46,7 +46,7 @@ CALLBACK_FUNCTIONS = [("Information", "Ctrl-Shift-I", "_information"),
 # Client Interface
 #==============================================================================
 class ClientAction:
-    def __init__(self, redb_item, arg, current_addr):
+    def __init__(self, redb_item, arg, current_addr, plugin_configuration):
         """
         Called before each callback function. Collects necessary data about
         the function the user is pointing at.
@@ -58,8 +58,10 @@ class ClientAction:
         self._string_addresses = redb_item._string_addresses
         self._imported_modules = redb_item._imported_modules
         self._cur_func = None
+        self._plugin_configuration = plugin_configuration
+
         # Establish if cursor is pointing at a function,
-        # and if so, is the function in the handled functions list.
+        # and if so, if the function is in the handled functions list.
         # updates self._cur_function.
         func = idaapi.get_func(current_addr)
         if not func is None:
@@ -103,26 +105,11 @@ class ClientAction:
             idaapi.hide_wait_box()
 
     def _request(self):
-        self._request_one()
-        self._request_neighbors()
-
-    def _request_one(self):
         """
         Request descriptions for a function.
         """
-        if self._is_pointing_at_a_function():
-            if (not self._is_handled()):
-                if (self._is_admissable()):
-                    self._add_function()
-                else:
-                    return
-            idaapi.show_wait_box("Requesting...")
-            try:
-                self._cur_func.request_descriptions()
-            except Exception as e:
-                print "REDB: Unexpected exception thrown while requesting:"
-                print e
-            idaapi.hide_wait_box()
+        self._request_one()
+        self._request_neighbors()
 
     def _next(self):
         """
@@ -176,8 +163,7 @@ class ClientAction:
         """
         Change configurations.
         """
-        parse_config = redb_client_utils.PluginConfig()
-        parse_config.change_config()
+        self._plugin_configuration.change_config()
 
 #-----------------------------------------------------------------------------
 # Client Interface Utilities
@@ -187,7 +173,7 @@ class ClientAction:
 
     def _is_admissable(self):
         """
-        # TODO:
+        Filters out irrelevant function.
         """
         flags = idc.GetFunctionFlags(self._start_addr)
         if (flags & (idc.FUNC_THUNK | idc.FUNC_LIB)):
@@ -211,7 +197,8 @@ class ClientAction:
         """
         self._cur_func = redb_function.REDBFunction(self._start_addr,
                                                     self._string_addresses,
-                                                    self._imported_modules)
+                                                    self._imported_modules,
+                                                    self._plugin_configuration)
         self._redb_functions[str(self._start_addr)] = self._cur_func
 
         redb_client_utils.Tag(self._start_addr).add_tag(user=True)
@@ -223,17 +210,33 @@ class ClientAction:
             print "REDB: Not pointing at a function."
             return False
 
+    def _request_one(self):
+        """
+        Request descriptions for a function.
+        """
+        if self._is_pointing_at_a_function():
+            if (not self._is_handled()):
+                if (self._is_admissable()):
+                    self._add_function()
+                else:
+                    return
+            idaapi.show_wait_box("Requesting...")
+            try:
+                self._cur_func.request_descriptions()
+            except Exception as e:
+                print "REDB: Unexpected exception thrown while requesting:"
+                print e
+            idaapi.hide_wait_box()
+
     def _request_neighbors(self):
         """
         Applying 'request' on immediate neighbors.
         """
-
         # CodeRefsTo current function
         neighbors_list = list(idautils.CodeRefsTo(self._start_addr, 0))
 
         # CodeRefsFrom current function
-        func_items = list(idautils.FuncItems(self._start_addr))
-        for item in func_items:
+        for item in self._cur_func._func_items:
             neighbors_list += list(idautils.CodeRefsFrom(item, 0))
 
         # Prompting the user for desired action
@@ -245,37 +248,6 @@ class ClientAction:
         # Request neighbor function
         if (answer):
             for func_addr in neighbors_list:
-                client = ClientAction(self._redb_item, self._arg, func_addr)
+                client = ClientAction(self._redb_item, self._arg, func_addr,
+                                      self._plugin_configuration)
                 client._request_one()
-
-"""
-def _submit_all_handled(self):
-        ""
-        Submit user description for all handled functions.
-        ""
-        num_of_funcs = str(len(self._redb_functions))
-        idaapi.show_wait_box("Submitting " + num_of_funcs + " function...")
-        try:
-            for function in self._redb_functions:
-                self._redb_functions[function].submit_description()
-        except Exception as e:
-            print "REDB: Unexpected exception thrown while submitting:"
-            print e
-        idaapi.hide_wait_box()
-
-    def _request_all_handled(self):
-        ""
-        Request descriptions for all handled functions.
-        ""
-        num_of_funcs = str(len(self._redb_functions))
-        idaapi.show_wait_box("Requesting Descriptions for " + num_of_funcs + \
-                             " function...")
-        try:
-            for function in self._redb_functions:
-                self._redb_functions[function].\
-                    request_descriptions()
-        except Exception as e:
-            print "REDB: Unexpected exception thrown while requesting:"
-            print e
-        idaapi.hide_wait_box()
-"""

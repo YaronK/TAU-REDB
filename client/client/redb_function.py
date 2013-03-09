@@ -12,18 +12,19 @@ import idautils
 import redb_client_com
 import redb_client_descriptions
 import redb_attributes
-import redb_client_utils
 
 
 class REDBFunction:
     """
     Represents a handled function.
     """
-    def __init__(self, first_addr, string_addresses, imported_modules):
+    def __init__(self, first_addr, string_addresses, imported_modules,
+                 plugin_configuration):
         self._first_addr = first_addr
         self._func_items = list(idautils.FuncItems(self._first_addr))
         self._imported_modules = imported_modules
         self._string_addresses = string_addresses
+        self._plugin_configuration = plugin_configuration
 
         self._public_descriptions = []
         self._public_desc_index = None
@@ -55,15 +56,17 @@ class REDBFunction:
         # Reset public descriptions
         self._public_descriptions = []
 
-        parse_config = redb_client_utils._parse_config_file()
-        max_descriptions_returned = parse_config.max_descriptions_returned
+        max_descriptions_returned = \
+            self._plugin_configuration.max_descriptions_returned
 
         request = redb_client_com.Request(self._primary_attributes,
                                           self._filtering_attributes,
                                           self._matching_grade_attributes,
                                           max_descriptions_returned)
 
-        response = redb_client_com.send_request(request.to_json())
+        host = self._plugin_configuration.host
+
+        response = redb_client_com.send_request(request.to_json(), host)
 
         if response != None:
             for suggested_description_dict in response.suggested_descriptions:
@@ -108,7 +111,10 @@ class REDBFunction:
                                             self._user_description.\
                                                 _func_name_and_cmts,
                                             )
-            redb_client_com.send_submit(submit.to_json())
+
+            host = self._plugin_configuration.host
+
+            redb_client_com.send_submit(submit.to_json(), host)
         else:
             print "REDB: Can't submit a public description."
 

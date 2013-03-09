@@ -9,6 +9,7 @@ import idc
 # local application/library specific imports
 import redb_action
 import redb_item
+import redb_client_utils
 
 
 #==============================================================================
@@ -26,6 +27,8 @@ class REDB (idaapi.plugin_t):
 
     def init(self):
         self._redb_item = redb_item.REDBItem()
+        self._plugin_configuration = redb_client_utils.PluginConfig()
+        self._plugin_configuration.get_current_from_ini_file()
         return idaapi.PLUGIN_KEEP
 
     def run(self, arg):
@@ -34,7 +37,8 @@ class REDB (idaapi.plugin_t):
         hotkeys.
         """
         action = redb_action.ClientAction(self._redb_item, arg,
-                                          idc.ScreenEA())
+                                          idc.ScreenEA(),
+                                          self._plugin_configuration)
         action.run()
 
     def term(self):

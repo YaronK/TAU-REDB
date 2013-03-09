@@ -13,10 +13,14 @@ import os
 
 # getting the db's path, relatively to the settings file.
 cur_file_path = os.path.realpath(__file__)
-db_dir  = os.path.dirname(os.path.dirname(cur_file_path))
+db_dir = os.path.dirname(os.path.dirname(cur_file_path))
 db_path = os.path.join(db_dir, "db", "redb.db")
 
-print db_path
+if not os.path.exists(db_dir):
+    print "Warning: db's directory does not exist."
+
+if not os.path.exists(db_path):
+    print "Warning: db does not exist."
 
 DATABASES = {
     'default': {

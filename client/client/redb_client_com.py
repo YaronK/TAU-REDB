@@ -71,16 +71,15 @@ def get_content_type(filename):
 #==============================================================================
 # Submit/Request Functions
 #==============================================================================
-def send_request(request):
+def send_request(request, host):
     """
     Given a jsoned Request instance, sends it. Returns a Response instance.
     """
     response = None
-    parse_config = redb_client_utils._parse_config_file()
 
     try:
         response = Response()
-        response.from_json(post_multipart(parse_config.host,
+        response.from_json(post_multipart(host,
                                          "/request/",
                                          [],
                                          [("pickled_request",
@@ -95,13 +94,11 @@ def send_request(request):
     return response
 
 
-def send_submit(submit):
+def send_submit(submit, host):
     """
     Given a jsoned Submit instance, sends it.
     """
-    parse_config = redb_client_utils._parse_config_file()
-
-    retval = post_multipart(parse_config.host,
+    retval = post_multipart(host,
                             "/submit/",
                             [],
                             [("pickled_submit",
