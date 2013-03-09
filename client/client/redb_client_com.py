@@ -3,7 +3,7 @@ Methods and utilities required for communicating with the server.
 """
 
 # related third party imports
-import simplejson as json
+import json
 from redb_client_utils import _decode_dict
 
 
@@ -13,7 +13,6 @@ from redb_client_utils import _decode_dict
 import httplib
 import mimetypes
 import mimetools
-import redb_client_utils
 
 
 def post_multipart(host, selector, fields, files):
@@ -86,7 +85,6 @@ def send_request(request, host):
                                            "pickled_request",
                                            request)]
                                          ))
-
     except:
         print "REDB: An error occurred while requesting descriptions!"
         response = None

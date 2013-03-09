@@ -15,44 +15,21 @@ import redb_function
 HANDLED_TAG = "[REDB-handled] "
 MIN_INS_PER_HANDLED_FUNCTION = 5
 
-# Should be exactly the same as CALLBACK_FUNCTIONS in install.py.
-CALLBACK_FUNCTIONS = [("Information", "Ctrl-Shift-I", "_information"),
-                      # interaction with the server
-                      ("Submit_Current", "Ctrl-Shift-S", "_submit_one"),
-                      ("Request_Current", "Ctrl-Shift-R", "_request"),
-                      ("Handle_Current", "Ctrl-Shift-H", "_handle_one"),
-                      # description browsing
-                      ("Next_Public_Description", "Ctrl-Shift-.", "_next"),
-                      ("Previous_Public_Description", "Ctrl-Shift-,",
-                       "_previous"),
-                      ("Restore_User's_Description", "Ctrl-Shift-U",
-                       "_restore_user"),
-                      ("Merge_Public_Into_User's", "Ctrl-Shift-M", "_merge"),
-                      # all-handled callbacks
-                      ("Submit_All_Handled", "Ctrl-Shift-Q",
-                       "_submit_all_handled"),
-                      ("Request_All_Handled", "Ctrl-Shift-W",
-                       "_request_all_handled"),
-                      # settings
-                      ("Settings", "Ctrl-Shift-O", "_settings"),
-                      # Debug - add these two tuples to CALLBACK_FUNCTIONS to
-                      # enable mass submitting and requesting.
-                      # ("Submit_All", "Ctrl-Shift-Z", "_submit_all"),
-                      # ("Request_All", "Ctrl-Shift-X", "_request_all"),
-                     ]
-
-
 #==============================================================================
 # Client Interface
 #==============================================================================
+
+
 class ClientAction:
-    def __init__(self, redb_item, arg, current_addr, plugin_configuration):
+    def __init__(self, redb_item, callback_functions, arg, current_addr,
+                 plugin_configuration):
         """
         Called before each callback function. Collects necessary data about
         the function the user is pointing at.
         """
         self._arg = arg
         self._redb_item = redb_item
+        self._callback_functions = callback_functions
         self._redb_functions = redb_item._redb_functions
         self._currently_pointing_at_a_function = False
         self._string_addresses = redb_item._string_addresses
@@ -72,12 +49,12 @@ class ClientAction:
                 self._cur_func = self._redb_functions[str(self._start_addr)]
 
     def run(self):
-        getattr(self, CALLBACK_FUNCTIONS[self._arg][2])()
+        getattr(self, self._callback_functions[self._arg][2])()
 
-    def _information(self):
+    def information(self):
         help_string = "\r\nREDB Commands:\r\n"
         help_string += "============\r\n"
-        for function in CALLBACK_FUNCTIONS:
+        for function in self._callback_functions:
             help_string += function[1]
             help_string += "\t"
             help_string += function[0]
@@ -85,7 +62,7 @@ class ClientAction:
 
         idaapi.info(help_string)
 
-    def _submit_one(self):
+    def submit_current(self):
         """
         Submits the user's description.
         """
@@ -104,14 +81,14 @@ class ClientAction:
                 print e
             idaapi.hide_wait_box()
 
-    def _request(self):
+    def request_current(self):
         """
         Request descriptions for a function.
         """
-        self._request_one()
-        self._request_neighbors()
+        if self._request_one() != -1:
+            self._request_neighbors()
 
-    def _next(self):
+    def next_public_description(self):
         """
         View next public description.
         """
@@ -123,7 +100,7 @@ class ClientAction:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
-    def _previous(self):
+    def previous_public_description(self):
         """
         View previous public description.
         """
@@ -135,7 +112,7 @@ class ClientAction:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
-    def _restore_user(self):
+    def restore_my_description(self):
         """
         Restore the user's description.
         """
@@ -147,7 +124,7 @@ class ClientAction:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
-    def _merge(self):
+    def merge_public_into_users(self):
         """
         Merge current public description into the user's description.
         """
@@ -159,7 +136,7 @@ class ClientAction:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
-    def _settings(self):
+    def settings(self):
         """
         Change configurations.
         """
@@ -219,7 +196,7 @@ class ClientAction:
                 if (self._is_admissable()):
                     self._add_function()
                 else:
-                    return
+                    return -1
             idaapi.show_wait_box("Requesting...")
             try:
                 self._cur_func.request_descriptions()

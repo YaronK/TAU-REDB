@@ -10,9 +10,9 @@ import gc
 # related third party imports
 import idautils
 import idc
+import idaapi
 
 # local application/library specific imports
-import idaapi
 import redb_client_utils
 
 # Constants

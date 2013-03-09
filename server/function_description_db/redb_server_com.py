@@ -3,7 +3,7 @@ Methods and utilities required for communicating with the client.
 """
 
 # standard library imports
-import simplejson as json
+import json
 
 # related third party imports
 from redb_server_utils import _decode_dict

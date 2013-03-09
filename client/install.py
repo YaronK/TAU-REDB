@@ -1,5 +1,5 @@
 """
-Plugin installation. 
+Plugin installation.
 
 In cmd, as Administrator, enter:
 "<python.exe full path> <client folder full path>\install.py"
@@ -16,26 +16,21 @@ import os
 import shutil
 import sys
 
-# Should be exactly the same as CALLBACK_FUNCTIONS in install.py.
-CALLBACK_FUNCTIONS = [("Information", "Ctrl-Shift-I", "_information"),
+CALLBACK_FUNCTIONS = [("Information", "Ctrl-Shift-I", "information"),
                       # interaction with the server
-                      ("Submit_Current", "Ctrl-Shift-S", "_submit_one"),
-                      ("Request_Current", "Ctrl-Shift-R", "_request_one"),
-                      ("Handle_Current", "Ctrl-Shift-H", "_handle_one"),
+                      ("Submit_Current", "Ctrl-Shift-S", "submit_current"),
+                      ("Request_Current", "Ctrl-Shift-R", "request_current"),
                       # description browsing
-                      ("Next_Public_Description", "Ctrl-Shift-.", "_next"),
+                      ("Next_Public_Description", "Ctrl-Shift-.",
+                       "next_public_description"),
                       ("Previous_Public_Description", "Ctrl-Shift-,",
-                       "_previous"),
-                      ("Restore_User's_Description", "Ctrl-Shift-U",
-                       "_restore_user"),
-                      ("Merge_Public_Into_User's", "Ctrl-Shift-M", "_merge"),
-                      # all-handled callbacks
-                      ("Submit_All_Handled", "Ctrl-Shift-Q",
-                       "_submit_all_handled"),
-                      ("Request_All_Handled", "Ctrl-Shift-W",
-                       "_request_all_handled"),
+                       "previous_public_description"),
+                      ("Restore_My_Description", "Ctrl-Shift-U",
+                       "restore_my_description"),
+                      ("Merge_Public_Into_Users", "Ctrl-Shift-M",
+                       "merge_public_into_users"),
                       # settings
-                      ("Settings", "Ctrl-Shift-O", "_settings"),
+                      ("Settings", "Ctrl-Shift-O", "settings"),
                       # Debug - add these two tuples to CALLBACK_FUNCTIONS to
                       # enable mass submitting and requesting.
                       # ("Submit_All", "Ctrl-Shift-Z", "_submit_all"),
@@ -51,21 +46,6 @@ def is_admin(path):
         return True
     except IOError:
         return False
-
-def copy_tree(src, dst):
-    if not os.path.exists(dst):
-        os.makedirs(dst)
-    for item in os.listdir(src):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.isdir(s):
-            copy_tree(s, d)
-        else:
-            try:
-                shutil.copy2(s, d)
-                print 'File ' + d + ' copied.'
-            except IOError:
-                print 'File "' + d + '" already exists'
 
 def main():
     ida_dir_path = raw_input("IDA Dir Path?")
@@ -87,30 +67,30 @@ def main():
                "give python.exe this script as an argument.")
         return "Fail"
 
-    install_file_dir_path = os.path.dirname(sys.argv[0])#os.getcwd()
-
-    simplejson_path = os.path.join(install_file_dir_path, "simplejson")
-    simplejson_dest = os.path.join(ida_dir_path, "lib", "simplejson")
-    copy_tree(simplejson_path, simplejson_dest)
-
+    install_file_dir_path = os.path.dirname(os.path.realpath(sys.argv[0]))  # os.getcwd()
+    print install_file_dir_path
+    # print (install_file_dir_path + '\n')
     plugin_path = os.path.join(install_file_dir_path, "Client", "redb_main.py")
 
     filehandle = open(ida_plugins_cfg_file_path, 'a')
-
+    line_to_be_added = '\n;REDB CALLBACK_FUNCTIONS PARSER: ENTER'
+    filehandle.write(line_to_be_added)
     for i in range(len(CALLBACK_FUNCTIONS)):
         function = CALLBACK_FUNCTIONS[i]
         line_to_be_added = ("\n" +
-                            function[0] + # callback name
+                            function[0] +  # callback name
                             "\t" +
                             plugin_path +
                             "\t" +
-                            function[1] + # Shortcut combo
+                            function[1] +  # Shortcut combo
                             "\t" +
                             str(i) +
                             "\tSILENT")
         filehandle.write(line_to_be_added)
 
     line_to_be_added = "\n"
+    filehandle.write(line_to_be_added)
+    line_to_be_added = ';REDB CALLBACK_FUNCTIONS PARSER: EXIT\n'
     filehandle.write(line_to_be_added)
     filehandle.close()
 

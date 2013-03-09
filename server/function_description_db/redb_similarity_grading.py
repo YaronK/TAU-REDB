@@ -3,7 +3,7 @@ Tools for Similarity Grading.
 """
 
 # related third party imports
-import simplejson as json
+import json
 
 # local application/library specific imports
 from redb_heuristics import StringEquality, IntegerEquality

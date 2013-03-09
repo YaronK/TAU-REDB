@@ -29,6 +29,8 @@ class REDB (idaapi.plugin_t):
         self._redb_item = redb_item.REDBItem()
         self._plugin_configuration = redb_client_utils.PluginConfig()
         self._plugin_configuration.get_current_from_ini_file()
+        self._callback_functions = \
+            redb_client_utils._create_callback_func_table()
         return idaapi.PLUGIN_KEEP
 
     def run(self, arg):
@@ -36,8 +38,9 @@ class REDB (idaapi.plugin_t):
         This function is called by IDA when the user uses one of the plugins'
         hotkeys.
         """
-        action = redb_action.ClientAction(self._redb_item, arg,
-                                          idc.ScreenEA(),
+        action = redb_action.ClientAction(self._redb_item,
+                                          self._callback_functions,
+                                          arg, idc.ScreenEA(),
                                           self._plugin_configuration)
         action.run()
 

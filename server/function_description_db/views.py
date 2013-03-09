@@ -3,7 +3,7 @@ This module contains the server's Request, Submit and Compare handlers.
 """
 
 # standard library imports
-import simplejson as json
+import json
 
 # related third party imports
 from django.views.decorators.csrf import csrf_exempt

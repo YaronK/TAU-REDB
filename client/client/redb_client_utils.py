@@ -434,3 +434,21 @@ def _backup_idb_file():
         print "REDB: A backup of the .idb file was created."
     except:
         print "REDB: Failed to backup the .idb file."
+
+
+def _create_callback_func_table():
+    ida_plugins_dir = idaapi.idadir("plugins")
+    ida_plugins_cfg_path = os.path.join(ida_plugins_dir, 'plugins.cfg')
+    list_lines = open(ida_plugins_cfg_path, 'r').readlines()
+    first_index = \
+        list_lines.index(';REDB CALLBACK_FUNCTIONS PARSER: ENTER\n') + 1
+    last_index = list_lines.index(';REDB CALLBACK_FUNCTIONS PARSER: EXIT\n')
+    CALLBACK_FUNCTIONS = []
+    list_lines = list_lines[first_index:last_index]
+    print list_lines
+    for line in list_lines:
+        split_line = line.split("\t")
+        CALLBACK_FUNCTIONS.append((split_line[0], split_line[2],
+                                   split_line[0].lower()))
+
+    return CALLBACK_FUNCTIONS
