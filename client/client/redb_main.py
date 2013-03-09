@@ -4,11 +4,11 @@ This module contains the main class inheriting from idaapi.plugin_t.
 
 # related third party imports
 import idaapi
+import idc
 
 # local application/library specific imports
 import redb_action
 import redb_item
-import idc
 
 
 #==============================================================================

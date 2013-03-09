@@ -4,6 +4,7 @@ Utilities for all the other modules.
 
 # standard library imports
 import os
+import shutil
 
 # standard library imports
 import ConfigParser
@@ -413,3 +414,23 @@ def instruction_data(func_item):
     for i in idaapi.get_many_bytes(func_item, func_item_size):
         cmd_data = (cmd_data << 8) + ord(i)
     return cmd_data
+
+
+#-----------------------------------------------------------------------------
+# Additional general Utilities
+#-----------------------------------------------------------------------------
+def _backup_idb_file():
+    """
+    Creating a backup of the .idb, just in case.
+    """
+    try:
+        idb_file_path = idc.GetIdbPath()
+        backup_file_path = idb_file_path + ".backup"
+
+        if os.path.exists(backup_file_path):
+            os.remove(backup_file_path)
+
+        shutil.copy2(idb_file_path, backup_file_path)
+        print "REDB: A backup of the .idb file was created."
+    except:
+        print "REDB: Failed to backup the .idb file."

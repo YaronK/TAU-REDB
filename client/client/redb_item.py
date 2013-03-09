@@ -28,14 +28,14 @@ class REDBItem:
         """
         Preparations which take place in the loading process.
         """
-        print idaapi
         idaapi.show_wait_box("REDB Plugin is loading, please wait...")
 
+        redb_client_utils._backup_idb_file()
         redb_client_utils._parse_config_file()
-        self._collect_string_addresses()
-        self._collect_imported_modules()
+        self._collect_string_addresses()  # initializes self._string_addresses
+        self._collect_imported_modules()  # initializes self._imported_modules
 
-        print "REDB Plugin loaded, press Ctrl-Shift-I for a list of commands"
+        print "REDB: Plugin loaded, press Ctrl-Shift-I for a list of commands."
 
         idaapi.hide_wait_box()
 
