@@ -527,6 +527,7 @@ class _GraphRep (Attribute):
     def __init__(self, init_args):  # @UnusedVariable
         self.nodes = []  # numbers list. identifying vertices. not used.
         self.edges = []  # 2-tuples of numbers. edges.
+        self.signature = []  # control flow graph signature
 
     def _collect_data(self, collect_args):
         self.func_flow_chart = \
@@ -538,6 +539,14 @@ class _GraphRep (Attribute):
         for basic_block in self.func_flow_chart:
             for basic_block_neighbour in basic_block.succs():
                 self.edges.append((basic_block.id, basic_block_neighbour.id))
+                # generate signature
+                self.signature.append((redb_client_utils.\
+                        instruction_data(basic_block.startEA),
+                        redb_client_utils.instruction_data
+                        (basic_block_neighbour.startEA)))
+
+        self.signature.sort()
+        self.signature = str(self.signature).strip('[]')
 
     def _extract(self):
         return self.edges
