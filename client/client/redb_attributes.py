@@ -110,7 +110,8 @@ class FuncAttributes:
         ATTRS_COLLECTED_ONCE and for each instruction in for attributes in
         ATTR_COLLECTED_ITER.
         """
-        collect_args = {"first_addr": self._first_addr}
+        collect_args = {"first_addr": self._first_addr,
+                        "func_items": self._func_items}
         # Attributes that don't need to iterate instructions.
         for one_attribute in ATTRS_COLLECTED_ONCE.keys():
             getattr(self, one_attribute)._collect_data(collect_args)
@@ -540,13 +541,22 @@ class _GraphRep (Attribute):
             for basic_block_neighbour in basic_block.succs():
                 self.edges.append((basic_block.id, basic_block_neighbour.id))
                 # generate signature
-                self.signature.append((redb_client_utils.\
-                        instruction_data(basic_block.startEA),
-                        redb_client_utils.instruction_data
-                        (basic_block_neighbour.startEA)))
-
+                self.signature.append((self._create_block_label(basic_block,
+                                                                collect_args),
+                self._create_block_label(basic_block_neighbour, collect_args)))
         self.signature.sort()
         self.signature = str(self.signature).strip('[]')
+        print("signature:")
+        print(self.signature)
 
     def _extract(self):
         return self.edges
+
+    def _create_block_label(self, block, collect_args):
+        func_items = collect_args["func_items"]
+        block_start_index = func_items.index(block.startEA)
+        if (func_items.count(block.endEA) == 0):
+            block_end_index = len(func_items)
+        else:
+            block_end_index = func_items.index(block.endEA)
+        return (block_end_index - block_start_index)
