@@ -25,7 +25,7 @@ def general_handler(http_post):
     if(action_type == 'request'):
         return request_handler(data['attributes'])
     elif(action_type == 'submit'):
-        return submit_handler(data['attributes'], data['description'])
+        return submit_handler(data['attributes'], data['description_data'])
 
 
 def check_validity(data):
@@ -40,8 +40,10 @@ def request_handler(attributes):
     print "REDB: request_handler called"
 
     request_action = redb_server_actions.RequestAction(attributes)
-    request_action.check_validity()
-    request_action.generate_temp_function()
+    if not request_action.check_validity():
+        return HttpResponse("ERROR")
+    if not request_action.generate_temp_function():
+        return HttpResponse("ERROR")
     request_action.filter_functions()
     descriptions = request_action.get_descriptions()
 
@@ -50,16 +52,21 @@ def request_handler(attributes):
     return http_response
 
 
-def submit_handler(attributes, description):
+def submit_handler(attributes, description_data):
     """
     Handles a Submitted descriptions.
     """
     print "REDB: submit_handler called"
-    submit_action = redb_server_actions.SubmitAction(attributes, description)
-    submit_action.check_validity()
-    submit_action.generate_temp_function()
-    submit_action.generate_description()
-    submit_action.insert_description()
+    submit_action = redb_server_actions.SubmitAction(attributes,
+                                                     description_data)
+    if not submit_action.check_validity():
+        return HttpResponse("ERROR")
+    if not submit_action.generate_temp_function():
+        return HttpResponse("ERROR")
+    if not submit_action.generate_temp_description():
+        return HttpResponse("ERROR")
+    if not submit_action.insert_description():
+        return HttpResponse("ERROR")
 
     print "DEBUG: submit_handler finished"
     return HttpResponse("Success")

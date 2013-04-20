@@ -1,5 +1,6 @@
 from models import (Function, Description, String, LibraryCall,
                     Executable, Instruction, User, Graph)
+import django.core.exceptions as exceptions
 
 
 class FunctionWrapper:
@@ -22,6 +23,7 @@ class FunctionWrapper:
 
         self.function = Function(self.first_addr,
                                  self.func_signature,
+                                 len(self.itypes),
                                  self.num_of_args,
                                  self.num_of_vars,
                                  self.self.executable_wrapper.executable)
@@ -46,7 +48,10 @@ class FunctionWrapper:
             self.instrucrion_wrappers.append(instruction_wrapper)
 
     def find_existing(self):
-        return Function.objects.filter(signature=self.func_signature)
+        try:
+            return Function.objects.get(signature=self.func_signature)
+        except exceptions.ObjectDoesNotExist:
+            return None
 
     def save(self):
         existing_executable = self.executable_wrapper.find_existing()
@@ -180,11 +185,12 @@ class UserWrapper:
 
 
 class DescriptionWrapper:
-    def __init__(self, function, data, user_name, password_hash):
-        self.function = function
-        self.data = data
-        self.user_wrapper = UserWrapper(user_name, password_hash)
-        self.description = Description(self.function, self.user_wrapper.user,
+    def __init__(self, function_wrapper, description_data):
+        self.function_wrapper = function_wrapper
+        self.data = description_data["data"]
+        self.user_wrapper = UserWrapper(description_data["user_name"],
+                                        description_data["password_hash"])
+        self.description = Description(self.function_wrapper.function,
                                        self.data)
 
     def save(self):
@@ -194,7 +200,14 @@ class DescriptionWrapper:
         else:
             self.user_wrapper.save()
 
+        existing_function = self.function_wrapper.find_existing()
+        if(existing_function != None):
+            self.description.function = existing_function
+        else:
+            self.function_wrapper.save()
+
         self.description.save()
 
     def find_existing(self):
-        return self.function.description_set.filter(data=self.data)
+        return self.function.description_set.\
+            filter(data=self.data, function=self.description.function)

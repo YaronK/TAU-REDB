@@ -37,6 +37,7 @@ class Executable(models.Model):
 class Function(models.Model):
     first_addr = models.PositiveIntegerField()
     signature = models.CharField(max_length=FUNC_DIGEST_SIZE_IN_BYTES)
+    num_of_insns = models.PositiveIntegerField()
     num_of_args = models.PositiveIntegerField()
     num_of_vars = models.PositiveIntegerField()
     executable = models.ManyToManyField(Executable)
