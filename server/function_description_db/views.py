@@ -11,12 +11,14 @@ from django.http import HttpResponse
 
 # local application/library specific imports
 import redb_server_actions
+from redb_server_utils import log_calls_decorator
 
 
 #==============================================================================
 # Handlers
 #==============================================================================
 @csrf_exempt
+@log_calls_decorator
 def general_handler(http_post):
     data = json.loads(http_post['action'])
     check_validity(data)

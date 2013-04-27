@@ -5,6 +5,8 @@ Utilities for all the other modules.
 # standard library imports
 import os
 import shutil
+import traceback
+import functools
 
 # standard library imports
 import ConfigParser
@@ -464,3 +466,27 @@ def _create_callback_func_table():
                                    split_line[0].lower()))
 
     return CALLBACK_FUNCTIONS
+
+
+#==============================================================================
+# Decorators
+#==============================================================================
+def log_calls_decorator(f):
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        call_string = ("%s called with *args: %r, **kwargs: %r " %
+                       (f.__name__, args, kwargs))
+        try:
+            retval = f(*args, **kwargs)
+            call_string += " --> " + repr(retval)
+            print call_string
+            return retval
+        except Exception, e:
+            # get traceback info to print out later
+            top = traceback.extract_stack()[-1]
+            call_string += " RAISED EXCEPTION: "
+            call_string += ", ".join([type(e).__name__,
+                                      os.path.basename(top[0]), str(top[1])])
+            print call_string
+            raise
+        return wrapped
