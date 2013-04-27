@@ -1,8 +1,11 @@
 import redb_model_wrappers
-from models import (Function, Description, String, LibraryCall,
-                    Executable, Instruction, User, Graph)
+from function_description_db.models import Function
 
 MAX_NUM_INSNS_DEVIATION = 0.15
+MAX_NUM_BLOCKS_DEVIATION = 0.15
+MAX_NUM_EDGES_DEVIATION = 0.15
+MAX_NUM_STRINGS_DEVIATION = 0.15
+MAX_NUM_LIBCALLS_DEVIATION = 0.15
 
 ATTRIBUTES = ["first_addr",
               "func_signature",
@@ -25,6 +28,7 @@ class SubmitAction:
         self.description_data = description_data
         self.temp_function_wrapper = None
         self.temp_description_wrapper = None
+        self.filter_functions_set = None
 
     def check_validity(self):
         if not all_attributes_exist(self.attributes):
@@ -77,12 +81,47 @@ class RequestAction:
 
     def filter_functions(self):
         function = self.temp_function_wrapper.function
-        insns_num = function.num_of_insns
         func_set = Function.objects.all()
+        print "num of functions before filtering:" + len(func_set)
 
-        func_set = func_set.filter(num_of_insns__range=  # @IgnorePep8
-                                   (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
-                                    insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
+        insns_num = function.instruction_set.count()
+        func_set =\
+            func_set.filter(insctruction_set__count__range=  # @IgnorePep8
+                            (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
+                             insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
+        print "after num_of_insns range filter:" + len(func_set)
+
+        num_of_blocks = function.graph.num_of_blocks
+        func_set = \
+            func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
+                            (num_of_blocks * (1 - MAX_NUM_BLOCKS_DEVIATION),
+                            num_of_blocks * (1 + MAX_NUM_BLOCKS_DEVIATION)))
+        print "after graph_num_of_blocks range filter:" + len(func_set)
+
+        num_of_edges = function.graph.num_of_edges
+        func_set = \
+            func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
+                            (num_of_edges * (1 - MAX_NUM_EDGES_DEVIATION),
+                            num_of_edges * (1 + MAX_NUM_EDGES_DEVIATION)))
+        print "after graph_num_of_edges range filter:" + len(func_set)
+
+        num_of_strings = function.string_set.count()
+        func_set = \
+            func_set.filter(string_set__count__range=  # @IgnorePep8
+                            (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
+                            num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
+        print "after graph_num_of_strings range filter:" + len(func_set)
+
+        num_of_libcalls = function.librarycall_set.count()
+        func_set = \
+            func_set.filter(librarycall_set__count__range=  # @IgnorePep8
+                            (num_of_libcalls *
+                            (1 - MAX_NUM_LIBCALLS_DEVIATION),
+                            num_of_libcalls *
+                            (1 + MAX_NUM_LIBCALLS_DEVIATION)))
+        print "after graph_num_of_library_calls range filter:" + len(func_set)
+
+        self.filter_functions_set = func_set
 
     def get_descriptions(self):
         pass

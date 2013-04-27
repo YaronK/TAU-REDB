@@ -13,6 +13,8 @@ import redb_client_com
 import redb_client_descriptions
 import redb_attributes
 
+import json
+
 
 class REDBFunction:
     """
@@ -33,20 +35,20 @@ class REDBFunction:
         self._user_description = \
             redb_client_descriptions.LocalDescription(self._first_addr)
         self._user_description.load_users()
-
         self._current_description = self._user_description
 
         # Get function attributes
-        func_attr = redb_attributes.FuncAttributes(self._first_addr,
-                                                   self._func_items,
-                                                   self._string_addresses,
-                                                   self._imported_modules)
+        self._attributes = \
+            redb_attributes.FuncAttributes(self._first_addr,
+                                           self._func_items,
+                                           self._string_addresses,
+                                           self._imported_modules)
 
-        self._primary_attributes = func_attr.get_primary_attrs()
-        self._filtering_attributes = func_attr.get_filter_attrs()
-        self._matching_grade_attributes = func_attr.get_mg_attrs()
-
-        del func_attr
+        self._description_data = {}
+        self._description_data["user_name"] =\
+            self._plugin_configuration.username
+        self._description_data["password_hash"] =\
+            self._plugin_configuration.pass_hash
         gc.collect()
 
     def request_descriptions(self):
@@ -56,17 +58,11 @@ class REDBFunction:
         # Reset public descriptions
         self._public_descriptions = []
 
-        max_descriptions_returned = \
-            self._plugin_configuration.max_descriptions_returned
-
-        request = redb_client_com.Request(self._primary_attributes,
-                                          self._filtering_attributes,
-                                          self._matching_grade_attributes,
-                                          max_descriptions_returned)
-
         host = self._plugin_configuration.host
+        dumped_request_data = json.dumps({"type": "request",
+                              "attributes": self._attributes})
 
-        response = redb_client_com.send_request(request.to_json(), host)
+        response = redb_client_com.send_request(dumped_request_data, host)
 
         if response != None:
             for suggested_description_dict in response.suggested_descriptions:
@@ -105,16 +101,16 @@ class REDBFunction:
         """
         if self._is_cur_user_desc():
             self._set_current_description(self._user_description)
-            submit = redb_client_com.Submit(self._primary_attributes,
-                                            self._filtering_attributes,
-                                            self._matching_grade_attributes,
-                                            self._user_description.\
-                                                _func_name_and_cmts,
-                                            )
 
+            self._description_data["data"] = \
+            self._user_description._func_name_and_cmts
+
+            dumped_submit_data = json.dumps({"type": "submit",
+                                 "attributes": self._attributes,
+                                 "description_data": self._description_data})
             host = self._plugin_configuration.host
 
-            redb_client_com.send_submit(submit.to_json(), host)
+            redb_client_com.send_submit(dumped_submit_data, host)
         else:
             print "REDB: Can't submit a public description."
 

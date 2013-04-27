@@ -35,49 +35,50 @@ class PluginConfig:
         parser.read(self._path)
 
         self.host = parser.get('REDB', 'host')
-        self.max_descriptions_returned = \
-            int(parser.get('REDB', 'max_descriptions_returned'))
+        self.username = parser.get('REDB', 'username')
+        self.pass_hash = parser.get('REDB', 'pass_hash')
 
     def change_config(self):
         try:
             self.get_current_from_ini_file()
         except:
             self.host = "<ip>:<port>"
-            self.max_descriptions_returned = ">0"
+            self.username = "Username"
+            self.pass_hash = "Password"
 
         os.remove(self._path)
         cfgfile = open(self._path, 'w')
         parser = ConfigParser.SafeConfigParser()
         parser.add_section('REDB')
 
-        # host from user
-        host = None
-        while host is None:
-            try:
-                host = \
-                    idc.AskStr(self.host,
-                               "REDB: Please enter the server's ip and port:")
-            except:
-                pass
+        host =\
+            _getUserConfigInput(self.host,
+                                "REDB: Please enter the server's ip and port:")
         parser.set('REDB', 'host', host)
 
-        # max descriptions returned
-        max_descriptions_returned = None
-        while max_descriptions_returned is None:
-            try:
-                max_descriptions_returned = \
-                    int(idc.AskStr(str(self.max_descriptions_returned),
-                                   ("REDB: Please enter the maximum number " +
-                                    "of descriptions that you want to be " +
-                                    "returned from the server:")))
-            except:
-                pass
-        parser.set('REDB', 'max_descriptions_returned',
-                   str(max_descriptions_returned))
+        username =\
+            _getUserConfigInput(self.username,
+                                "REDB: Enter your username:")
+        parser.set('REDB', 'username', username)
+
+        pass_hash =\
+            _getUserConfigInput(self.pass_hash,
+                                "REDB: Enter your password:")
+        parser.set('REDB', 'pass_hash', pass_hash)
 
         # writing configurations to file
         parser.write(cfgfile)
         cfgfile.close()
+
+
+def _getUserConfigInput(defval, prompt):
+    configInput = None
+    while configInput is None:
+        try:
+            configInput = idc.AskStr(defval, prompt)
+        except:
+            pass
+    return configInput
 
 
 def _parse_config_file():

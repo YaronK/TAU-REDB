@@ -79,10 +79,10 @@ def send_request(request, host):
     try:
         response = Response()
         response.from_json(post_multipart(host,
-                                         "/request/",
+                                         "/redb/",
                                          [],
-                                         [("pickled_request",
-                                           "pickled_request",
+                                         [("action",
+                                           "action",
                                            request)]
                                          ))
     except:
@@ -97,10 +97,10 @@ def send_submit(submit, host):
     Given a jsoned Submit instance, sends it.
     """
     retval = post_multipart(host,
-                            "/submit/",
+                            "/redb/",
                             [],
-                            [("pickled_submit",
-                              "pickled_submit",
+                            [("action",
+                              "action",
                               submit)]
                             )
     # handle response

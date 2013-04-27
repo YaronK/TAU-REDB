@@ -69,7 +69,9 @@ class ClientAction:
         if self._is_pointing_at_a_function():
             if (not self._is_handled()):
                 if (self._is_admissable()):
+                    print "->add_function"
                     self._add_function()
+                    print "add_function->"
                 else:
                     return
 
@@ -172,12 +174,13 @@ class ClientAction:
         """
         Adds a function to handled functions dictionary.
         """
+        print "->REDBFunction"
         self._cur_func = redb_function.REDBFunction(self._start_addr,
                                                     self._string_addresses,
                                                     self._imported_modules,
                                                     self._plugin_configuration)
+        print "REDBFunction->"
         self._redb_functions[str(self._start_addr)] = self._cur_func
-
         redb_client_utils.Tag(self._start_addr).add_tag(user=True)
 
     def _is_pointing_at_a_function(self):

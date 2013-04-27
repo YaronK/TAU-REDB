@@ -13,8 +13,30 @@ MAX_USER_NAME_LENGTH = 25
 MAX_VAR_NAME_LENGTH = 25
 
 
+class Function(models.Model):
+    first_addr = models.PositiveIntegerField()
+    signature = models.CharField(max_length=FUNC_DIGEST_SIZE_IN_BYTES)
+    args_size = models.PositiveIntegerField()
+    vars_size = models.PositiveIntegerField()
+    frame_size = models.PositiveIntegerField()
+
+    def __unicode__(self):
+        return str(self.id)
+
+
+class Instruction(models.Model):
+    itype = models.PositiveSmallIntegerField()
+    offset = models.PositiveIntegerField()
+    function = models.ForeignKey(Function)
+
+    def __unicode__(self):
+        return str(self.id)
+
+
 class String(models.Model):
     value = models.TextField()
+    function = models.ForeignKey(Function)
+    instruction = models.OneToOneField(Instruction)
 
     def __unicode__(self):
         return str(self.id)
@@ -22,6 +44,17 @@ class String(models.Model):
 
 class LibraryCall(models.Model):
     name = models.CharField(max_length=MAX_LIB_CALL_NAME_LENGTH)
+    function = models.ForeignKey(Function)
+    instruction = models.OneToOneField(Instruction)
+
+    def __unicode__(self):
+        return str(self.id)
+
+
+class Immediate(models.Model):
+    value = models.IntegerField()
+    function = models.ForeignKey(Function)
+    instruction = models.OneToOneField(Instruction)
 
     def __unicode__(self):
         return str(self.id)
@@ -29,18 +62,7 @@ class LibraryCall(models.Model):
 
 class Executable(models.Model):
     signature = models.CharField(max_length=EXE_DIGEST_SIZE_IN_BYTES)
-
-    def __unicode__(self):
-        return str(self.id)
-
-
-class Function(models.Model):
-    first_addr = models.PositiveIntegerField()
-    signature = models.CharField(max_length=FUNC_DIGEST_SIZE_IN_BYTES)
-    num_of_insns = models.PositiveIntegerField()
-    num_of_args = models.PositiveIntegerField()
-    num_of_vars = models.PositiveIntegerField()
-    executable = models.ManyToManyField(Executable)
+    function = models.ManyToManyField(Function)
 
     def __unicode__(self):
         return str(self.id)
@@ -52,17 +74,6 @@ class Graph(models.Model):
     num_of_blocks = models.PositiveIntegerField()
     num_of_edges = models.PositiveIntegerField()
     function = models.OneToOneField(Function)
-
-    def __unicode__(self):
-        return str(self.id)
-
-
-class Instruction(models.Model):
-    itype = models.PositiveSmallIntegerField()
-    offset = models.PositiveIntegerField()
-    function = models.ForeignKey(Function)
-    string = models.ForeignKey(String, blank=True, null=True)
-    library_call = models.ForeignKey(LibraryCall, blank=True, null=True)
 
     def __unicode__(self):
         return str(self.id)

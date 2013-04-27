@@ -1,4 +1,4 @@
-from models import (Function, Description, String, LibraryCall,
+from models import (Function, Description, String, LibraryCall, Immediate,
                     Executable, Instruction, User, Graph)
 import django.core.exceptions as exceptions
 
@@ -7,45 +7,64 @@ class FunctionWrapper:
     def __init__(self, attributes):
         self.first_addr = attributes["first_addr"]
         self.func_signature = attributes["func_signature"]
-        self.num_of_args = attributes["num_of_args"]
+        self.frame_attributes = attributes["frame_attributes"]
         self.num_of_vars = attributes["num_of_vars"]
         self.itypes = attributes["itypes"]
         self.strings = attributes["strings"]
         self.library_calls = attributes["library_calls"]
+        self.immediates = attributes["immediates"]
         self.exe_signature = attributes["exe_signature"]
         self.graph = attributes["graph"]
+
+        self.num_of_args = self.frame_attributes["FrameArgsSize"]
+        self.num_of_vars = self.frame_attributes["FrameLvarSize"]
+        self.frame_size = self.frame_attributes["FrameSize"]
 
         self.init_all()
 
     def init_all(self):
-        self.executable_wrapper = ExecutableWrapper(self.exe_signature)
-        self.instrucrion_wrappers = []
-
         self.function = Function(self.first_addr,
                                  self.func_signature,
-                                 len(self.itypes),
                                  self.num_of_args,
                                  self.num_of_vars,
-                                 self.self.executable_wrapper.executable)
+                                 self.frame_size)
 
+        self.executable_wrapper = ExecutableWrapper(self.exe_signature,
+                                                    self.function)
         self.graph_wrapper = GraphWrapper(self.graph, self.function)
 
+        self.instrucrion_wrappers = []
+        self.string_wrappers = []
+        self.lib_call_wrappers = []
+        self.immediate_wrappers = []
+
         for offset in range(len(self.itypes)):
-            string = None
-            library_call = None
-
-            if offset in self.strings:
-                string = self.strings[offset]
-            if offset in self.library_calls:
-                library_call = self.library_calls[offset]
-
             instruction_wrapper = \
                 InstructionWrapper(self.itypes[offset],
                                    offset,
-                                   self.function,
-                                   string_value=string,
-                                   library_call_name=library_call)
+                                   self.function)
             self.instrucrion_wrappers.append(instruction_wrapper)
+
+            if offset in self.strings:
+                string_wrapper =\
+                    StringWrapper(self.strings[offset],
+                                  self.function,
+                                  instruction_wrapper.instruction)
+                self.string_wrappers.append(string_wrapper)
+
+            if offset in self.library_calls:
+                lib_call_wrapper =\
+                    LibraryCallWrapper(self.library_calls[offset],
+                                       self.function,
+                                       instruction_wrapper.instruction)
+                self.lib_call_wrappers.append(lib_call_wrapper)
+
+            if offset in self.immediates:
+                immediate_wrapper =\
+                    ImmediateWrapper(self.immediates[offset],
+                                     self.function,
+                                     instruction_wrapper.instruction)
+                self.lib_call_wrappers.append(immediate_wrapper)
 
     def find_existing(self):
         try:
@@ -54,51 +73,76 @@ class FunctionWrapper:
             return None
 
     def save(self):
+        self.function.save()
+
         existing_executable = self.executable_wrapper.find_existing()
         if(len(existing_executable) == 1):
             self.function.executable = existing_executable[0]
         else:
             self.executable_wrapper.save()
 
-        self.function.save()
-
         self.graph_wrapper.save()
 
         for instruction_wrapper in self.instrucrion_wrappers:
             instruction_wrapper.save()
 
+        for string_wrapper in self.string_wrappers:
+            string_wrapper.save()
+
+        for lib_call_wrapper in self.lib_call_wrappers:
+            lib_call_wrapper.save()
+
+        for immediate_wrapper in self.immediate_wrappers:
+            immediate_wrapper.save()
+
 
 class StringWrapper:
-    def __init__(self, value):
+    def __init__(self, value, function, instruction):
         self.value = value
-        self.string = String(self.value)
+        self.function = function
+        self.instruction = instruction
+        self.string = String(self.value,
+                             self.function,
+                             self.instruction)
 
     def save(self):
         self.string.save()
 
-    def find_existing(self):
-        return String.objects.filter(value=self.value)
-
 
 class LibraryCallWrapper:
-    def __init__(self, name):
+    def __init__(self, name, function, instruction):
         self.name = name
-        self.library_call = LibraryCall(self.name)
+        self.function = function
+        self.instruction = instruction
+        self.library_call = LibraryCall(self.name,
+                                        self.function,
+                                        self.instruction)
 
     def save(self):
         self.library_call.save()
 
-    def find_existing(self):
-        return LibraryCall.objects.filter(name=self.name)
+
+class ImmediateWrapper:
+    def __init__(self, value, function, instruction):
+        self.value = value
+        self.function = function
+        self.instruction = instruction
+        self.immediate = Immediate(self.value,
+                                   self.function,
+                                   self.instruction)
+
+    def save(self):
+        self.immediate.save()
 
 
 class GraphWrapper:
-    def __init__(self, graph, function):
+    def __init__(self, graph, function, itypes):
         self.edges = graph[1]
-        self.blocks = graph[0]
-        self.num_of_blocks = len(self.blocks)
+        self.block_bounds = graph[0]
+        self.num_of_blocks = len(self.block_bounds)
         self.num_of_edges = len(self.edges)
         self.function = function
+        self.itypes = itypes
 
         self.generate_blocks_data()
 
@@ -109,17 +153,26 @@ class GraphWrapper:
                            self.function)
 
     def generate_blocks_data(self):
-        # TODO
-        pass
+        self.blocks_data = ""
+        for (startEA, endEA) in self.block_bounds:
+            data = ""
+            temp_itypes = self.itypes[startEA: endEA + 1]
+            for temp_itype in temp_itypes:
+                data += (temp_itype % 256)
+                if(temp_itype > 255):
+                    data += (temp_itype / 256)
+            self.blocks_data += data
 
     def save(self):
         self.graph.save()
 
 
 class ExecutableWrapper:
-    def __init__(self, signature):
+    def __init__(self, signature, function):
         self.signature = signature
-        self.executable = Executable(self.signature)
+        self.function = function
+        self.executable = Executable(self.signature,
+                                     self.function)
 
     def save(self):
         self.executable.save()
@@ -129,44 +182,16 @@ class ExecutableWrapper:
 
 
 class InstructionWrapper:
-    def __init__(self, itype, offset, function, string_value=None,
-                 library_call_name=None):
+    def __init__(self, itype, offset, function):
         self.itype = itype
         self.offset = offset
         self.function = function
 
-        self.string_wrapper = None
-        self.library_call_wrapper = None
-
-        string_model = None
-        library_call_model = None
-
-        if string_value != None:
-            self.string_wrapper = StringWrapper(string_value)
-            string_model = self.string_wrapper.string
-        elif library_call_name != None:
-            self.library_call_wrapper = LibraryCallWrapper(library_call_name)
-            library_call_model = self.library_call_wrapper.library_call
-
         self.instruction = Instruction(self.itype,
                                        self.offset,
-                                       self.function,
-                                       string_model,
-                                       library_call_model)
+                                       self.function)
 
     def save(self):
-        if (self.string_wrapper != None):
-            existing_string = self.string_wrapper.find_existing()
-            if(len(existing_string) == 1):
-                self.instruction.string = existing_string[0]
-            else:
-                self.string_wrapper.save()
-        if (self.library_call_wrapper != None):
-            existing_library_call = self.library_call_wrapper.find_existing()
-            if(len(existing_library_call) == 1):
-                self.instruction.library_call = existing_library_call[0]
-            else:
-                self.library_call_wrapper.save()
         self.instruction.save()
 
 
