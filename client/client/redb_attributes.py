@@ -14,10 +14,10 @@ import idaapi
 
 # local application/library specific imports
 import redb_client_utils
+log_calls_decorator = redb_client_utils.log_calls_decorator
 
 # Constants
-ATTRS_COLLECTED_ONCE = {"first_addr": "_FirstAddr",
-                        "exe_signature": "_ExeMd5",
+ATTRS_COLLECTED_ONCE = {"exe_signature": "_ExeMd5",
                         "graph": "_GraphRep",
                         "frame_attributes": "_FrameAttrs"}
 
@@ -27,13 +27,12 @@ ATTR_COLLECTED_ITER = {"func_signature": "_FuncMd5",
                        "library_calls": "_LibCallsList",
                        "immediates": "_ImmList"}
 
-ATTRIBUTES = ["first_addr",
-              "func_signature",
+ATTRIBUTES = ["func_signature",
               "frame_attributes",
               "itypes",
               "strings",
-              "library_calls",
               "immediates",
+              "library_calls",
               "exe_signature",
               "graph"]
 
@@ -54,6 +53,7 @@ class FuncAttributes:
     string_addresses -- addresses of executables' strings
     imported_modules - list of imported modules
     """
+    @log_calls_decorator
     def __init__(self, first_addr, func_items, string_addresses,
                  imported_modules):
 
@@ -74,6 +74,7 @@ class FuncAttributes:
 
         gc.collect()
 
+    @log_calls_decorator
     def _initialize_attributes(self):
         """
         Initializes attribute classes for attributes in ATTRS_COLLECTED_ONCE
@@ -93,6 +94,7 @@ class FuncAttributes:
             one_class = globals()[one_class_name]
             setattr(self, one_attribute, one_class(init_args))
 
+    @log_calls_decorator
     def _collect_all(self):
         """
         Calls the attributes' Collect functions, once for attributes in
@@ -102,13 +104,12 @@ class FuncAttributes:
         collect_args = {"_first_addr": self._first_addr,
                         "_func_items": self._func_items}
         # Attributes that don't need to iterate instructions.
-        for one_attribute in ATTRS_COLLECTED_ONCE.keys():
+        for one_attribute in ATTRS_COLLECTED_ONCE:
             getattr(self, one_attribute)._collect_data(collect_args)
 
         # Attributes which need to iterate instructions. Iterate over
         # instructions, while each attribute extracts data from it.
         for i in range(len(self._func_items)):
-
             func_item = self._func_items[i]
             ins = idautils.DecodeInstruction(func_item)
             ins_type = ins.itype
@@ -118,9 +119,10 @@ class FuncAttributes:
             collect_args["_ins_type"] = ins_type
             collect_args["_ins_operands"] = ins_operands
 
-            for one_attribute in ATTR_COLLECTED_ITER.keys():
+            for one_attribute in ATTR_COLLECTED_ITER:
                 getattr(self, one_attribute)._collect_data(collect_args)
 
+    @log_calls_decorator
     def _extract_all(self):
         """
         Calls the attributes' Extract functions, keeps the results.
@@ -133,6 +135,7 @@ class FuncAttributes:
             self._results[one_attribute] = getattr(self,
                                                    one_attribute)._extract()
 
+    @log_calls_decorator
     def _del_all_attr(self):
         """
         After saving the results, delete attribute classes.
@@ -145,9 +148,11 @@ class FuncAttributes:
             attr = getattr(self, one_attribute)
             del attr
 
+    @log_calls_decorator
     def get_attributes(self):
         attr_dict = {}
         for attr_name in ATTRIBUTES:
+            print attr_name
             attr_dict[attr_name] = self._results[attr_name]
         return attr_dict
 
@@ -175,22 +180,6 @@ class Attribute:
 #==============================================================================
 # General attributes
 #==============================================================================
-class _FirstAddr(Attribute):
-    """
-    The function's first address.
-    """
-    def __init__(self, init_args):
-        Attribute.__init__(self, init_args)
-        self._addr = None
-
-    def _collect_data(self, collect_args):
-        Attribute._collect_data(self, collect_args)
-        self._addr = self._first_addr
-
-    def _extract(self):
-        return self._addr
-
-
 class _ExeMd5(Attribute):
     """
     The executable's md5 signature.
@@ -220,10 +209,10 @@ class _FrameAttrs(Attribute):
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
         first_addr = self._first_addr
-        self._frame_attrs["FrameLvarSize"] = idc.GetFrameLvarSize(first_addr)
-        self._frame_attrs["FrameRegsSize"] = idc.GetFrameRegsSize(first_addr)
-        self._frame_attrs["FrameArgsSize"] = idc.GetFrameArgsSize(first_addr)
-        self._frame_attrs["FrameSize"] = idc.GetFrameSize(first_addr)
+        self._frame_attrs["vars_size"] = idc.GetFrameLvarSize(first_addr)
+        self._frame_attrs["regs_size"] = idc.GetFrameRegsSize(first_addr)
+        self._frame_attrs["args_size"] = idc.GetFrameArgsSize(first_addr)
+        self._frame_attrs["frame_size"] = idc.GetFrameSize(first_addr)
 
     def _extract(self):
         return self._frame_attrs
@@ -232,23 +221,6 @@ class _FrameAttrs(Attribute):
 #==============================================================================
 # Instruction-related attributes
 #==============================================================================
-class _InsNum(Attribute):
-    """
-    The number of instructions in the function.
-    """
-    def __init__(self, init_args):
-        Attribute.__init__(self, init_args)
-        self._ins_num = None
-
-    def _collect_data(self, collect_args):
-        Attribute._collect_data(self, collect_args)
-        self._ins_num = len(self._func_items)
-
-    def _extract(self):
-        del self._func_items
-        return self._ins_num
-
-
 class _FuncMd5(Attribute):
     """
     The whole function's MD5 hash.
@@ -266,7 +238,6 @@ class _FuncMd5(Attribute):
 
     def _extract(self):
         self._hash_string = str(self._to_be_hashed.hexdigest())
-        del self._to_be_hashed
         return self._hash_string
 
 
@@ -295,20 +266,21 @@ class _StrList(Attribute):
     """
     def __init__(self, init_args):
         Attribute.__init__(self, init_args)
-        self._list_of_strings = []
+        self._dict_of_strings = {}
 
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
+
         for data_ref in list(idautils.DataRefsFrom(self._func_item)):
             if data_ref in self._string_addresses:
                 str_type = idc.GetStringType(data_ref)
                 if idc.GetStringType(data_ref) is not None:
                     string = idc.GetString(data_ref, -1, str_type)
-                self._list_of_strings.append(string)
+                    index = self._func_items.index(self._func_item)
+                    self._dict_of_strings[index] = string
 
     def _extract(self):
-        del self._string_addresses
-        return self._list_of_strings
+        return self._dict_of_strings
 
 
 #==============================================================================
@@ -320,7 +292,7 @@ class _LibCallsList(Attribute):
     """
     def __init__(self, init_args):
         Attribute.__init__(self, init_args)
-        self._lib_calls_list = []
+        self._lib_calls_dict = {}
 
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
@@ -353,11 +325,11 @@ class _LibCallsList(Attribute):
                 called_function_name = idc.NameEx(func_item, code_ref)
 
                 # include in attribute
-                self._lib_calls_list.append(called_function_name)
+                index = self._func_items.index(self._func_item)
+                self._lib_calls_dict[index] = called_function_name
 
     def _extract(self):
-        del self._imported_modules
-        return self._lib_calls_list
+        return self._lib_calls_dict
 
 
 #==============================================================================
@@ -369,7 +341,7 @@ class _ImmList (Attribute):
     """
     def __init__(self, init_args):
         Attribute.__init__(self, init_args)
-        self._list_of_pairs = []
+        self._immediates_dict = {}
 
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
@@ -378,10 +350,11 @@ class _ImmList (Attribute):
                 (one_op[1] not in list(idautils.\
                     CodeRefsFrom(self._func_item, True)))):
                 op = one_op[1]
-                self._list_of_pairs.append(op)
+                index = self._func_items.index(self._func_item)
+                self._immediates_dict[index] = op
 
     def _extract(self):
-        return self._list_of_pairs
+        return self._immediates_dict
 
 
 #==============================================================================
@@ -393,25 +366,29 @@ class _GraphRep (Attribute):
     """
     def __init__(self, init_args):
         Attribute.__init__(self, init_args)
-        self.block_bounds = None
+
+        self.block_bounds = []
         self.edges = []  # 2-tuples of numbers. edges.
         self.signature = []  # control flow graph signature
 
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
+
         self.func_flow_chart = \
-            idaapi.FlowChart(f=idaapi.get_func(collect_args["_first_addr"]))
-        self.block_bounds = [None] * self.func_flow_chart.size
+            idaapi.FlowChart(f=idaapi.get_func(self._first_addr))
+
         for basic_block in self.func_flow_chart:
             start_index = self._func_items.index(basic_block.startEA)
+
             if basic_block.endEA in self._func_items:
-                end_index = self._func_items.index(basic_block.startEA) - 1
-            else:   # last block
+                end_index = self._func_items.index(basic_block.endEA) - 1
+            else:  # last block
                 end_index = len(self._func_items) - 1
-            self.block_bounds[basic_block.id] = (start_index, end_index)
+            self.block_bounds.append((start_index, end_index))
 
             for basic_block_neighbour in basic_block.succs():
                 self.edges.append((basic_block.id, basic_block_neighbour.id))
 
     def _extract(self):
-        return (self.block_bounds, self.edges)
+        return {"block_bounds": self.block_bounds,
+                "edges": self.edges}

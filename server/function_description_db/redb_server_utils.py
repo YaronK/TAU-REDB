@@ -41,6 +41,19 @@ def _decode_dict(data):
 #==============================================================================
 # Control-Flow Graph-related utilities
 #==============================================================================
+def generate_blocks_data(block_bounds, itypes):
+    blocks_data = []
+    for (start_index, end_index) in block_bounds:
+        data = ""
+        temp_itypes = itypes[start_index: end_index + 1]
+        for itype in temp_itypes:
+            data += chr(itype % 256)
+            if(itype > 255):
+                data += chr(itype / 256)
+        blocks_data.append(data)
+    return blocks_data
+
+
 def _collapse(directed_graph):
     """
     Collapse the graph, used for compressing relatively big graphs.
@@ -144,7 +157,7 @@ def _generate_graph_list(Graph, s):
     """
     Generates the graph list from a given graph.
     """
-    #Graph = nx.DiGraph()
+    # Graph = nx.DiGraph()
     # 1.10 bug fix, remove any other root node can be...
     bfsy = nx.bfs_tree(Graph, s).nodes()
     if s not in bfsy:
@@ -159,7 +172,7 @@ def _generate_graph_list(Graph, s):
     s = l[0]
     t = l[-1]
 
-    #clear
+    # clear
     # assuming node 0 is the function root node.
     bfsy = nx.bfs_tree(G, s).nodes()
     if s not in bfsy:
@@ -278,19 +291,15 @@ def get_graph_compressed(graph_data):
 def log_calls_decorator(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        call_string = ("%s called with *args: %r, **kwargs: %r " %
-                       (f.__name__, args, kwargs))
+        print "->" + str(f.__name__)
         try:
             retval = f(*args, **kwargs)
-            call_string += " --> " + repr(retval)
-            print call_string
+            print str(f.__name__) + "->"
             return retval
         except Exception, e:
             # get traceback info to print out later
-            top = traceback.extract_stack()[-1]
-            call_string += " RAISED EXCEPTION: "
-            call_string += ", ".join([type(e).__name__,
-                                      os.path.basename(top[0]), str(top[1])])
-            print call_string
+            print type(e).__name__
+            for frame in traceback.extract_stack():
+                print os.path.basename(frame[0]), str(frame[1])
             raise
-        return wrapped
+    return wrapped

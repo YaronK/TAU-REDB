@@ -53,17 +53,17 @@ class PluginConfig:
         parser = ConfigParser.SafeConfigParser()
         parser.add_section('REDB')
 
-        host =\
+        host = \
             _getUserConfigInput(self.host,
                                 "REDB: Please enter the server's ip and port:")
         parser.set('REDB', 'host', host)
 
-        username =\
+        username = \
             _getUserConfigInput(self.username,
                                 "REDB: Enter your username:")
         parser.set('REDB', 'username', username)
 
-        pass_hash =\
+        pass_hash = \
             _getUserConfigInput(self.pass_hash,
                                 "REDB: Enter your password:")
         parser.set('REDB', 'pass_hash', pass_hash)
@@ -474,19 +474,15 @@ def _create_callback_func_table():
 def log_calls_decorator(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        call_string = ("%s called with *args: %r, **kwargs: %r " %
-                       (f.__name__, args, kwargs))
+        print "->" + str(f.__name__)
         try:
             retval = f(*args, **kwargs)
-            call_string += " --> " + repr(retval)
-            print call_string
+            print str(f.__name__) + "->"
             return retval
         except Exception, e:
             # get traceback info to print out later
-            top = traceback.extract_stack()[-1]
-            call_string += " RAISED EXCEPTION: "
-            call_string += ", ".join([type(e).__name__,
-                                      os.path.basename(top[0]), str(top[1])])
-            print call_string
+            print type(e).__name__
+            for frame in traceback.extract_stack():
+                print os.path.basename(frame[0]), str(frame[1])
             raise
-        return wrapped
+    return wrapped

@@ -14,58 +14,64 @@ MAX_VAR_NAME_LENGTH = 25
 
 
 class Function(models.Model):
-    first_addr = models.PositiveIntegerField()
-    signature = models.CharField(max_length=FUNC_DIGEST_SIZE_IN_BYTES)
+    signature = models.CharField(max_length=FUNC_DIGEST_SIZE_IN_BYTES,
+                                 unique=True, primary_key=True)
     args_size = models.PositiveIntegerField()
     vars_size = models.PositiveIntegerField()
+    regs_size = models.PositiveIntegerField()
     frame_size = models.PositiveIntegerField()
+    num_of_strings = models.PositiveSmallIntegerField()  # Counting duplicates
+    num_of_lib_calls = \
+        models.PositiveSmallIntegerField()  # Counting duplicates
 
     def __unicode__(self):
-        return str(self.id)
-
-
-class Instruction(models.Model):
-    itype = models.PositiveSmallIntegerField()
-    offset = models.PositiveIntegerField()
-    function = models.ForeignKey(Function)
-
-    def __unicode__(self):
-        return str(self.id)
+        return "signature: " + self.signature
 
 
 class String(models.Model):
-    value = models.TextField()
-    function = models.ForeignKey(Function)
-    instruction = models.OneToOneField(Instruction)
+    value = models.TextField(unique=True, primary_key=True)
 
     def __unicode__(self):
-        return str(self.id)
+        return self.value
 
 
 class LibraryCall(models.Model):
-    name = models.CharField(max_length=MAX_LIB_CALL_NAME_LENGTH)
-    function = models.ForeignKey(Function)
-    instruction = models.OneToOneField(Instruction)
+    name = models.CharField(max_length=MAX_LIB_CALL_NAME_LENGTH,
+                            unique=True, primary_key=True)
 
     def __unicode__(self):
-        return str(self.id)
+        return self.name
 
 
-class Immediate(models.Model):
-    value = models.IntegerField()
+class Instruction(models.Model):
     function = models.ForeignKey(Function)
-    instruction = models.OneToOneField(Instruction)
+    itype = models.PositiveSmallIntegerField()
+    offset = models.PositiveIntegerField()
+
+    immediate = models.PositiveIntegerField(blank=True, null=True)
+    string = models.ForeignKey(to=String, blank=True, null=True)
+    lib_call = models.ForeignKey(to=LibraryCall, blank=True, null=True)
 
     def __unicode__(self):
-        return str(self.id)
+        res = ("function: " + unicode(self.function) +
+               ", offset: " + str(self.offset) +
+               ", itype: " + str(self.itype))
+        if self.immediate is not None:
+            res += ", immediate: " + str(self.immediate)
+        if self.string is not None:
+            res += ", string: " + unicode(self.string)
+        if self.lib_call is not None:
+            res += ", lib_call: " + unicode(self.lib_call)
+        return res
 
 
 class Executable(models.Model):
-    signature = models.CharField(max_length=EXE_DIGEST_SIZE_IN_BYTES)
-    function = models.ManyToManyField(Function)
+    signature = models.CharField(max_length=EXE_DIGEST_SIZE_IN_BYTES,
+                                 unique=True, primary_key=True)
+    functions = models.ManyToManyField(Function)
 
     def __unicode__(self):
-        return str(self.id)
+        return "signature: " + self.signature
 
 
 class Graph(models.Model):
@@ -84,7 +90,7 @@ class User(models.Model):
     password_hash = models.CharField(max_length=PASSWORD_DIGEST_SIZE_IN_BYTES)
 
     def __unicode__(self):
-        return str(self.id)
+        return self.user_name
 
 
 class Description(models.Model):
@@ -93,4 +99,5 @@ class Description(models.Model):
     data = models.TextField()
 
     def __unicode__(self):
-        return str(self.id)
+        return ("function: " + unicode(self.function) +
+                ", user: " + unicode(self.user))

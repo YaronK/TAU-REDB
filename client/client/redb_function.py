@@ -43,11 +43,10 @@ class REDBFunction:
                                    self._func_items,
                                    self._string_addresses,
                                    self._imported_modules).get_attributes()
-
         self._description_data = {}
-        self._description_data["user_name"] =\
+        self._description_data["user_name"] = \
             self._plugin_configuration.username
-        self._description_data["password_hash"] =\
+        self._description_data["password_hash"] = \
             self._plugin_configuration.pass_hash
         gc.collect()
 
@@ -103,7 +102,7 @@ class REDBFunction:
             self._set_current_description(self._user_description)
 
             self._description_data["data"] = \
-            self._user_description._func_name_and_cmts
+                self._user_description._func_name_and_cmts
 
             dumped_submit_data = json.dumps({"type": "submit",
                                  "attributes": self._attributes,

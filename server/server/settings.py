@@ -4,7 +4,7 @@ DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
 ADMINS = (
-    # ('Your Name', 'your_email@example.com'),
+    # ('1', '1@1.com'),
 )
 
 MANAGERS = ADMINS
@@ -22,6 +22,7 @@ if not os.path.exists(db_dir):
 if not os.path.exists(db_path):
     print "Warning: db does not exist."
 
+print db_path
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',

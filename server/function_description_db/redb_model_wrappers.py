@@ -1,238 +1,145 @@
-from models import (Function, Description, String, LibraryCall, Immediate,
+from models import (Function, Description, String, LibraryCall,
                     Executable, Instruction, User, Graph)
-import django.core.exceptions as exceptions
 
 
 class FunctionWrapper:
     def __init__(self, attributes):
-        self.first_addr = attributes["first_addr"]
-        self.func_signature = attributes["func_signature"]
-        self.frame_attributes = attributes["frame_attributes"]
-        self.num_of_vars = attributes["num_of_vars"]
-        self.itypes = attributes["itypes"]
-        self.strings = attributes["strings"]
-        self.library_calls = attributes["library_calls"]
-        self.immediates = attributes["immediates"]
-        self.exe_signature = attributes["exe_signature"]
-        self.graph = attributes["graph"]
-
-        self.num_of_args = self.frame_attributes["FrameArgsSize"]
-        self.num_of_vars = self.frame_attributes["FrameLvarSize"]
-        self.frame_size = self.frame_attributes["FrameSize"]
-
-        self.init_all()
-
-    def init_all(self):
-        self.function = Function(self.first_addr,
-                                 self.func_signature,
-                                 self.num_of_args,
-                                 self.num_of_vars,
-                                 self.frame_size)
-
-        self.executable_wrapper = ExecutableWrapper(self.exe_signature,
-                                                    self.function)
-        self.graph_wrapper = GraphWrapper(self.graph, self.function)
-
-        self.instrucrion_wrappers = []
-        self.string_wrappers = []
-        self.lib_call_wrappers = []
-        self.immediate_wrappers = []
-
-        for offset in range(len(self.itypes)):
-            instruction_wrapper = \
-                InstructionWrapper(self.itypes[offset],
-                                   offset,
-                                   self.function)
-            self.instrucrion_wrappers.append(instruction_wrapper)
-
-            if offset in self.strings:
-                string_wrapper =\
-                    StringWrapper(self.strings[offset],
-                                  self.function,
-                                  instruction_wrapper.instruction)
-                self.string_wrappers.append(string_wrapper)
-
-            if offset in self.library_calls:
-                lib_call_wrapper =\
-                    LibraryCallWrapper(self.library_calls[offset],
-                                       self.function,
-                                       instruction_wrapper.instruction)
-                self.lib_call_wrappers.append(lib_call_wrapper)
-
-            if offset in self.immediates:
-                immediate_wrapper =\
-                    ImmediateWrapper(self.immediates[offset],
-                                     self.function,
-                                     instruction_wrapper.instruction)
-                self.lib_call_wrappers.append(immediate_wrapper)
-
-    def find_existing(self):
-        try:
-            return Function.objects.get(signature=self.func_signature)
-        except exceptions.ObjectDoesNotExist:
-            return None
+        print "->FunctionWrapper.__init__"
+        for attr_name in attributes:
+            setattr(self, attr_name, attributes[attr_name])
+        print "FunctionWrapper.__init__->"
 
     def save(self):
-        self.function.save()
+        print "->FunctionWrapper.save"
+        function, created = Function.objects.\
+            get_or_create(signature=self.func_signature,
+                          defaults={'args_size': self.args_size,
+                                    'vars_size': self.vars_size,
+                                    'regs_size': self.regs_size,
+                                    'frame_size': self.frame_size,
+                                    'num_of_strings': self.num_of_strings,
+                                    'num_of_lib_calls': self.num_of_lib_calls})
 
-        existing_executable = self.executable_wrapper.find_existing()
-        if(len(existing_executable) == 1):
-            self.function.executable = existing_executable[0]
-        else:
-            self.executable_wrapper.save()
+        if not created:
+            return function
 
-        self.graph_wrapper.save()
+        ExecutableWrapper(self.exe_signature, function).save()
 
-        for instruction_wrapper in self.instrucrion_wrappers:
-            instruction_wrapper.save()
+        GraphWrapper(self.edges, self.blocks_data, self.num_of_blocks,
+                     self.num_of_edges, function).save()
 
-        for string_wrapper in self.string_wrappers:
-            string_wrapper.save()
-
-        for lib_call_wrapper in self.lib_call_wrappers:
-            lib_call_wrapper.save()
-
-        for immediate_wrapper in self.immediate_wrappers:
-            immediate_wrapper.save()
+        instruction_wrappers = []
+        for offset in range(len(self.itypes)):
+            str_offset = str(offset)
+            immediate = None
+            if str_offset in self.immediates:
+                immediate = self.immediates[str_offset]
+            string = None
+            if str_offset in self.strings:
+                string = StringWrapper(self.strings[str_offset]).save()
+            lib_call = None
+            if str_offset in self.library_calls:
+                lib_call = \
+                    LibraryCallWrapper(self.library_calls[str_offset]).save()
+            instruction_wrappers.\
+                append(InstructionWrapper(self.itypes[offset],
+                                          offset, function,
+                                          immediate,
+                                          string,
+                                          lib_call).instruction)
+        Instruction.objects.bulk_create(instruction_wrappers)
+        print "FunctionWrapper.save->"
+        return function
 
 
 class StringWrapper:
-    def __init__(self, value, function, instruction):
+    def __init__(self, value):
         self.value = value
-        self.function = function
-        self.instruction = instruction
-        self.string = String(self.value,
-                             self.function,
-                             self.instruction)
 
     def save(self):
-        self.string.save()
+        obj, created = String.objects.get_or_create(value=self.value)
+        return obj
 
 
 class LibraryCallWrapper:
-    def __init__(self, name, function, instruction):
+    def __init__(self, name):
         self.name = name
-        self.function = function
-        self.instruction = instruction
-        self.library_call = LibraryCall(self.name,
-                                        self.function,
-                                        self.instruction)
 
     def save(self):
-        self.library_call.save()
-
-
-class ImmediateWrapper:
-    def __init__(self, value, function, instruction):
-        self.value = value
-        self.function = function
-        self.instruction = instruction
-        self.immediate = Immediate(self.value,
-                                   self.function,
-                                   self.instruction)
-
-    def save(self):
-        self.immediate.save()
+        obj, created = LibraryCall.objects.get_or_create(name=self.name)
+        return obj
 
 
 class GraphWrapper:
-    def __init__(self, graph, function, itypes):
-        self.edges = graph[1]
-        self.block_bounds = graph[0]
-        self.num_of_blocks = len(self.block_bounds)
-        self.num_of_edges = len(self.edges)
+    def __init__(self, edges, blocks_data, num_of_blocks, num_of_edges,
+                 function):
+        self.edges = edges
+        self.blocks_data = blocks_data
+        self.num_of_blocks = num_of_blocks
+        self.num_of_edges = num_of_edges
         self.function = function
-        self.itypes = itypes
-
-        self.generate_blocks_data()
-
-        self.graph = Graph(self.edges,
-                           self.blocks_data,
-                           self.num_of_blocks,
-                           self.num_of_edges,
-                           self.function)
-
-    def generate_blocks_data(self):
-        self.blocks_data = ""
-        for (startEA, endEA) in self.block_bounds:
-            data = ""
-            temp_itypes = self.itypes[startEA: endEA + 1]
-            for temp_itype in temp_itypes:
-                data += (temp_itype % 256)
-                if(temp_itype > 255):
-                    data += (temp_itype / 256)
-            self.blocks_data += data
 
     def save(self):
-        self.graph.save()
+        return Graph.objects.create(edges=self.edges,
+                                    blocks_data=self.blocks_data,
+                                    num_of_blocks=self.num_of_blocks,
+                                    num_of_edges=self.num_of_edges,
+                                    function=self.function)
 
 
 class ExecutableWrapper:
     def __init__(self, signature, function):
         self.signature = signature
         self.function = function
-        self.executable = Executable(self.signature,
-                                     self.function)
 
     def save(self):
-        self.executable.save()
-
-    def find_existing(self):
-        return Executable.objects.filter(signature=self.signature)
+        obj, created = \
+            Executable.objects.get_or_create(signature=self.signature)
+        obj.functions.add(self.function)
+        return obj
 
 
 class InstructionWrapper:
-    def __init__(self, itype, offset, function):
+    def __init__(self, itype, offset, function,
+                 immediate=None, string=None, lib_call=None):
         self.itype = itype
         self.offset = offset
         self.function = function
-
-        self.instruction = Instruction(self.itype,
-                                       self.offset,
-                                       self.function)
-
-    def save(self):
-        self.instruction.save()
+        self.immediate = immediate
+        self.string = string
+        self.lib_call = lib_call
+        self.instruction = Instruction(function=self.function,
+                                       itype=self.itype,
+                                       offset=self.offset,
+                                       immediate=self.immediate,
+                                       string=self.string,
+                                       lib_call=self.lib_call)
 
 
 class UserWrapper:
     def __init__(self, user_name, password_hash):
         self.user_name = user_name
         self.password_hash = password_hash
-        self.user = User(self.user_name,
-                         self.password_hash)
 
     def save(self):
-        self.user.save()
-
-    def find_existing(self):
-        return User.objects.filter(name=self.user_name)
+        obj, created = User.objects.\
+            get_or_create(user_name=self.user_name,
+                          defaults={'password_hash': self.password_hash})
+        return obj
 
 
 class DescriptionWrapper:
     def __init__(self, function_wrapper, description_data):
         self.function_wrapper = function_wrapper
         self.data = description_data["data"]
-        self.user_wrapper = UserWrapper(description_data["user_name"],
-                                        description_data["password_hash"])
-        self.description = Description(self.function_wrapper.function,
-                                       self.data)
+        self.user_name = description_data["user_name"]
+        self.pass_hash = description_data["password_hash"]
 
     def save(self):
-        existing_user = self.user_wrapper.find_existing()
-        if(len(existing_user) == 1):
-            self.description.user = existing_user[0]
-        else:
-            self.user_wrapper.save()
-
-        existing_function = self.function_wrapper.find_existing()
-        if(existing_function != None):
-            self.description.function = existing_function
-        else:
-            self.function_wrapper.save()
-
-        self.description.save()
-
-    def find_existing(self):
-        return self.function.description_set.\
-            filter(data=self.data, function=self.description.function)
+        user = UserWrapper(user_name=self.user_name,
+                           password_hash=self.pass_hash).save()
+        func = self.function_wrapper.save()
+        obj, created = Description.objects.\
+            get_or_create(data=self.data, function=func,
+                          defaults={'user': user})
+        return obj
