@@ -40,9 +40,9 @@ class REDBFunction:
         # Get function attributes
         self._attributes = \
             redb_attributes.FuncAttributes(self._first_addr,
-                                           self._func_items,
-                                           self._string_addresses,
-                                           self._imported_modules)
+                                   self._func_items,
+                                   self._string_addresses,
+                                   self._imported_modules).get_attributes()
 
         self._description_data = {}
         self._description_data["user_name"] =\
