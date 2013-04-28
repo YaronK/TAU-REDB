@@ -1,15 +1,10 @@
 """
 This module contains a class representing a handled function.
 """
-
-# standard library imports
-import gc
-
 # related third party imports
 import idautils
 
 # local application/library specific imports
-import redb_client_com
 import redb_client_descriptions
 import redb_attributes
 
