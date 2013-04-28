@@ -8,11 +8,9 @@ import idautils
 import idc
 
 # local application/library specific imports
-import redb_client_utils
 import redb_function
 
 # Constants
-HANDLED_TAG = "[REDB-handled] "
 MIN_INS_PER_HANDLED_FUNCTION = 5
 
 #==============================================================================
@@ -28,7 +26,6 @@ class ClientAction:
         the function the user is pointing at.
         """
         self._arg = arg
-        self._redb_item = redb_item
         self._callback_functions = callback_functions
         self._redb_functions = redb_item._redb_functions
         self._currently_pointing_at_a_function = False
@@ -41,7 +38,7 @@ class ClientAction:
         # and if so, if the function is in the handled functions list.
         # updates self._cur_function.
         func = idaapi.get_func(current_addr)
-        if not func is None:
+        if func is not None:
             self._currently_pointing_at_a_function = True
             self._start_addr = func.startEA
 
@@ -177,7 +174,6 @@ class ClientAction:
                                                     self._imported_modules,
                                                     self._plugin_configuration)
         self._redb_functions[str(self._start_addr)] = self._cur_func
-        redb_client_utils.Tag(self._start_addr).add_tag(user=True)
 
     def _is_pointing_at_a_function(self):
         if self._currently_pointing_at_a_function:
