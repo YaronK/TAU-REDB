@@ -18,15 +18,12 @@ class Description:
                                        "date"]
 
     def __init__(self, first_addr, suggested_description=None):
-
         self.first_addr = first_addr
 
         if suggested_description:
-            self.is_user_description = False
             for key in Description.SUGGESTED_DESCRIPTION_DICT_KEYS:
                 setattr(self, key, suggested_description[key])
         else:
-            self.is_user_description = True
             self.can_be_embedded = True
             self.save_changes()
 

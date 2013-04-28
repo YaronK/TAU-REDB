@@ -30,42 +30,39 @@ class PluginConfig:
     """
     Configuration management.
     """
-    def __init__(self):
-        self._path = CONFIG_FILE_PATH
 
-    def get_current_from_ini_file(self):
+    @classmethod
+    def get_current_from_ini_file(cls, item):
         parser = ConfigParser.SafeConfigParser()
-        parser.read(self._path)
+        parser.read(CONFIG_FILE_PATH)
+        return parser.get('REDB', item)
 
-        self.host = parser.get('REDB', 'host')
-        self.username = parser.get('REDB', 'username')
-        self.pass_hash = parser.get('REDB', 'pass_hash')
-
-    def change_config(self):
+    @classmethod
+    def change_config(cls):
         try:
-            self.get_current_from_ini_file()
+            cls.get_current_from_ini_file()
         except:
-            self.host = "<ip>:<port>"
-            self.username = "Username"
-            self.pass_hash = "Password"
+            host = "<ip>:<port>"
+            username = "Username"
+            pass_hash = "Password"
 
-        os.remove(self._path)
-        cfgfile = open(self._path, 'w')
+        os.remove(CONFIG_FILE_PATH)
+        cfgfile = open(CONFIG_FILE_PATH, 'w')
         parser = ConfigParser.SafeConfigParser()
         parser.add_section('REDB')
 
         host = \
-            _getUserConfigInput(self.host,
+            _getUserConfigInput(host,
                                 "REDB: Please enter the server's ip and port:")
         parser.set('REDB', 'host', host)
 
         username = \
-            _getUserConfigInput(self.username,
+            _getUserConfigInput(username,
                                 "REDB: Enter your username:")
         parser.set('REDB', 'username', username)
 
         pass_hash = \
-            _getUserConfigInput(self.pass_hash,
+            _getUserConfigInput(pass_hash,
                                 "REDB: Enter your password:")
         parser.set('REDB', 'pass_hash', pass_hash)
 
@@ -90,7 +87,9 @@ def _parse_config_file():
     """
     parse_config = PluginConfig()
     try:
-        parse_config.get_current_from_ini_file()
+        parse_config.get_current_from_ini_file('host')
+        parse_config.get_current_from_ini_file('username')
+        parse_config.get_current_from_ini_file('pass_hash')
     except:
         parse_config.change_config()
 
@@ -338,15 +337,16 @@ def get_content_type(filename):
 
 
 def post_non_serialized_data(data, host):
+    response = None
     try:
         serialized_data = json.dumps(data)
         serialized_response =\
             post_multipart(host, "/redb/", [],
                            [("action", "action", serialized_data)])
         response = json.loads(s=serialized_response, object_hook=_decode_dict)
-    except:
-        response = None
-
-    if response is not None:
         print "REDB: POST successful."
+    except Exception as e:
+        print "REDB: Exception thrown while POSTing:"
+        print e
+
     return response
