@@ -108,164 +108,143 @@ class Extract:
         self._func_items = list(idautils.FuncItems(self._first_addr))
 
     def extract_all(self):
-        """
-        Extraction of all comments and function name.
-        """
         dic = {}
-        # Function name
-        dic["FunctionName"] = self._extract_func_name()
 
-        # Comments
-        dic["RegularComments"] = self._extract_cmnts(0)
-        dic["RepeatableComments"] = self._extract_cmnts(1)
-        dic["FunctionCommentRegular"] = self._extract_func_cmnt(0)
-        dic["FunctionCommentRepeatable"] = self._extract_func_cmnt(1)
+        dic["func_name"] = self._extract_func_name()
+        dic["comments"] = self._extract_comments()
+        dic["func_comment"] = self._extract_func_comment()
+        dic["stack_members"] = self._extract_stack_members()
+
         return dic
 
     def _extract_func_name(self):
-        function_name = idc.GetFunctionName(self._first_addr)
-        return function_name
+        return idc.GetFunctionName(self._first_addr)
 
-    # repeatable: 0 for regular, 1 for repeatable
-    def _extract_cmnts(self, repeatable):
-        commdict = {}
-        for func_item in self._func_items:
-            i = int(func_item) - int(self._first_addr)
-            comm = idc.GetCommentEx(func_item, repeatable)
-            if  (comm != None):
-                    commdict[i] = comm
-        return commdict
+    def _extract_comments(self):
+        comments = []
 
-    # repeatable: 0 for regular, 1 for repeatable
-    def _extract_func_cmnt(self, repeatable):
-        function_cmt = idc.GetFunctionCmt(self._first_addr, repeatable)
-        return function_cmt
+        ea_reg_com_filter = lambda ea: (idc.GetCommentEx(ea, 0) is not None)
+        ea_reg_com_set = filter(ea_reg_com_filter, self._func_items)
+        comments += [(ea - self._first_addr, 0, idc.GetCommentEx(ea, 0))
+                     for ea in ea_reg_com_set]
+
+        ea_rep_com_filter = lambda ea: (idc.GetCommentEx(ea, 1) is not None)
+        ea_rep_com_set = filter(ea_rep_com_filter, self._func_items)
+        comments += [(ea - self._first_addr, 1, idc.GetCommentEx(ea, 1))
+                     for ea in ea_rep_com_set]
+
+        return comments
+
+    def _extract_func_comment(self):
+        function_comments = []
+
+        reg_cmt = idc.GetFunctionCmt(self._first_addr, 0)
+        if reg_cmt is not None:
+            function_comments.append((0, reg_cmt))
+
+        rep_cmt = idc.GetFunctionCmt(self._first_addr, 1)
+        if rep_cmt is not None:
+            function_comments.append((1, rep_cmt))
+
+        return function_comments
+
+    def _extract_stack_members(self):
+        """
+        Generates and returns a list of stack members (variables and
+        arguments).
+        member := (offset in stack, name, size, flag, regular comment,
+        repeatable comment)
+        Excludes ' r' and ' s'.
+        """
+        stack = idc.GetFrame(self._first_addr)
+        stack_size = idc.GetStrucSize(stack)
+        name_set = set(idc.GetMemberName(stack, i) for i in xrange(stack_size))
+        name_set -= set([' r', ' s', None])
+        offset_set = set(idc.GetMemberOffset(stack, name) for name in name_set)
+        member_get_data =\
+            lambda offset: (offset,
+                            idc.GetMemberName(stack, offset),
+                            idc.GetMemberSize(stack, offset),
+                            idc.GetMemberFlag(stack, offset),
+                            idc.GetMemberComment(stack, offset, 0),
+                            idc.GetMemberComment(stack, offset, 1))
+        return map(member_get_data, offset_set)
 
 
 class Embed:
-    """
-    Embedding new comments into a function and changing the functions' name.
-    """
-    def __init__(self, first_addr):
+    def __init__(self, first_addr, description_dict):
         self._first_addr = first_addr
 
-    def embed_all(self, func_name_and_cmnts):
+        self._func_name = description_dict["func_name"]
+        self._comments = description_dict["comments"]
+        self._func_comment = description_dict["func_comment"]
+        self._stack_members = description_dict["stack_members"]
+
+    def embed_all(self, merge):
+        if not merge:
+            remove_all_comments(self._first_addr)
+
+        self._embed_func_name()
+        self._embed_stack_members()
+
+        self._embed_comments(merge)
+        self._embed_func_comment(merge)
+
+    def _embed_func_name(self):
+        idaapi.set_name(self._first_addr, self._func_name, idaapi.SN_NOWARN)
+
+    def _embed_stack_members(self):
         """
-        Removing all current comments from a function, embedding new ones
-        instead and changing the functions' name.
+        Setting member attributes should be done in a more delicate manner:
+        Only set name and comment if member exists (same size, flags).
+        We currently do not create new members.
+        assumes member structure defined at GetStackMembers().
         """
-        self._func_name = func_name_and_cmnts["FunctionName"]
-        self._reg_cmnts = func_name_and_cmnts["RegularComments"]
-        self._rep_cmnts = func_name_and_cmnts["RepeatableComments"]
-        self._func_cmnt_reg = func_name_and_cmnts["FunctionCommentRegular"]
-        self._func_cmnt_rep = func_name_and_cmnts["FunctionCommentRepeatable"]
+        stack = idc.GetFrame(self._first_addr)
+        member_filter_lambda =\
+            lambda member: ((idc.GetMemberFlag(stack, member[0]) == member[3])
+                            and
+                            (idc.GetMemberSize(stack, member[0]) == member[2]))
 
-        RemoveFuncCmnts(self._first_addr)
+        filtered_member_set = filter(member_filter_lambda, self._stack_members)
 
-        # Function name
-        self._embed_func_name(self._func_name)
+        member_set_data_lambda =\
+            lambda member: (idc.SetMemberName(stack, member[0], member[1]),
+                            idc.SetMemberComment(stack, member[0], 0,
+                                                 member[4]),
+                            idc.SetMemberComment(stack, member[0], 1,
+                                                 member[5]))
 
-        # Comments
-        self._embed_cmnts(self._reg_cmnts, 0)
-        self._embed_cmnts(self._rep_cmnts, 1)
+        map(member_set_data_lambda, filtered_member_set)
 
-        # Function Comments
-        self._embed_func_cmnt(self._func_cmnt_reg, 0)
-        self._embed_func_cmnt(self._func_cmnt_rep, 1)
+    def _embed_comments(self, merge):
+        for (offset, repeatable, text) in self._comments:
+            real_ea = self._first_addr + offset
+            if merge:
+                    text = (idc.GetCommentEx(real_ea, repeatable) +
+                            "; " + text)
+            if repeatable:
+                idc.MakeRptCmt(real_ea, text)
+            else:
+                idc.MakeComm(real_ea, text)
 
-    def merge_all(self, func_name_and_cmnts):
-        """
-        Embedding comments in addition to current comments and changing the
-        functions' name.
-        """
-        self._func_name = func_name_and_cmnts["FunctionName"]
-        self._reg_cmnts = func_name_and_cmnts["RegularComments"]
-        self._rep_cmnts = func_name_and_cmnts["RepeatableComments"]
-        self._func_cmnt_reg = func_name_and_cmnts["FunctionCommentRegular"]
-        self._func_cmnt_rep = func_name_and_cmnts["FunctionCommentRepeatable"]
-
-        # Function name
-        self._embed_func_name(self._func_name)
-
-        # Comments
-        self._merge_cmnts(self._reg_cmnts, 0)
-        self._merge_cmnts(self._rep_cmnts, 1)
-
-        # Function Comments
-        current_comment = Extract(self._first_addr)._extract_func_cmnt(0)
-        final_comment = (current_comment + "; REDB: " + self._func_cmnt_reg)
-        self._embed_func_cmnt(final_comment, 0)
-
-        current_comment = Extract(self._first_addr)._extract_func_cmnt(1)
-        final_comment = (current_comment + "; REDB: " + self._func_cmnt_rep)
-        self._embed_func_cmnt(final_comment, 1)
-
-    def embed_short(self, func_name_and_cmnts):
-        """
-        Embedding a short version of the comments as a "function comment".
-        """
-        self._func_name = func_name_and_cmnts["FunctionName"]
-        self._reg_cmnts = func_name_and_cmnts["RegularComments"]
-        self._rep_cmnts = func_name_and_cmnts["RepeatableComments"]
-        self._func_cmnt_reg = func_name_and_cmnts["FunctionCommentRegular"]
-        self._func_cmnt_rep = func_name_and_cmnts["FunctionCommentRepeatable"]
-
-        RemoveFuncCmnts(self._first_addr)
-
-        # Function name
-        self._embed_func_name(self._func_name)
-
-        # Comments
-        short_comment = ("RegularComments: " + self._reg_cmnts +
-                         ", RepeatableComments: " + self._rep_cmnts)
-
-        self._embed_func_cmnt(short_comment, 0)
-
-    def _embed_func_name(self, name):
-        idaapi.set_name(self._first_addr, name, idaapi.SN_NOWARN)
-
-    # repeatable: 0 for regular, 1 for repeatable
-    def _embed_cmnts(self, comments, repeatable):
-        for ea_rel in comments:
-            comment = comments[ea_rel]
-            ea = int(ea_rel) + self._first_addr
-            self._embed_comment(ea, comment, repeatable)
-
-    # repeatable: 0 for regular, 1 for repeatable
-    def _merge_cmnts(self, comments, repeatable):
-        for ea_rel in comments:
-            ea = int(ea_rel) + self._first_addr
-            comment = comments[ea_rel]
-            current_comment = idc.GetCommentEx(ea, repeatable)
-
-            if current_comment is None:
-                current_comment = ""
-
-            final_comment = current_comment + "; REDB: " + comment
-            self._embed_comment(ea, final_comment, repeatable)
-            idaapi.refresh_idaview_anyway()
-
-    # repeatable: 0 for regular, 1 for repeatable
-    def _embed_comment(self, ea, comment, repeatable):
-        if repeatable == 0:
-            idc.MakeComm(ea, comment)
-        else:
-            idc.MakeRptCmt(ea, comment)
-
-    def _embed_func_cmnt(self, comment, repeatable):
-        idc.SetFunctionCmt(self._first_addr, comment, repeatable)
+    def _embed_func_comment(self, merge):
+        for (repeatable, text) in self._func_comment:
+            if merge:
+                    text = (idc.GetFunctionCmt(self._first_addr, repeatable) +
+                            "; " + text)
+            idc.SetFunctionCmt(self._first_addr, text, repeatable)
 
 
-class RemoveFuncCmnts:
+def remove_all_comments(first_addr):
     """
     Removing all current comments.
     """
-    def __init__(self, first_addr):
-        for func_item in list(idautils.FuncItems(first_addr)):
-            idc.MakeComm(func_item, "")
-            idc.MakeRptCmt(func_item, "")
-        idc.SetFunctionCmt(first_addr, "", 0)
-        idc.SetFunctionCmt(first_addr, "", 1)
+    for func_item in list(idautils.FuncItems(first_addr)):
+        idc.MakeComm(func_item, "")
+        idc.MakeRptCmt(func_item, "")
+    idc.SetFunctionCmt(first_addr, "", 0)
+    idc.SetFunctionCmt(first_addr, "", 1)
 
 
 class Tag:

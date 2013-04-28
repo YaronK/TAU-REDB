@@ -110,40 +110,6 @@ def send_submit(submit, host):
         print "REDB: An error occurred while submitting descriptions!"
 
 
-#==============================================================================
-# Communication Data Types
-#==============================================================================
-class Request:
-    """
-    A request for descriptions for a specific function.
-    """
-    def __init__(self, \
-                 primary_attributes=None,
-                 filtering_attributes=None,
-                 matching_grade_attributes=None,
-                 num_of_returned_comments=None):
-
-        self.primary_attributes = primary_attributes
-        self.filtering_attributes = filtering_attributes
-        self.matching_grade_attributes = matching_grade_attributes
-        self.num_of_returned_comments = num_of_returned_comments
-
-    def to_json(self):
-        req_dict = {}
-        req_dict["primary_attributes"] = self.primary_attributes
-        req_dict["filtering_attributes"] = self.filtering_attributes
-        req_dict["matching_grade_attributes"] = self.matching_grade_attributes
-        req_dict["num_of_returned_comments"] = self.num_of_returned_comments
-        return json.dumps(req_dict)
-
-    def from_json(self, json_obj):
-        req_dict = json.loads(json_obj, object_hook=_decode_dict)
-        self.primary_attributes = req_dict["primary_attributes"]
-        self.filtering_attributes = req_dict["filtering_attributes"]
-        self.matching_grade_attributes = req_dict["matching_grade_attributes"]
-        self.num_of_returned_comments = req_dict["num_of_returned_comments"]
-
-
 class Response:
     """
     A response from the server to a request.
@@ -159,34 +125,3 @@ class Response:
     def from_json(self, json_obj):
         self.suggested_descriptions = json.loads(json_obj,
                                                  object_hook=_decode_dict)
-
-
-class Submit:
-    """
-    A Submit includes data gathered about a specific function.
-    """
-    def __init__(self, \
-                 primary_attributes=None,
-                 filtering_attributes=None,
-                 matching_grade_attributes=None,
-                 comments_and_name=None):
-
-        self.primary_attributes = primary_attributes
-        self.filtering_attributes = filtering_attributes
-        self.matching_grade_attributes = matching_grade_attributes
-        self.comments_and_name = comments_and_name
-
-    def to_json(self):
-        sub_dict = {}
-        sub_dict["primary_attributes"] = self.primary_attributes
-        sub_dict["filtering_attributes"] = self.filtering_attributes
-        sub_dict["matching_grade_attributes"] = self.matching_grade_attributes
-        sub_dict["comments_and_name"] = self.comments_and_name
-        return json.dumps(sub_dict)
-
-    def from_json(self, json_obj):
-        sub_dict = json.loads(json_obj, object_hook=_decode_dict)
-        self.primary_attributes = sub_dict["primary_attributes"]
-        self.filtering_attributes = sub_dict["filtering_attributes"]
-        self.matching_grade_attributes = sub_dict["matching_grade_attributes"]
-        self.comments_and_name = sub_dict["comments_and_name"]
