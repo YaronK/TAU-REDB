@@ -7,10 +7,12 @@ import os
 import shutil
 import traceback
 import functools
-
-# standard library imports
+import httplib
+import mimetypes
+import mimetools
 import ConfigParser
 import string
+import json
 
 # related third party imports
 import idc
@@ -97,58 +99,73 @@ def _parse_config_file():
 
 
 #==============================================================================
-# Comments and function name and Tag management
+# Description and Tag utilities
 #==============================================================================
-class Extract:
-    """
-    Extraction of current comments and getting the function name.
-    """
-    def __init__(self, first_addr):
-        self._first_addr = first_addr
-        self._func_items = list(idautils.FuncItems(self._first_addr))
-
-    def extract_all(self):
+class DescriptionUtils:
+    @classmethod
+    def get_all(cls, start_addr):
         dic = {}
-
-        dic["func_name"] = self._extract_func_name()
-        dic["comments"] = self._extract_comments()
-        dic["func_comment"] = self._extract_func_comment()
-        dic["stack_members"] = self._extract_stack_members()
-
+        dic["func_name"] = cls.get_func_name(start_addr)
+        dic["comments"] = cls.get_all_comments(start_addr)
+        dic["func_comments"] = cls.get_both_func_comments(start_addr)
+        dic["stack_members"] = cls.get_stack_members(start_addr)
         return dic
 
-    def _extract_func_name(self):
-        return idc.GetFunctionName(self._first_addr)
+    @classmethod
+    def get_func_name(cls, start_addr):
+        return idc.GetFunctionName(start_addr)
 
-    def _extract_comments(self):
-        comments = []
-
-        ea_reg_com_filter = lambda ea: (idc.GetCommentEx(ea, 0) is not None)
-        ea_reg_com_set = filter(ea_reg_com_filter, self._func_items)
-        comments += [(ea - self._first_addr, 0, idc.GetCommentEx(ea, 0))
-                     for ea in ea_reg_com_set]
-
-        ea_rep_com_filter = lambda ea: (idc.GetCommentEx(ea, 1) is not None)
-        ea_rep_com_set = filter(ea_rep_com_filter, self._func_items)
-        comments += [(ea - self._first_addr, 1, idc.GetCommentEx(ea, 1))
-                     for ea in ea_rep_com_set]
-
+    @classmethod
+    def get_all_comments(cls, start_addr):
+        comments = cls.get_comments(start_addr, 0)
+        comments += cls.get_comments(start_addr, 1)
         return comments
 
-    def _extract_func_comment(self):
-        function_comments = []
+    @classmethod
+    def get_comments(cls, start_addr, repeatable):
+        return filter(None,
+            [cls.get_one_comment(ea, start_addr, repeatable)
+             for ea in idautils.FuncItems(start_addr)])
 
-        reg_cmt = idc.GetFunctionCmt(self._first_addr, 0)
-        if reg_cmt is not None:
-            function_comments.append((0, reg_cmt))
+    @classmethod
+    def get_one_comment_tuple(cls, real_ea, start_addr, repeatable):
+        """
+        Returns a tuple (offset, is-repeatable, string).
+        If it does not exist returns None.
+        """
+        string = cls.get_one_comment(real_ea, repeatable)
+        if string:
+            return (real_ea - start_addr, repeatable, string)
+        else:
+            return None
 
-        rep_cmt = idc.GetFunctionCmt(self._first_addr, 1)
-        if rep_cmt is not None:
-            function_comments.append((1, rep_cmt))
+    @classmethod
+    def get_one_comment(cls, real_ea, repeatable):
+        return idc.GetCommentEx(real_ea, repeatable)
 
-        return function_comments
+    @classmethod
+    def get_both_func_comments(cls, start_addr):
+        comments = cls.get_func_comment(start_addr, 0)
+        if comments:
+            return (comments +
+                    cls.get_func_comment(start_addr, 1))
+        else:
+            return cls.get_func_comment(start_addr, 1)
 
-    def _extract_stack_members(self):
+    @classmethod
+    def get_func_comment(cls, start_addr, repeatable):
+        """
+        Returns a tuple (is-repeatable, string).
+        If it does not exist returns None.
+        """
+        reg_cmt = idc.GetFunctionCmt(start_addr, repeatable)
+        if reg_cmt:
+            return (repeatable, reg_cmt)
+        else:
+            return None
+
+    @classmethod
+    def get_stack_members(cls, start_addr):
         """
         Generates and returns a list of stack members (variables and
         arguments).
@@ -156,7 +173,7 @@ class Extract:
         repeatable comment)
         Excludes ' r' and ' s'.
         """
-        stack = idc.GetFrame(self._first_addr)
+        stack = idc.GetFrame(start_addr)
         stack_size = idc.GetStrucSize(stack)
         name_set = set(idc.GetMemberName(stack, i) for i in xrange(stack_size))
         name_set -= set([' r', ' s', None])
@@ -170,43 +187,46 @@ class Extract:
                             idc.GetMemberComment(stack, offset, 1))
         return map(member_get_data, offset_set)
 
+    @classmethod
+    def set_all(cls, start_addr, description_dict, append=None):
+        """
+        append => append to current if True, prepend to current if False,
+        discard current if null.
+        """
+        func_name = description_dict["func_name"]
+        comments = description_dict["comments"]
+        func_comments = description_dict["func_comments"]
+        stack_members = description_dict["stack_members"]
 
-class Embed:
-    def __init__(self, first_addr, description_dict):
-        self._first_addr = first_addr
+        if append is None:
+            cls.remove_all_comments(start_addr)
 
-        self._func_name = description_dict["func_name"]
-        self._comments = description_dict["comments"]
-        self._func_comment = description_dict["func_comment"]
-        self._stack_members = description_dict["stack_members"]
+        cls.set_func_name(start_addr, func_name)
+        cls.set_stack_members(start_addr, stack_members)
 
-    def embed_all(self, merge):
-        if not merge:
-            remove_all_comments(self._first_addr)
+        cls.set_comments(start_addr, comments, append)
+        cls.set_both_func_comments(start_addr, func_comments, append)
+        idaapi.refresh_idaview_anyway()
 
-        self._embed_func_name()
-        self._embed_stack_members()
+    @classmethod
+    def set_func_name(cls, start_addr, func_name):
+        idaapi.set_name(start_addr, func_name, idaapi.SN_NOWARN)
 
-        self._embed_comments(merge)
-        self._embed_func_comment(merge)
-
-    def _embed_func_name(self):
-        idaapi.set_name(self._first_addr, self._func_name, idaapi.SN_NOWARN)
-
-    def _embed_stack_members(self):
+    @classmethod
+    def set_stack_members(cls, start_addr, stack_members):
         """
         Setting member attributes should be done in a more delicate manner:
         Only set name and comment if member exists (same size, flags).
         We currently do not create new members.
         assumes member structure defined at GetStackMembers().
         """
-        stack = idc.GetFrame(self._first_addr)
+        stack = idc.GetFrame(start_addr)
         member_filter_lambda =\
             lambda member: ((idc.GetMemberFlag(stack, member[0]) == member[3])
                             and
                             (idc.GetMemberSize(stack, member[0]) == member[2]))
 
-        filtered_member_set = filter(member_filter_lambda, self._stack_members)
+        filtered_member_set = filter(member_filter_lambda, stack_members)
 
         member_set_data_lambda =\
             lambda member: (idc.SetMemberName(stack, member[0], member[1]),
@@ -217,70 +237,81 @@ class Embed:
 
         map(member_set_data_lambda, filtered_member_set)
 
-    def _embed_comments(self, merge):
-        for (offset, repeatable, text) in self._comments:
-            real_ea = self._first_addr + offset
-            if merge:
-                    text = (idc.GetCommentEx(real_ea, repeatable) +
-                            "; " + text)
-            if repeatable:
-                idc.MakeRptCmt(real_ea, text)
-            else:
-                idc.MakeComm(real_ea, text)
+    @classmethod
+    def set_comments(cls, start_addr, comments, append=None):
+        """
+        append => append to current if True, prepend to current if False,
+        discard current if null.
+        """
+        for (offset, repeatable, text) in comments:
+            real_ea = start_addr + offset
+            cls.set_one_comment(real_ea, text, repeatable, append)
 
-    def _embed_func_comment(self, merge):
-        for (repeatable, text) in self._func_comment:
-            if merge:
-                    text = (idc.GetFunctionCmt(self._first_addr, repeatable) +
-                            "; " + text)
-            idc.SetFunctionCmt(self._first_addr, text, repeatable)
+    @classmethod
+    def set_one_comment(cls, real_ea, text, repeatable, append=None):
+        """
+        append => append to current if True, prepend to current if False,
+        discard current if null.
+        """
+        cur_comment = cls.get_one_comment(real_ea, repeatable)
+        if append == True and cur_comment:
+            text = cur_comment + "; " + text
+        elif append == False and cur_comment:
+            text += "; " + cur_comment
+        if repeatable:
+            idc.MakeRptCmt(real_ea, text)
+        else:
+            idc.MakeComm(real_ea, text)
 
+    @classmethod
+    def set_both_func_comments(cls, start_addr, func_comments, append=None):
+        """
+        append => append to current if True, prepend to current if False,
+        discard current if null.
+        """
+        for (repeatable, text) in func_comments:
+            cls.set_func_comment(start_addr, append, repeatable, text)
 
-def remove_all_comments(first_addr):
-    """
-    Removing all current comments.
-    """
-    for func_item in list(idautils.FuncItems(first_addr)):
-        idc.MakeComm(func_item, "")
-        idc.MakeRptCmt(func_item, "")
-    idc.SetFunctionCmt(first_addr, "", 0)
-    idc.SetFunctionCmt(first_addr, "", 1)
+    @classmethod
+    def set_func_comment(cls, start_addr, repeatable, text, append=None):
+        """
+        append => append to current if True, prepend to current if False,
+        discard current if null.
+        """
+        cur_comment = cls.get_func_comment(start_addr, repeatable)
+        if append == True and cur_comment:
+            text = cur_comment + "; " + text
+        elif append == False and cur_comment:
+            text += "; " + cur_comment
+        idc.SetFunctionCmt(start_addr, text, repeatable)
+
+    @classmethod
+    def remove_all_comments(cls, start_addr):
+        for ea in idautils.FuncItems(start_addr):
+            cls.set_one_comment(ea, "", 0)
+            cls.set_one_comment(ea, "", 1)
+            cls.set_func_comment(start_addr, 0, "")
+            cls.set_func_comment(start_addr, 1, "")
 
 
 class Tag:
     """
-    Adding a speciel tag in the "function comment".
+    Adding a special tag in the "function comment".
     """
-    def __init__(self, first_addr):
-        self._first_addr = first_addr
+    def __init__(self, start_addr, text):
+        self._start_addr = start_addr
+        self._text = text
 
-    def add_tag(self, user=True, index=None, outof=None, mg=None):
-        self.remove_tag()
+    def add_tag(self):
+        DescriptionUtils.set_func_comment(self._start_addr, False, self._text,
+                                          False)
 
-        tag = "[REDB: handled"
-        if user:
-            tag += ", user's description"
-        else:
-            tag += (", public description" +
-                    " (" + str(index) + "/" + str(outof) + ")" +
-                    ", Matching Grade: " + str(mg))
-        tag += "]"
-
-        current_comment = Extract(self._first_addr)._extract_func_cmnt(0)
-        final_comment = tag
-        if current_comment is not None:
-            final_comment += current_comment
-        Embed(self._first_addr)._embed_func_cmnt(final_comment, 0)
-        idaapi.refresh_idaview_anyway()
-
-    # (best effort)
     def remove_tag(self):
-        current_comment = Extract(self._first_addr)._extract_func_cmnt(0)
-        if string.find(current_comment, "[REDB: handled") == 0:
-            last_index = string.find(current_comment, "]")
-            final_comment = current_comment[last_index + 1:]
-            Embed(self._first_addr)._embed_func_cmnt(final_comment, 0)
-            idaapi.refresh_idaview_anyway()
+        cur_comment = DescriptionUtils.get_func_comment(self._start_addr, 0)
+        if string.find(cur_comment, self._text) == 0:
+            cur_comment = cur_comment[len(self._text):]
+        DescriptionUtils.set_func_comment(self._start_addr, False, cur_comment,
+                                          None)
 
 
 #==============================================================================
@@ -465,3 +496,74 @@ def log_calls_decorator(f):
                 print os.path.basename(frame[0]), str(frame[1])
             raise
     return wrapped
+
+
+#==============================================================================
+# HTTP Post
+#==============================================================================
+# Taken from http://code.activestate.com
+def post_multipart(host, selector, fields, files):
+    """
+    Post fields and files to an http host as multipart/form-data.
+    fields is a sequence of (name, value) elements for regular form fields.
+    files is a sequence of (name, filename, value) elements for data to
+    be uploaded as files. Return the server's response page.
+    """
+    content_type, body = encode_multipart_formdata(fields, files)
+    h = httplib.HTTP(host)
+    h.putrequest('POST', selector)
+    h.putheader('content-type', content_type)
+    h.putheader('content-length', str(len(body)))
+    h.endheaders()
+    h.send(body)
+    errcode, errmsg, headers = h.getreply()  # @UnusedVariable
+    return_data = h.file.read()
+    return return_data
+
+
+def encode_multipart_formdata(fields, files):
+    """
+    fields is a sequence of (name, value) elements for regular form fields.
+    files is a sequence of (name, filename, value) elements for data to be
+    uploaded as files. Returns (content_type, body) ready for httplib.HTTP
+    instance.
+    """
+    BOUNDARY = mimetools.choose_boundary()
+    CRLF = '\r\n'
+    L = []
+    for (key, value) in fields:
+        L.append('--' + BOUNDARY)
+        L.append('Content-Disposition: form-data; name="%s"' % key)
+        L.append('')
+        L.append(value)
+    for (key, filename, value) in files:
+        L.append('--' + BOUNDARY)
+        L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % \
+                  (key, filename))
+        L.append('Content-Type: %s' % get_content_type(filename))
+        L.append('')
+        L.append(value)
+    L.append('--' + BOUNDARY + '--')
+    L.append('')
+    body = CRLF.join(L)
+    content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
+    return content_type, body
+
+
+def get_content_type(filename):
+    return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+
+
+def post_non_serialized_data(data, host):
+    try:
+        serialized_data = json.dumps(data)
+        serialized_response =\
+            post_multipart(host, "/redb/", [],
+                           [("action", "action", serialized_data)])
+        response = json.loads(s=serialized_response, object_hook=_decode_dict)
+    except:
+        response = None
+
+    if response is not None:
+        print "REDB: POST successful."
+    return response
