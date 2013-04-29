@@ -68,6 +68,6 @@ def submit_handler(attributes, description_data):
         submit_action.process_attributes()
         submit_action.temp_function()
         submit_action.insert_description()
-        return HttpResponse("Success")
+        return HttpResponse("SUCCESS")
     except:
         return HttpResponse("ERROR")

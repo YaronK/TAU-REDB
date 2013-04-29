@@ -49,7 +49,7 @@ class Configuration:
     PLUGIN_DIR_PATH = os.path.dirname(__file__)
     CONFIG_FILE_PATH = os.path.join(PLUGIN_DIR_PATH, 'IdaProject.INI')
     SECTION = "REDB"
-    OPTIONS = {"host": "Host (<ip>:<port>)",
+    OPTIONS = {"host": "Host (ip:port)",
                "username": "Username",
                "password": "Password"}
 
@@ -72,13 +72,14 @@ class Configuration:
         if not os.path.exists(cls.CONFIG_FILE_PATH):
             print "REDB: Configuration file does not exist."
             open(cls.CONFIG_FILE_PATH, 'wb').close()
+
         # Configuration file exists
         config = ConfigParser.SafeConfigParser()
         config.read(cls.CONFIG_FILE_PATH)
         if not config.has_section(cls.SECTION):
             config.add_section(cls.SECTION)
         # Section exists
-        for opt in cls.OPTIONS:
+        for opt in cls.OPTIONS.keys():
             if not config.has_option(cls.SECTION, opt):
                 config.set(cls.SECTION, opt, cls.get_opt_from_user(opt))
         # Options exist
@@ -87,13 +88,13 @@ class Configuration:
 
     @classmethod
     def get_opt_from_user(cls, opt):
-        opt = None
-        while opt is None:
+        value = None
+        while value is None:
             try:
-                opt = idc.AskStr(cls.OPTIONS[opt], cls.OPTIONS[opt])
+                value = idc.AskStr(cls.OPTIONS[opt], cls.OPTIONS[opt])
             except:
                 pass
-        return opt
+        return value
 
 
 #==============================================================================
@@ -321,11 +322,19 @@ def post_non_serialized_data(data, host):
     response = None
     try:
         serialized_data = json.dumps(data)
-        serialized_response =\
+        serialized_response = \
             post_multipart(host, "/redb/", [],
                            [("action", "action", serialized_data)])
-        response = json.loads(s=serialized_response, object_hook=_decode_dict)
-        print "REDB: POST successful."
+        if serialized_response == None:
+            print "REDB: No response from server."
+        elif serialized_response == "ERROR":
+            print "REDB: Server error."
+        elif serialized_response == "SUCCESS":
+            print "REDB: Success."
+        else:
+            response = json.loads(s=serialized_response,
+                                  object_hook=_decode_dict)
+            print "REDB: Received response."
     except Exception as e:
         print "REDB: Exception thrown while POSTing:"
         print e

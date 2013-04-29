@@ -4,9 +4,9 @@ from the executable.
 """
 
 # local application/library specific imports
-from descriptions import Description
-from attributes import FuncAttributes
-from utils import Configuration, post_non_serialized_data
+import descriptions
+import attributes
+import utils
 
 # related third party imports
 import idautils
@@ -21,15 +21,14 @@ class Function:
         self._func_items = list(idautils.FuncItems(self._first_addr))
         self._imported_modules = imported_modules
         self._string_addresses = string_addresses
-
-        self._descriptions = list(Description(self._first_addr))
+        self._descriptions = [descriptions.Description(self._first_addr)]
         self._desc_index = 0
 
-        self._attributes = FuncAttributes(self._first_addr,
-                                          self._func_items,
-                                          self._string_addresses,
-                                          self._imported_modules).\
-                                          get_attributes()
+        self._attributes = attributes.FuncAttributes(self._first_addr,
+                                                     self._func_items,
+                                                     self._string_addresses,
+                                                     self._imported_modules).\
+                                                     get_attributes()
 
     def request_descriptions(self):
         """
@@ -39,17 +38,17 @@ class Function:
         self.restore_user_description()
         self._descriptions = list(self._descriptions[0])
 
-        host = Configuration.get_option('host')
+        host = utils.Configuration.get_option('host')
 
         request_dict = {"type": "request",
                         "attributes": self._attributes}
 
-        response = post_non_serialized_data(request_dict, host)
+        response = utils.post_non_serialized_data(request_dict, host)
 
         if response:
             for suggested_description_dict in response.suggested_descriptions:
-                desc = Description(self._first_addr,
-                                   suggested_description_dict)
+                desc = descriptions.Description(self._first_addr,
+                                                suggested_description_dict)
                 self._descriptions.append(desc)
 
             num_of_rec_desc = len(response.suggested_descriptions)
@@ -66,12 +65,12 @@ class Function:
         Submits the user's description.
         """
         if self._is_cur_user_desc():
-            host = Configuration.get_option('host')
+            host = utils.Configuration.get_option('host')
             self._cur_description().save_changes()
 
-            description_data =\
-                {"username": Configuration.get_option('username'),
-                 "password": Configuration.get_option('password'),
+            description_data = \
+                {"user_name": utils.Configuration.get_option('username'),
+                 "password_hash": utils.Configuration.get_option('password'),
                  "data": self._cur_description().description_data}
 
             # TODO: password should be passed in submit dictionary
@@ -79,7 +78,7 @@ class Function:
                            "attributes": self._attributes,
                            "description_data": description_data}
 
-            post_non_serialized_data(submit_dict, host)
+            utils.post_non_serialized_data(submit_dict, host)
         else:
             print "REDB: Can't submit a public description."
 

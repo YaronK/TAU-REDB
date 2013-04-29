@@ -58,7 +58,6 @@ class FuncAttributes:
         # At initalization, self._results is filled with all attributes
         # data.
         self._results = {}
-
         self._initialize_attributes()
         self._collect_all()
         self._extract_all()
@@ -126,7 +125,7 @@ class FuncAttributes:
 
     @utils.log
     def get_attributes(self):
-        return self._results()
+        return self._results
 
 
 class Attribute:

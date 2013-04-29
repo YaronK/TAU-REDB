@@ -8,7 +8,8 @@ import idautils
 import idc
 
 # local application/library specific imports
-from function import Function
+import function
+import utils
 
 # Constants
 MIN_INS_PER_HANDLED_FUNCTION = 5
@@ -43,9 +44,11 @@ class Action:
             if str(self._start_addr) in self._redb_functions:
                 self._cur_func = self._redb_functions[str(self._start_addr)]
 
+    @utils.log
     def run(self):
         getattr(self, self._callback_functions[self._arg][2])()
 
+    @utils.log
     def information(self):
         help_string = "\r\nREDB Commands:\r\n"
         help_string += "============\r\n"
@@ -57,6 +60,7 @@ class Action:
 
         idaapi.info(help_string)
 
+    @utils.log
     def submit_current(self):
         """
         Submits the user's description.
@@ -76,6 +80,7 @@ class Action:
                 print e
             idaapi.hide_wait_box()
 
+    @utils.log
     def request_current(self):
         """
         Request descriptions for a function.
@@ -83,6 +88,7 @@ class Action:
         if self._request_one() != -1:
             self._request_neighbors()
 
+    @utils.log
     def next_public_description(self):
         """
         View next public description.
@@ -95,6 +101,7 @@ class Action:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
+    @utils.log
     def previous_public_description(self):
         """
         View previous public description.
@@ -107,6 +114,7 @@ class Action:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
+    @utils.log
     def restore_my_description(self):
         """
         Restore the user's description.
@@ -119,6 +127,7 @@ class Action:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
+    @utils.log
     def merge_public_into_users(self):
         """
         Merge current public description into the user's description.
@@ -131,11 +140,14 @@ class Action:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
+    @utils.log
     def settings(self):
         """
         Change configurations.
         """
-        self._plugin_configuration.change_config()
+        for opt in utils.Configuration.OPTIONS.keys():
+            value = utils.Configuration.get_opt_from_user("opt")
+            utils.Configuration.set_option(opt, value)
 
 #-----------------------------------------------------------------------------
 # Client Interface Utilities
@@ -167,10 +179,9 @@ class Action:
         """
         Adds a function to handled functions dictionary.
         """
-        self._cur_func = Function(self._start_addr,
-                                  self._string_addresses,
-                                  self._imported_modules,
-                                  self._plugin_configuration)
+        self._cur_func = function.Function(self._start_addr,
+                                           self._string_addresses,
+                                           self._imported_modules)
         self._redb_functions[str(self._start_addr)] = self._cur_func
 
     def _is_pointing_at_a_function(self):

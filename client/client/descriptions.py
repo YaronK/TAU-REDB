@@ -1,5 +1,5 @@
 import idc
-from idautils import FuncItems
+import idautils
 import idaapi
 
 
@@ -56,7 +56,7 @@ class DescriptionUtils:
     def get_comments(cls, start_addr, repeatable):
         return filter(None,
             [cls.get_one_comment_tuple(ea, start_addr, repeatable)
-             for ea in FuncItems(start_addr)])
+             for ea in idautils.FuncItems(start_addr)])
 
     @classmethod
     def get_one_comment_tuple(cls, real_ea, start_addr, repeatable):
@@ -109,7 +109,7 @@ class DescriptionUtils:
         name_set = set(idc.GetMemberName(stack, i) for i in xrange(stack_size))
         name_set -= set([' r', ' s', None])
         offset_set = set(idc.GetMemberOffset(stack, name) for name in name_set)
-        member_get_data =\
+        member_get_data = \
             lambda offset: (offset,
                             idc.GetMemberName(stack, offset),
                             idc.GetMemberSize(stack, offset),
@@ -152,14 +152,14 @@ class DescriptionUtils:
         assumes member structure defined at GetStackMembers().
         """
         stack = idc.GetFrame(start_addr)
-        member_filter_lambda =\
+        member_filter_lambda = \
             lambda member: ((idc.GetMemberFlag(stack, member[0]) == member[3])
                             and
                             (idc.GetMemberSize(stack, member[0]) == member[2]))
 
         filtered_member_set = filter(member_filter_lambda, stack_members)
 
-        member_set_data_lambda =\
+        member_set_data_lambda = \
             lambda member: (idc.SetMemberName(stack, member[0], member[1]),
                             idc.SetMemberComment(stack, member[0], 0,
                                                  member[4]),
@@ -218,7 +218,7 @@ class DescriptionUtils:
 
     @classmethod
     def remove_all_comments(cls, start_addr):
-        for ea in FuncItems(start_addr):
+        for ea in idautils.FuncItems(start_addr):
             cls.set_one_comment(ea, "", 0)
             cls.set_one_comment(ea, "", 1)
             cls.set_func_comment(start_addr, 0, "")

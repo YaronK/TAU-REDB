@@ -8,7 +8,7 @@ import idc
 import idautils
 
 # local application/library specific imports
-from action import Action
+import action
 import utils
 
 
@@ -35,8 +35,8 @@ class REDB (idaapi.plugin_t):
         This function is called by IDA when the user uses one of the plugins'
         hotkeys.
         """
-        Action(self._executable, self._callback_functions, arg, idc.ScreenEA(),
-               self._plugin_configuration).run()
+        action.Action(self._executable, self._callback_functions, arg,
+                      idc.ScreenEA()).run()
 
     def term(self):
         """
@@ -68,9 +68,7 @@ class Executable:
         idaapi.show_wait_box("REDB Plugin is loading, please wait...")
 
         utils._backup_idb_file()
-        print "in!"
         utils.Configuration.assert_config_file_validity()
-        print "out!"
         self._collect_string_addresses()
         self._collect_imported_modules()
 
@@ -92,7 +90,7 @@ class Executable:
         Initializing self._imported_modules to be a list holding all of the
         executables' modules and functions.
         """
-        self._imported_modules =\
+        self._imported_modules = \
             utils.ImportsAndFunctions().collect_imports_data()
 
     @utils.log
