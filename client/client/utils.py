@@ -18,9 +18,30 @@ import idc
 import idautils
 import idaapi
 
-# Constants
+
+#==============================================================================
+# Decorators
+#==============================================================================
+def log(f):
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        print "enter: " + str(f.__name__)
+        try:
+            retval = f(*args, **kwargs)
+            print "exit: " + str(f.__name__)
+            return retval
+        except Exception, e:
+            # get traceback info to print out later
+            print type(e).__name__
+            for frame in traceback.extract_stack():
+                print os.path.basename(frame[0]), str(frame[1])
+            raise
+    return wrapped
 
 
+#==============================================================================
+# Configuration
+#==============================================================================
 class Configuration:
     """
     Configuration management.
@@ -47,7 +68,7 @@ class Configuration:
             config.write(configfile)
 
     @classmethod
-    def is_config_file_valid(cls):
+    def assert_config_file_validity(cls):
         if not os.path.exists(cls.CONFIG_FILE_PATH):
             print "REDB: Configuration file does not exist."
             open(cls.CONFIG_FILE_PATH, 'wb').close()
@@ -205,6 +226,7 @@ def instruction_data(func_item):
 #-----------------------------------------------------------------------------
 # Additional general Utilities
 #-----------------------------------------------------------------------------
+@log
 def _backup_idb_file():
     """
     Creating a backup of the .idb, just in case.
@@ -237,26 +259,6 @@ def _create_callback_func_table():
                                    split_line[0].lower()))
 
     return CALLBACK_FUNCTIONS
-
-
-#==============================================================================
-# Decorators
-#==============================================================================
-def log(f):
-    @functools.wraps(f)
-    def wrapped(*args, **kwargs):
-        print "enter: " + str(f.__name__)
-        try:
-            retval = f(*args, **kwargs)
-            print "exit: " + str(f.__name__)
-            return retval
-        except Exception, e:
-            # get traceback info to print out later
-            print type(e).__name__
-            for frame in traceback.extract_stack():
-                print os.path.basename(frame[0]), str(frame[1])
-            raise
-    return wrapped
 
 
 #==============================================================================

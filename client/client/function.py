@@ -4,16 +4,15 @@ from the executable.
 """
 
 # local application/library specific imports
-from redb_client_descriptions import Description
-from redb_attributes import FuncAttributes
-import redb_client_utils
+from descriptions import Description
+from attributes import FuncAttributes
+from utils import Configuration, post_non_serialized_data
 
 # related third party imports
-import idaapi
 import idautils
 
 
-class REDBFunction:
+class Function:
     """
     Represents a handled function.
     """
@@ -26,11 +25,11 @@ class REDBFunction:
         self._descriptions = list(Description(self._first_addr))
         self._desc_index = 0
 
-        self._attributes = \
-            redb_attributes.FuncAttributes(self._first_addr,
-                                   self._func_items,
-                                   self._string_addresses,
-                                   self._imported_modules).get_attributes()
+        self._attributes = FuncAttributes(self._first_addr,
+                                          self._func_items,
+                                          self._string_addresses,
+                                          self._imported_modules).\
+                                          get_attributes()
 
     def request_descriptions(self):
         """
@@ -40,13 +39,12 @@ class REDBFunction:
         self.restore_user_description()
         self._descriptions = list(self._descriptions[0])
 
-        host = PluginConfig.get_current_from_ini_file('host')
+        host = Configuration.get_option('host')
 
         request_dict = {"type": "request",
                         "attributes": self._attributes}
 
-        response = redb_client_utils.\
-            post_non_serialized_data(request_dict, host)
+        response = post_non_serialized_data(request_dict, host)
 
         if response:
             for suggested_description_dict in response.suggested_descriptions:
@@ -68,22 +66,20 @@ class REDBFunction:
         Submits the user's description.
         """
         if self._is_cur_user_desc():
-            host = PluginConfig.get_current_from_ini_file('host')
+            host = Configuration.get_option('host')
             self._cur_description().save_changes()
 
-            description_dict = {}
-            description_dict["user_name"] =\
-                PluginConfig.get_current_from_ini_file('username')
-            description_dict["password_hash"] =\
-                PluginConfig.get_current_from_ini_file('pass_hash')
-            description_dict["data"] =\
-                self._cur_description().description_data
+            description_data =\
+                {"username": Configuration.get_option('username'),
+                 "password": Configuration.get_option('password'),
+                 "data": self._cur_description().description_data}
 
+            # TODO: password should be passed in submit dictionary
             submit_dict = {"type": "submit",
                            "attributes": self._attributes,
-                           "description_data": description_dict}
+                           "description_data": description_data}
 
-            redb_client_utils.post_non_serialized_data(submit_dict, host)
+            post_non_serialized_data(submit_dict, host)
         else:
             print "REDB: Can't submit a public description."
 

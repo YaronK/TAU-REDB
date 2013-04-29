@@ -8,9 +8,8 @@ import idc
 import idautils
 
 # local application/library specific imports
-import redb_action
-import redb_item
-import redb_client_utils
+from action import Action
+import utils
 
 
 #==============================================================================
@@ -27,9 +26,8 @@ class REDB (idaapi.plugin_t):
     wanted_hotkey = ""
 
     def init(self):
-        self._redb_item = redb_item.REDBItem()
-        self._callback_functions = \
-            redb_client_utils._create_callback_func_table()
+        self._executable = Executable()
+        self._callback_functions = utils._create_callback_func_table()
         return idaapi.PLUGIN_KEEP
 
     def run(self, arg):
@@ -37,17 +35,14 @@ class REDB (idaapi.plugin_t):
         This function is called by IDA when the user uses one of the plugins'
         hotkeys.
         """
-        action = redb_action.ClientAction(self._redb_item,
-                                          self._callback_functions,
-                                          arg, idc.ScreenEA(),
-                                          self._plugin_configuration)
-        action.run()
+        Action(self._executable, self._callback_functions, arg, idc.ScreenEA(),
+               self._plugin_configuration).run()
 
     def term(self):
         """
         Called by IDA upon termination.
         """
-        self._redb_item.term()
+        self._executable.term()
 
 
 def PLUGIN_ENTRY():
@@ -55,6 +50,7 @@ def PLUGIN_ENTRY():
 
 
 class Executable:
+    @utils.log
     def __init__(self):
         self._make_run_prepereations()
         # Main dictionary holding all handled functions information.
@@ -64,21 +60,25 @@ class Executable:
         self._string_addresses = []
         self._imported_modules = []
 
+    @utils.log
     def _make_run_prepereations(self):
         """
         Preparations which take place in the loading process.
         """
         idaapi.show_wait_box("REDB Plugin is loading, please wait...")
 
-        redb_client_utils._backup_idb_file()
-        redb_client_utils._parse_config_file()
-        self._collect_string_addresses()  # initializes self._string_addresses
-        self._collect_imported_modules()  # initializes self._imported_modules
+        utils._backup_idb_file()
+        print "in!"
+        utils.Configuration.assert_config_file_validity()
+        print "out!"
+        self._collect_string_addresses()
+        self._collect_imported_modules()
 
         print "REDB: Plugin loaded, press Ctrl-Shift-I for a list of commands."
 
         idaapi.hide_wait_box()
 
+    @utils.log
     def _collect_string_addresses(self):
         """
         Initializing self._string_addresses to be a list holding all of the
@@ -86,22 +86,19 @@ class Executable:
         """
         self._string_addresses = [string.ea for string in idautils.Strings()]
 
+    @utils.log
     def _collect_imported_modules(self):
         """
         Initializing self._imported_modules to be a list holding all of the
         executables' modules and functions.
         """
-        self._imported_modules = \
-            redb_client_utils.ImportsAndFunctions().collect_imports_data()
+        self._imported_modules =\
+            utils.ImportsAndFunctions().collect_imports_data()
 
+    @utils.log
     def term(self):
         idaapi.hide_wait_box()
 
         # Restore user descriptions so that they will be saved by IDA.
         for function in self._redb_functions.values():
             function.restore_user_description()
-
-        # Remove all tags added by the plugin.
-        for function in self._redb_functions:
-            redb_client_utils.Tag(int(function)).remove_tag()
-

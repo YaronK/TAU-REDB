@@ -8,7 +8,7 @@ import idautils
 import idc
 
 # local application/library specific imports
-import redb_function
+from function import Function
 
 # Constants
 MIN_INS_PER_HANDLED_FUNCTION = 5
@@ -19,8 +19,7 @@ MIN_INS_PER_HANDLED_FUNCTION = 5
 
 
 class Action:
-    def __init__(self, redb_item, callback_functions, arg, current_addr,
-                 plugin_configuration):
+    def __init__(self, redb_item, callback_functions, arg, current_addr):
         """
         Called before each callback function. Collects necessary data about
         the function the user is pointing at.
@@ -32,7 +31,6 @@ class Action:
         self._string_addresses = redb_item._string_addresses
         self._imported_modules = redb_item._imported_modules
         self._cur_func = None
-        self._plugin_configuration = plugin_configuration
 
         # Establish if cursor is pointing at a function,
         # and if so, if the function is in the handled functions list.
@@ -169,10 +167,10 @@ class Action:
         """
         Adds a function to handled functions dictionary.
         """
-        self._cur_func = redb_function.REDBFunction(self._start_addr,
-                                                    self._string_addresses,
-                                                    self._imported_modules,
-                                                    self._plugin_configuration)
+        self._cur_func = Function(self._start_addr,
+                                  self._string_addresses,
+                                  self._imported_modules,
+                                  self._plugin_configuration)
         self._redb_functions[str(self._start_addr)] = self._cur_func
 
     def _is_pointing_at_a_function(self):
@@ -221,10 +219,6 @@ class Action:
         # Request neighbor function
         if (answer):
             for func_addr in neighbors_list:
-                client = ClientAction(self._redb_item,
-                                      self._callback_functions,
-                                      self._arg, func_addr,
-                                      self._plugin_configuration)
+                client = Action(self._redb_item, self._callback_functions,
+                                self._arg, func_addr)
                 client._request_one()
-
-
