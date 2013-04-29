@@ -23,6 +23,7 @@ class Function(models.Model):
     num_of_strings = models.PositiveSmallIntegerField()  # Counting duplicates
     num_of_lib_calls = \
         models.PositiveSmallIntegerField()  # Counting duplicates
+    # num_of_imms = models.PositiveSmallIntegerField()
 
     def __unicode__(self):
         return "signature: " + self.signature

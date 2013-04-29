@@ -48,7 +48,8 @@ def request_handler(attributes):
         request_action.check_validity()
         request_action.process_attributes()
         request_action.temp_function()
-        request_action.filter_functions()
+        request_action.db_filtering()
+        request_action.dictionaries_filtering()
         descriptions = request_action.get_descriptions()
         return HttpResponse(json.dumps(descriptions))
     except:
