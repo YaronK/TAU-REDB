@@ -19,81 +19,60 @@ import idautils
 import idaapi
 
 # Constants
-PLUGIN_DIR_PATH = os.path.dirname(__file__)
-CONFIG_FILE_PATH = os.path.join(PLUGIN_DIR_PATH, 'IdaProject.INI')
 
 
-#==============================================================================
-# Plugin configuration
-#==============================================================================
-class PluginConfig:
+class Configuration:
     """
     Configuration management.
     """
+    PLUGIN_DIR_PATH = os.path.dirname(__file__)
+    CONFIG_FILE_PATH = os.path.join(PLUGIN_DIR_PATH, 'IdaProject.INI')
+    SECTION = "REDB"
+    OPTIONS = {"host": "Host (<ip>:<port>)",
+               "username": "Username",
+               "password": "Password"}
 
     @classmethod
-    def get_current_from_ini_file(cls, item):
-        parser = ConfigParser.SafeConfigParser()
-        parser.read(CONFIG_FILE_PATH)
-        return parser.get('REDB', item)
+    def get_option(cls, opt):
+        config = ConfigParser.SafeConfigParser()
+        config.read(cls.CONFIG_FILE_PATH)
+        return config.get(cls.SECTION, opt)
 
     @classmethod
-    def change_config(cls):
-        try:
-            cls.get_current_from_ini_file()
-        except:
-            host = "<ip>:<port>"
-            username = "Username"
-            pass_hash = "Password"
+    def set_option(cls, opt, value):
+        config = ConfigParser.SafeConfigParser()
+        config.read(cls.CONFIG_FILE_PATH)
+        config.set(cls.SECTION, opt, value)
+        with open(cls.CONFIG_FILE_PATH, 'wb') as configfile:
+            config.write(configfile)
 
-        os.remove(CONFIG_FILE_PATH)
-        cfgfile = open(CONFIG_FILE_PATH, 'w')
-        parser = ConfigParser.SafeConfigParser()
-        parser.add_section('REDB')
+    @classmethod
+    def is_config_file_valid(cls):
+        if not os.path.exists(cls.CONFIG_FILE_PATH):
+            print "REDB: Configuration file does not exist."
+            open(cls.CONFIG_FILE_PATH, 'wb').close()
+        # Configuration file exists
+        config = ConfigParser.SafeConfigParser()
+        config.read(cls.CONFIG_FILE_PATH)
+        if not config.has_section(cls.SECTION):
+            config.add_section(cls.SECTION)
+        # Section exists
+        for opt in cls.OPTIONS:
+            if not config.has_option(cls.SECTION, opt):
+                config.set(cls.SECTION, opt, cls.get_opt_from_user(opt))
+        # Options exist
+        with open(cls.CONFIG_FILE_PATH, 'wb') as configfile:
+            config.write(configfile)
 
-        host = \
-            _getUserConfigInput(host,
-                                "REDB: Please enter the server's ip and port:")
-        parser.set('REDB', 'host', host)
-
-        username = \
-            _getUserConfigInput(username,
-                                "REDB: Enter your username:")
-        parser.set('REDB', 'username', username)
-
-        pass_hash = \
-            _getUserConfigInput(pass_hash,
-                                "REDB: Enter your password:")
-        parser.set('REDB', 'pass_hash', pass_hash)
-
-        # writing configurations to file
-        parser.write(cfgfile)
-        cfgfile.close()
-
-
-def _getUserConfigInput(defval, prompt):
-    configInput = None
-    while configInput is None:
-        try:
-            configInput = idc.AskStr(defval, prompt)
-        except:
-            pass
-    return configInput
-
-
-def _parse_config_file():
-    """
-    Checking user configurations exist upon plugin initialization.
-    """
-    parse_config = PluginConfig()
-    try:
-        parse_config.get_current_from_ini_file('host')
-        parse_config.get_current_from_ini_file('username')
-        parse_config.get_current_from_ini_file('pass_hash')
-    except:
-        parse_config.change_config()
-
-    return parse_config
+    @classmethod
+    def get_opt_from_user(cls, opt):
+        opt = None
+        while opt is None:
+            try:
+                opt = idc.AskStr(cls.OPTIONS[opt], cls.OPTIONS[opt])
+            except:
+                pass
+        return opt
 
 
 #==============================================================================
@@ -263,13 +242,13 @@ def _create_callback_func_table():
 #==============================================================================
 # Decorators
 #==============================================================================
-def log_calls_decorator(f):
+def log(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
-        print "->" + str(f.__name__)
+        print "enter: " + str(f.__name__)
         try:
             retval = f(*args, **kwargs)
-            print str(f.__name__) + "->"
+            print "exit: " + str(f.__name__)
             return retval
         except Exception, e:
             # get traceback info to print out later

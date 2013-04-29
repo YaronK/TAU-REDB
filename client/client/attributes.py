@@ -13,28 +13,20 @@ import idc
 import idaapi
 
 # local application/library specific imports
-import redb_client_utils
-log_calls_decorator = redb_client_utils.log_calls_decorator
+import utils
 
 # Constants
-ATTRS_COLLECTED_ONCE = {"exe_signature": "_ExeMd5",
-                        "graph": "_GraphRep",
-                        "frame_attributes": "_FrameAttrs"}
+ATTRS_COLLECTED_ONCE = ["exe_signature",
+                        "graph",
+                        "frame_attributes"]
 
-ATTR_COLLECTED_ITER = {"func_signature": "_FuncMd5",
-                       "itypes": "_InsTypeList",
-                       "strings": "_StrList",
-                       "library_calls": "_LibCallsList",
-                       "immediates": "_ImmList"}
+ATTR_COLLECTED_ITER = ["func_signature",
+                       "itypes",
+                       "strings",
+                       "library_calls",
+                       "immediates"]
 
-ATTRIBUTES = ["func_signature",
-              "frame_attributes",
-              "itypes",
-              "strings",
-              "immediates",
-              "library_calls",
-              "exe_signature",
-              "graph"]
+ATTRIBUTES = ATTRS_COLLECTED_ONCE + ATTR_COLLECTED_ITER
 
 
 #==============================================================================
@@ -53,7 +45,7 @@ class FuncAttributes:
     string_addresses -- addresses of executables' strings
     imported_modules - list of imported modules
     """
-    @log_calls_decorator
+    @utils.log
     def __init__(self, first_addr, func_items, string_addresses,
                  imported_modules):
 
@@ -74,27 +66,19 @@ class FuncAttributes:
 
         gc.collect()
 
-    @log_calls_decorator
+    @utils.log
     def _initialize_attributes(self):
         """
-        Initializes attribute classes for attributes in ATTRS_COLLECTED_ONCE
-        and ATTR_COLLECTED_ITER.
+        Initializes attribute classes.
         """
         init_args = {"_func_items": self._func_items,
                      "_string_addresses": self._string_addresses,
                      "_imported_modules": self._imported_modules}
-        for one_attribute in ATTRS_COLLECTED_ONCE:
-            one_class_name = ATTRS_COLLECTED_ONCE[one_attribute]
-
-            one_class = globals()[one_class_name]
+        for one_attribute in ATTRIBUTES:
+            one_class = globals()[one_attribute]
             setattr(self, one_attribute, one_class(init_args))
 
-        for one_attribute in ATTR_COLLECTED_ITER:
-            one_class_name = ATTR_COLLECTED_ITER[one_attribute]
-            one_class = globals()[one_class_name]
-            setattr(self, one_attribute, one_class(init_args))
-
-    @log_calls_decorator
+    @utils.log
     def _collect_all(self):
         """
         Calls the attributes' Collect functions, once for attributes in
@@ -113,7 +97,7 @@ class FuncAttributes:
             func_item = self._func_items[i]
             ins = idautils.DecodeInstruction(func_item)
             ins_type = ins.itype
-            ins_operands = redb_client_utils.collect_operands_data(func_item)
+            ins_operands = utils.collect_operands_data(func_item)
 
             collect_args["_func_item"] = func_item
             collect_args["_ins_type"] = ins_type
@@ -122,44 +106,29 @@ class FuncAttributes:
             for one_attribute in ATTR_COLLECTED_ITER:
                 getattr(self, one_attribute)._collect_data(collect_args)
 
-    @log_calls_decorator
+    @utils.log
     def _extract_all(self):
         """
         Calls the attributes' Extract functions, keeps the results.
         """
-        for one_attribute in ATTR_COLLECTED_ITER.keys():
+        for one_attribute in ATTRIBUTES:
             self._results[one_attribute] = getattr(self,
                                                    one_attribute)._extract()
 
-        for one_attribute in ATTRS_COLLECTED_ONCE.keys():
-            self._results[one_attribute] = getattr(self,
-                                                   one_attribute)._extract()
-
-    @log_calls_decorator
+    @utils.log
     def _del_all_attr(self):
         """
         After saving the results, delete attribute classes.
         """
-        for one_attribute in ATTR_COLLECTED_ITER.keys():
+        for one_attribute in ATTRIBUTES:
             attr = getattr(self, one_attribute)
             del attr
 
-        for one_attribute in ATTRS_COLLECTED_ONCE.keys():
-            attr = getattr(self, one_attribute)
-            del attr
-
-    @log_calls_decorator
+    @utils.log
     def get_attributes(self):
-        attr_dict = {}
-        for attr_name in ATTRIBUTES:
-            print attr_name
-            attr_dict[attr_name] = self._results[attr_name]
-        return attr_dict
+        return self._results()
 
 
-#==============================================================================
-# Attribute Classes
-#==============================================================================
 class Attribute:
     """ Represents a single attribute. """
     def __init__(self, init_args):
@@ -177,10 +146,7 @@ class Attribute:
         pass
 
 
-#==============================================================================
-# General attributes
-#==============================================================================
-class _ExeMd5(Attribute):
+class exe_signature(Attribute):
     """
     The executable's md5 signature.
     """
@@ -201,7 +167,7 @@ class _ExeMd5(Attribute):
         return self._exe_md5
 
 
-class _FrameAttrs(Attribute):
+class frame_attributes(Attribute):
     def __init__(self, init_args):
         Attribute.__init__(self, init_args)
         self._frame_attrs = {}
@@ -218,10 +184,7 @@ class _FrameAttrs(Attribute):
         return self._frame_attrs
 
 
-#==============================================================================
-# Instruction-related attributes
-#==============================================================================
-class _FuncMd5(Attribute):
+class func_signature(Attribute):
     """
     The whole function's MD5 hash.
     """
@@ -233,15 +196,14 @@ class _FuncMd5(Attribute):
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
         self._to_be_hashed.\
-            update(str(redb_client_utils.\
-                            instruction_data(self._func_item)))
+            update(str(utils.instruction_data(self._func_item)))
 
     def _extract(self):
         self._hash_string = str(self._to_be_hashed.hexdigest())
         return self._hash_string
 
 
-class _InsTypeList (Attribute):
+class itypes(Attribute):
     """
     A list of instruction types.
     """
@@ -257,10 +219,7 @@ class _InsTypeList (Attribute):
         return self._itype_list
 
 
-#==============================================================================
-# Strings-related attributes
-#==============================================================================
-class _StrList(Attribute):
+class strings(Attribute):
     """
     A list of the strings which appear in the function.
     """
@@ -283,10 +242,7 @@ class _StrList(Attribute):
         return self._dict_of_strings
 
 
-#==============================================================================
-# Library calls-related attributes
-#==============================================================================
-class _LibCallsList(Attribute):
+class library_calls(Attribute):
     """
     A list containing the lib call names which occur in a function.
     """
@@ -332,10 +288,7 @@ class _LibCallsList(Attribute):
         return self._lib_calls_dict
 
 
-#==============================================================================
-# Immediates-realted attributes
-#==============================================================================
-class _ImmList (Attribute):
+class immediates(Attribute):
     """
     A list of immediate values.
     """
@@ -357,10 +310,7 @@ class _ImmList (Attribute):
         return self._immediates_dict
 
 
-#==============================================================================
-# Control-Flow Graph-related attribute
-#==============================================================================
-class _GraphRep (Attribute):
+class graph(Attribute):
     """
     A representation of the function's control-flow.
     """

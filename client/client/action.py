@@ -18,7 +18,7 @@ MIN_INS_PER_HANDLED_FUNCTION = 5
 #==============================================================================
 
 
-class ClientAction:
+class Action:
     def __init__(self, redb_item, callback_functions, arg, current_addr,
                  plugin_configuration):
         """
@@ -226,3 +226,5 @@ class ClientAction:
                                       self._arg, func_addr,
                                       self._plugin_configuration)
                 client._request_one()
+
+

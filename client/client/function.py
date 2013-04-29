@@ -1,15 +1,16 @@
 """
-This module contains a class representing a handled function.
+This module contains functions that collect some useful data
+from the executable.
 """
-# related third party imports
-import idautils
 
 # local application/library specific imports
 from redb_client_descriptions import Description
-import redb_attributes
+from redb_attributes import FuncAttributes
+import redb_client_utils
 
-from client.redb_client_utils import PluginConfig
-from client import redb_client_utils
+# related third party imports
+import idaapi
+import idautils
 
 
 class REDBFunction:

@@ -1,16 +1,9 @@
 import idc
-import idautils
+from idautils import FuncItems
 import idaapi
 
 
 class Description:
-    """
-    A description for a specific local function. It is initiated either by
-    loading a SuggestedDescription or by loading the user's own description.
-    Each LocalDescription can be shown on screen. A LocalDescription initiated
-    by loading a SuggestedDescription can be merged into the user's description
-    if it can be embedded.
-    """
     SUGGESTED_DESCRIPTION_DICT_KEYS = ["description_data",
                                        "matching_grade",
                                        "can_be_embedded",
@@ -62,8 +55,8 @@ class DescriptionUtils:
     @classmethod
     def get_comments(cls, start_addr, repeatable):
         return filter(None,
-            [cls.get_one_comment(ea, start_addr, repeatable)
-             for ea in idautils.FuncItems(start_addr)])
+            [cls.get_one_comment_tuple(ea, start_addr, repeatable)
+             for ea in FuncItems(start_addr)])
 
     @classmethod
     def get_one_comment_tuple(cls, real_ea, start_addr, repeatable):
@@ -225,7 +218,7 @@ class DescriptionUtils:
 
     @classmethod
     def remove_all_comments(cls, start_addr):
-        for ea in idautils.FuncItems(start_addr):
+        for ea in FuncItems(start_addr):
             cls.set_one_comment(ea, "", 0)
             cls.set_one_comment(ea, "", 1)
             cls.set_func_comment(start_addr, 0, "")
