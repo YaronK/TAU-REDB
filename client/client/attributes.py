@@ -155,12 +155,7 @@ class exe_signature(Attribute):
 
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
-        try:
-            exe_file_path = idc.GetInputFilePath()
-            md5_obj = hashlib.md5(open(exe_file_path).read())
-            self._exe_md5 = md5_obj.hexdigest()
-        except:  # exe does not exist.
-            self._exe_md5 = ""
+        self._exe_md5 = str(idc.GetInputMD5())
 
     def _extract(self):
         return self._exe_md5

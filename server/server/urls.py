@@ -5,9 +5,9 @@ from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = patterns('',
-    url(r'^redb/', 'function_description_db.views.general_handler'),
+    url(r'^redb/', 'redb_app.views.general_handler'),
     # Uncomment the admin/doc line below to enable admin documentation:
-    # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
+    url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
 
     # Next line to enables the admin:
     url(r'^admin/', include(admin.site.urls)),

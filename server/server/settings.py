@@ -1,10 +1,9 @@
 # Django settings for server project.
-
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
 ADMINS = (
-    # ('1', '1@1.com'),
+    ('1', '1@1.com'),
 )
 
 MANAGERS = ADMINS
@@ -133,7 +132,7 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'function_description_db',
+    'redb_app',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:

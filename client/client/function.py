@@ -36,15 +36,13 @@ class Function:
         """
         # Reset public descriptions
         self.restore_user_description()
-        self._descriptions = list(self._descriptions[0])
+        self._discard_public_descriptions()
 
         host = utils.Configuration.get_option('host')
-
         request_dict = {"type": "request",
                         "attributes": self._attributes}
 
         response = utils.post_non_serialized_data(request_dict, host)
-
         if response:
             for suggested_description_dict in response.suggested_descriptions:
                 desc = descriptions.Description(self._first_addr,
@@ -145,3 +143,6 @@ class Function:
 
     def _cur_description(self):
         return self._descriptions[self._desc_index]
+
+    def _discard_public_descriptions(self):
+        self._descriptions = self._descriptions[0:1]

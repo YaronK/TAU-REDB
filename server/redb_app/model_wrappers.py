@@ -4,13 +4,10 @@ from models import (Function, Description, String, LibraryCall,
 
 class FunctionWrapper:
     def __init__(self, attributes):
-        print "->FunctionWrapper.__init__"
         for attr_name in attributes:
             setattr(self, attr_name, attributes[attr_name])
-        print "FunctionWrapper.__init__->"
 
     def save(self):
-        print "->FunctionWrapper.save"
         function, created = Function.objects.\
             get_or_create(signature=self.func_signature,
                           defaults={'args_size': self.args_size,
@@ -18,17 +15,16 @@ class FunctionWrapper:
                                     'regs_size': self.regs_size,
                                     'frame_size': self.frame_size,
                                     'num_of_strings': self.num_of_strings,
-                                    'num_of_lib_calls': self.num_of_lib_calls})
+                                    'num_of_lib_calls': self.num_of_lib_calls,
+                                    'num_of_insns': self.num_of_insns})
 
         if not created:
             return function
-
         ExecutableWrapper(self.exe_signature, function).save()
-
         GraphWrapper(self.edges, self.blocks_data, self.num_of_blocks,
                      self.num_of_edges, function).save()
 
-        instruction_wrappers = []
+        instructions = []
         for offset in range(len(self.itypes)):
             str_offset = str(offset)
             immediate = None
@@ -41,14 +37,19 @@ class FunctionWrapper:
             if str_offset in self.library_calls:
                 lib_call = \
                     LibraryCallWrapper(self.library_calls[str_offset]).save()
-            instruction_wrappers.\
+            instructions.\
                 append(InstructionWrapper(self.itypes[offset],
                                           offset, function,
                                           immediate,
                                           string,
                                           lib_call).instruction)
-        Instruction.objects.bulk_create(instruction_wrappers)
-        print "FunctionWrapper.save->"
+
+        # SQLite limitation
+        chunks = [instructions[x:x + 100]
+                  for x in xrange(0, len(instructions), 100)]
+        for chunk in chunks:
+            Instruction.objects.bulk_create(chunk)
+
         return function
 
 
@@ -57,8 +58,8 @@ class StringWrapper:
         self.value = value
 
     def save(self):
-        obj, created = String.objects.get_or_create(value=self.value)
-        return obj
+        obj = String.objects.get_or_create(value=self.value)
+        return obj[0]
 
 
 class LibraryCallWrapper:
@@ -66,8 +67,8 @@ class LibraryCallWrapper:
         self.name = name
 
     def save(self):
-        obj, created = LibraryCall.objects.get_or_create(name=self.name)
-        return obj
+        obj = LibraryCall.objects.get_or_create(name=self.name)
+        return obj[0]
 
 
 class GraphWrapper:
@@ -93,10 +94,11 @@ class ExecutableWrapper:
         self.function = function
 
     def save(self):
-        obj, created = \
-            Executable.objects.get_or_create(signature=self.signature)
-        obj.functions.add(self.function)
-        return obj
+        if not(self.signature == 'None'):
+            obj = Executable.objects.get_or_create(signature=self.signature)
+            # TODO: function already exists
+            obj[0].functions.add(self.function)
+            return obj[0]
 
 
 class InstructionWrapper:
@@ -122,10 +124,10 @@ class UserWrapper:
         self.password_hash = password_hash
 
     def save(self):
-        obj, created = User.objects.\
+        obj = User.objects.\
             get_or_create(user_name=self.user_name,
                           defaults={'password_hash': self.password_hash})
-        return obj
+        return obj[0]
 
 
 class DescriptionWrapper:
@@ -139,7 +141,6 @@ class DescriptionWrapper:
         user = UserWrapper(user_name=self.user_name,
                            password_hash=self.pass_hash).save()
         func = self.function_wrapper.save()
-        obj, created = Description.objects.\
-            get_or_create(data=self.data, function=func,
-                          defaults={'user': user})
-        return obj
+        obj = Description.objects.get_or_create(data=self.data, function=func,
+                                                 defaults={'user': user})
+        return obj[0]

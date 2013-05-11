@@ -24,6 +24,7 @@ class Function(models.Model):
     num_of_lib_calls = \
         models.PositiveSmallIntegerField()  # Counting duplicates
     # num_of_imms = models.PositiveSmallIntegerField()
+    num_of_insns = models.PositiveIntegerField()
 
     def __unicode__(self):
         return "signature: " + self.signature

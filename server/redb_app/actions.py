@@ -1,10 +1,9 @@
-import redb_model_wrappers
-from function_description_db.models import Function
-from redb_server_utils import (log_calls_decorator,
-                               generate_blocks_data)
+import model_wrappers
+from models import Function
+from utils import (log, generate_blocks_data)
 from collections import Counter
-from redb_heuristics import DictionarySimilarity
-
+from heuristics import DictionarySimilarity, GraphSimilarity
+from json import loads
 
 MAX_NUM_INSNS_DEVIATION = 0.15
 MAX_NUM_BLOCKS_DEVIATION = 0.15
@@ -30,10 +29,11 @@ DESCRIPTION_DATA = ["data",
                     "password_hash"]
 
 FILTERING_THRESHOLD = 0.8
+MATCHING_THRESHOLD = 0.9
 
 
 class SubmitAction:
-    @log_calls_decorator
+    @log
     def __init__(self, attributes, description_data):
         self.attributes = attributes
         self.description_data = description_data
@@ -41,131 +41,143 @@ class SubmitAction:
         self.temp_description_wrapper = None
         self.filtered_function_set = None
 
-    @log_calls_decorator
+    @log
     def check_validity(self):
         all_attributes_exist(self.attributes)
         all_description_items_exist(self.description_data)
 
-    @log_calls_decorator
+    @log
     def process_attributes(self):
         self.attributes = general_process_attributes(self.attributes)
 
-    @log_calls_decorator
+    @log
     def temp_function(self):
         self.temp_function_wrapper = general_temp_function(self.attributes)
 
-    @log_calls_decorator
+    @log
     def insert_description(self):
-        redb_model_wrappers.DescriptionWrapper(self.temp_function_wrapper,
-                                               self.description_data).save()
+        model_wrappers.DescriptionWrapper(self.temp_function_wrapper,
+                                          self.description_data).save()
 
 
 class RequestAction:
-    @log_calls_decorator
+    @log
     def __init__(self, attributes):
         self.attributes = attributes
         self.temp_function_wrapper = None
 
-    @log_calls_decorator
+    @log
     def check_validity(self):
         all_attributes_exist(self.attributes)
 
-    @log_calls_decorator
+    @log
     def process_attributes(self):
         self.attributes = general_process_attributes(self.attributes)
 
-    @log_calls_decorator
+    @log
     def temp_function(self):
         self.temp_function_wrapper = general_temp_function(self.attributes)
 
-    @log_calls_decorator
+    @log
     def db_filtering(self):
         func_wrapper = self.temp_function_wrapper
-        func_set = Function.objects.all()
+        func_set = Function.objects
 
-        insns_num = len(func_wrapper.itypes)
-        func_set = \
-            func_set.filter(instruction_set__count__range=  # @IgnorePep8
-                            (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
-                             insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
+        insns_num = func_wrapper.num_of_insns
+        func_set.filter(num_of_insns__range=  # @IgnorePep8
+                        (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
+                         insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
 
         num_of_blocks = func_wrapper.num_of_blocks
-        func_set = \
-            func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
+        func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
                             (num_of_blocks * (1 - MAX_NUM_BLOCKS_DEVIATION),
                              num_of_blocks * (1 + MAX_NUM_BLOCKS_DEVIATION)))
 
         num_of_edges = func_wrapper.num_of_edges
-        func_set = \
-            func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
+        func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
                             (num_of_edges * (1 - MAX_NUM_EDGES_DEVIATION),
                              num_of_edges * (1 + MAX_NUM_EDGES_DEVIATION)))
 
         num_of_strings = func_wrapper.num_of_strings
-        func_set = \
-            func_set.filter(string_set__count__range=  # @IgnorePep8
+        func_set.filter(num_of_strings__range=  # @IgnorePep8
                             (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
                             num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
 
         num_of_libcalls = func_wrapper.num_of_lib_calls
-        func_set = \
-            func_set.filter(librarycall_set__count__range=  # @IgnorePep8
+        func_set.filter(num_of_lib_calls__range=  # @IgnorePep8
                             (num_of_libcalls *
                              (1 - MAX_NUM_LIBCALLS_DEVIATION),
                              num_of_libcalls *
                              (1 + MAX_NUM_LIBCALLS_DEVIATION)))
 
         vars_size = func_wrapper.vars_size
-        func_set = \
-            func_set.filter(vars_size__range=  # @IgnorePep8
+        func_set.filter(vars_size__range=  # @IgnorePep8
                             (vars_size * (1 - MAX_VARS_SIZE_DEVIATION),
                             vars_size * (1 + MAX_VARS_SIZE_DEVIATION)))
 
         args_size = func_wrapper.args_size
-        func_set = \
-            func_set.filter(args_size__range=  # @IgnorePep8
+        func_set.filter(args_size__range=  # @IgnorePep8
                             (args_size * (1 - MAX_ARGS_SIZE_DEVIATION),
                             args_size * (1 + MAX_ARGS_SIZE_DEVIATION)))
 
         regs_size = func_wrapper.regs_size
-        func_set = \
-            func_set.filter(regs_size__range=  # @IgnorePep8
+        func_set.filter(regs_size__range=  # @IgnorePep8
                             (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
                             regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
 
         """
         num_of_imms = func_wrapper.num_of_imms
-        func_set = \
-            func_set.filter(num_of_imms__range=  # @IgnorePep8
+        func_set.filter(num_of_imms__range=  # @IgnorePep8
                             (num_of_imms * (1 - MAX_NUM_IMMS_DEVIATION),
                             num_of_imms * (1 + MAX_NUM_IMMS_DEVIATION)))
         """
-        self.filtered_function_set = func_set
 
+        self.filtered_function_set = func_set.all()
+
+    @log
     def dictionaries_filtering(self):
         func_wrapper = self.temp_function_wrapper
         func_set = self.filtered_function_set
+
         temp_func_strings_dict = Counter(func_wrapper.strings.values())
         temp_func_libcalls_dict = Counter(func_wrapper.library_calls.values())
         temp_func_itypes_dict = Counter(func_wrapper.itypes)
 
-        func_set = dictionary_filtering(func_set, extract_itypes_list,
+        func_set = dict_filter(func_set, extract_itypes_list,
                                         temp_func_itypes_dict)
 
-        func_set = dictionary_filtering(func_set, extract_libcalls_list,
+        func_set = dict_filter(func_set, extract_libcalls_list,
                                         temp_func_libcalls_dict)
 
-        func_set = dictionary_filtering(func_set, extract_strings_list,
+        func_set = dict_filter(func_set, extract_strings_list,
                                         temp_func_strings_dict)
 
         self.filtered_function_set = func_set
 
-    @log_calls_decorator
+    @log
+    def matching_grade_filtering(self):
+        self.matching_funcs = []
+        for func in self.filtered_function_set:
+            second_graph_edges = loads(func.graph.edges)
+            second_graph_data = loads(func.graph.blocks_data)
+
+            grade = GraphSimilarity(self.temp_function_wrapper.edges,
+                                    self.temp_function_wrapper.blocks_data,
+                                    second_graph_edges,
+                                    second_graph_data).ratio()
+
+            if (grade >= MATCHING_THRESHOLD):
+                self.matching_funcs.append((func, grade))
+
+    @log
     def get_descriptions(self):
-        pass
+        descriptions = []
+        for (func, grade) in self.matching_funcs:
+            descriptions += (grade, list(func.description_set.all()))
+        return descriptions
 
 
-@log_calls_decorator
+@log
 def all_attributes_exist(attributes):
     for attribute_name in ATTRIBUTES:
         if attribute_name not in attributes:
@@ -173,7 +185,7 @@ def all_attributes_exist(attributes):
                    "was not found")
 
 
-@log_calls_decorator
+@log
 def all_description_items_exist(description_data):
     for description_item in DESCRIPTION_DATA:
         if description_item not in description_data:
@@ -181,7 +193,7 @@ def all_description_items_exist(description_data):
                    "was not found")
 
 
-@log_calls_decorator
+@log
 def general_process_attributes(attributes):
     pro_attrs = {}
 
@@ -192,6 +204,7 @@ def general_process_attributes(attributes):
     pro_attrs["immediates"] = attributes["immediates"]
     # pro_attrs["num_of_imms"] = len(pro_attrs["immediates"])
     pro_attrs["exe_signature"] = attributes["exe_signature"]
+    pro_attrs["num_of_insns"] = len(pro_attrs["itypes"])
 
     frame_attributes = attributes["frame_attributes"]
     pro_attrs["args_size"] = frame_attributes["args_size"]
@@ -212,31 +225,35 @@ def general_process_attributes(attributes):
     return pro_attrs
 
 
-@log_calls_decorator
+@log
 def general_temp_function(attributes):
-    return redb_model_wrappers.FunctionWrapper(attributes)
+    return model_wrappers.FunctionWrapper(attributes)
 
 
+@log
 def extract_strings_list(function):
-    instruction_set = function.exclude(instruction_set__string=None)
+    instruction_set = function.instruction_set.exclude(string=None)
     return [instruction.string.value for instruction in instruction_set]
 
 
+@log
 def extract_libcalls_list(function):
-    instruction_set = function.exclude(instruction_set__lib_call=None)
+    instruction_set = function.instruction_set.exclude(lib_call=None)
     return [instruction.lib_call.name for instruction in instruction_set]
 
 
+@log
 def extract_itypes_list(function):
-    instruction_set = function.instruction_set
+    instruction_set = function.instruction_set.all()
     return [instruction.itype for instruction in instruction_set]
 
 
-def dictionary_filtering(func_set, filter_function, ref_dict):
+@log
+def dict_filter(func_set, list_extraction_function, ref_dict):
     filtered_functions = []
     for func in func_set:
-            func_dict = Counter(filter_function(func))
-            grade = DictionarySimilarity(func_dict,
-                                         ref_dict).ratio()
-            if (grade >= FILTERING_THRESHOLD):
-                filtered_functions.append(func)
+        func_dict = Counter(list_extraction_function(func))
+        grade = DictionarySimilarity(func_dict, ref_dict).ratio()
+        if (grade >= FILTERING_THRESHOLD):
+            filtered_functions.append(func)
+    return filtered_functions
