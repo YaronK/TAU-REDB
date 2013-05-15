@@ -21,9 +21,9 @@ class Function:
         self._func_items = list(idautils.FuncItems(self._first_addr))
         self._imported_modules = imported_modules
         self._string_addresses = string_addresses
-        self._descriptions = [descriptions.Description(self._first_addr)]
+        self._descriptions = [descriptions.Description(self._first_addr,
+                                                       len(self._func_items))]
         self._desc_index = 0
-
         self._attributes = attributes.FuncAttributes(self._first_addr,
                                                      self._func_items,
                                                      self._string_addresses,
@@ -39,19 +39,23 @@ class Function:
         self._discard_public_descriptions()
 
         host = utils.Configuration.get_option('host')
-        request_dict = {"type": "request",
-                        "attributes": self._attributes}
 
-        response = utils.post_non_serialized_data(request_dict, host)
+        data = {"attributes": self._attributes}
+
+        query = utils.ServerQuery(query_type="request",
+                    username=utils.Configuration.get_option('username'),
+                    password=utils.Configuration.get_option('password'),
+                    data_dict=data).to_dict()
+
+        response = utils.post_non_serialized_data(query, host)
         if response:
-            for suggested_description_dict in response.suggested_descriptions:
-                desc = descriptions.Description(self._first_addr,
-                                                suggested_description_dict)
-                self._descriptions.append(desc)
-
-            num_of_rec_desc = len(response.suggested_descriptions)
-            print ("REDB: Received " + str(num_of_rec_desc) +
-                   " public descriptions.")
+            for description in response:
+                self._descriptions.append(descriptions.\
+                                          Description(self._first_addr,
+                                                      len(self._func_items),
+                                                      description))
+            num_of_rec_desc = len(response)
+            print ("REDB: Received " + str(num_of_rec_desc) + " descriptions.")
 
             if num_of_rec_desc:
                 self.next_description()
@@ -66,17 +70,15 @@ class Function:
             host = utils.Configuration.get_option('host')
             self._cur_description().save_changes()
 
-            description_data = \
-                {"user_name": utils.Configuration.get_option('username'),
-                 "password_hash": utils.Configuration.get_option('password'),
-                 "data": self._cur_description().description_data}
+            data = {"attributes": self._attributes,
+                    "description": self._cur_description().data}
 
-            # TODO: password should be passed in submit dictionary
-            submit_dict = {"type": "submit",
-                           "attributes": self._attributes,
-                           "description_data": description_data}
+            query = utils.ServerQuery(query_type="submit",
+                    username=utils.Configuration.get_option('username'),
+                    password=utils.Configuration.get_option('password'),
+                    data_dict=data).to_dict()
 
-            utils.post_non_serialized_data(submit_dict, host)
+            utils.post_non_serialized_data(query, host)
         else:
             print "REDB: Can't submit a public description."
 

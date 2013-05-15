@@ -44,11 +44,9 @@ class Action:
             if str(self._start_addr) in self._redb_functions:
                 self._cur_func = self._redb_functions[str(self._start_addr)]
 
-    @utils.log
     def run(self):
         getattr(self, self._callback_functions[self._arg][2])()
 
-    @utils.log
     def information(self):
         help_string = "\r\nREDB Commands:\r\n"
         help_string += "============\r\n"
@@ -60,7 +58,6 @@ class Action:
 
         idaapi.info(help_string)
 
-    @utils.log
     def submit_current(self):
         """
         Submits the user's description.
@@ -80,7 +77,6 @@ class Action:
                 print e
             idaapi.hide_wait_box()
 
-    @utils.log
     def request_current(self):
         """
         Request descriptions for a function.
@@ -88,7 +84,6 @@ class Action:
         if self._request_one() != -1:
             self._request_neighbors()
 
-    @utils.log
     def next_public_description(self):
         """
         View next public description.
@@ -101,7 +96,6 @@ class Action:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
-    @utils.log
     def previous_public_description(self):
         """
         View previous public description.
@@ -114,7 +108,6 @@ class Action:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
-    @utils.log
     def restore_my_description(self):
         """
         Restore the user's description.
@@ -127,7 +120,6 @@ class Action:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
-    @utils.log
     def merge_public_into_users(self):
         """
         Merge current public description into the user's description.
@@ -140,13 +132,12 @@ class Action:
                     print "REDB: Unexpected exception thrown:"
                     print e
 
-    @utils.log
     def settings(self):
         """
         Change configurations.
         """
         for opt in utils.Configuration.OPTIONS.keys():
-            value = utils.Configuration.get_opt_from_user("opt")
+            value = utils.Configuration.get_opt_from_user(opt)
             utils.Configuration.set_option(opt, value)
 
 #-----------------------------------------------------------------------------

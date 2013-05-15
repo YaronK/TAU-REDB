@@ -96,7 +96,6 @@ class ExecutableWrapper:
     def save(self):
         if not(self.signature == 'None'):
             obj = Executable.objects.get_or_create(signature=self.signature)
-            # TODO: function already exists
             obj[0].functions.add(self.function)
             return obj[0]
 
@@ -118,29 +117,25 @@ class InstructionWrapper:
                                        lib_call=self.lib_call)
 
 
-class UserWrapper:
-    def __init__(self, user_name, password_hash):
-        self.user_name = user_name
-        self.password_hash = password_hash
-
-    def save(self):
-        obj = User.objects.\
-            get_or_create(user_name=self.user_name,
-                          defaults={'password_hash': self.password_hash})
-        return obj[0]
-
-
 class DescriptionWrapper:
-    def __init__(self, function_wrapper, description_data):
+    def __init__(self, function_wrapper, description_data, user_name):
         self.function_wrapper = function_wrapper
-        self.data = description_data["data"]
-        self.user_name = description_data["user_name"]
-        self.pass_hash = description_data["password_hash"]
+        self.data = description_data
+        self.user_name = user_name
 
     def save(self):
-        user = UserWrapper(user_name=self.user_name,
-                           password_hash=self.pass_hash).save()
+        user = User.objects.get(user_name=self.user_name)
         func = self.function_wrapper.save()
-        obj = Description.objects.get_or_create(data=self.data, function=func,
-                                                 defaults={'user': user})
-        return obj[0]
+
+        try:
+            desc = func.description_set.get(data=self.data)
+        except Description.DoesNotExist:
+            try:
+                desc = func.description_set.get(user=user)
+                desc.data = self.data
+                desc.save()
+            except Description.DoesNotExist:
+                desc = Description.objects.create(data=self.data,
+                                                  function=func,
+                                                  user=user)
+        return desc

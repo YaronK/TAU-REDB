@@ -15,7 +15,7 @@ MAX_VAR_NAME_LENGTH = 25
 
 class Function(models.Model):
     signature = models.CharField(max_length=FUNC_DIGEST_SIZE_IN_BYTES,
-                                 unique=True, primary_key=True)
+                                 unique=True)
     args_size = models.PositiveIntegerField()
     vars_size = models.PositiveIntegerField()
     regs_size = models.PositiveIntegerField()
@@ -25,6 +25,8 @@ class Function(models.Model):
         models.PositiveSmallIntegerField()  # Counting duplicates
     # num_of_imms = models.PositiveSmallIntegerField()
     num_of_insns = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __unicode__(self):
         return "signature: " + self.signature
@@ -71,6 +73,8 @@ class Executable(models.Model):
     signature = models.CharField(max_length=EXE_DIGEST_SIZE_IN_BYTES,
                                  unique=True, primary_key=True)
     functions = models.ManyToManyField(Function)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __unicode__(self):
         return "signature: " + self.signature
@@ -99,6 +103,8 @@ class Description(models.Model):
     function = models.ForeignKey(Function)
     user = models.ForeignKey(User)
     data = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __unicode__(self):
         return ("function: " + unicode(self.function) +

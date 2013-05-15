@@ -319,24 +319,33 @@ def get_content_type(filename):
 
 
 def post_non_serialized_data(data, host):
+    serialized_data = json.dumps(data)
+    serialized_response = \
+        post_multipart(host, "/redb/", [],
+                       [("action", "action", serialized_data)])
+
+    if serialized_response == None:
+        print "REDB: No response from server."
+        return None
+
     response = None
     try:
-        serialized_data = json.dumps(data)
-        serialized_response = \
-            post_multipart(host, "/redb/", [],
-                           [("action", "action", serialized_data)])
-        if serialized_response == None:
-            print "REDB: No response from server."
-        elif serialized_response == "ERROR":
-            print "REDB: Server error."
-        elif serialized_response == "SUCCESS":
-            print "REDB: Success."
-        else:
-            response = json.loads(s=serialized_response,
-                                  object_hook=_decode_dict)
-            print "REDB: Received response."
-    except Exception as e:
-        print "REDB: Exception thrown while POSTing:"
-        print e
+        response = json.loads(s=serialized_response, object_hook=_decode_dict)
+    except ValueError:
+        print "REDB, Response: " + serialized_response
 
     return response
+
+
+class ServerQuery:
+    def __init__(self, query_type, username, password, data_dict):
+        self.type = query_type
+        self.username = username
+        self.password = password
+        self.data = data_dict
+
+    def to_dict(self):
+        return {"type": self.type,
+                "username": self.username,
+                "password": self.password,
+                "data": self.data}

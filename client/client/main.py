@@ -50,7 +50,6 @@ def PLUGIN_ENTRY():
 
 
 class Executable:
-    @utils.log
     def __init__(self):
         self._make_run_prepereations()
         # Main dictionary holding all handled functions information.
@@ -60,7 +59,6 @@ class Executable:
         self._string_addresses = []
         self._imported_modules = []
 
-    @utils.log
     def _make_run_prepereations(self):
         """
         Preparations which take place in the loading process.
@@ -76,7 +74,6 @@ class Executable:
 
         idaapi.hide_wait_box()
 
-    @utils.log
     def _collect_string_addresses(self):
         """
         Initializing self._string_addresses to be a list holding all of the
@@ -84,7 +81,6 @@ class Executable:
         """
         self._string_addresses = [string.ea for string in idautils.Strings()]
 
-    @utils.log
     def _collect_imported_modules(self):
         """
         Initializing self._imported_modules to be a list holding all of the
@@ -93,7 +89,6 @@ class Executable:
         self._imported_modules = \
             utils.ImportsAndFunctions().collect_imports_data()
 
-    @utils.log
     def term(self):
         idaapi.hide_wait_box()
 

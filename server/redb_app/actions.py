@@ -1,9 +1,10 @@
 import model_wrappers
 from models import Function
-from utils import (log, generate_blocks_data)
+from utils import (log, generate_blocks_data, _decode_dict)
 from collections import Counter
 from heuristics import DictionarySimilarity, GraphSimilarity
-from json import loads
+from json import loads, dumps
+from redb_app.models import User
 
 MAX_NUM_INSNS_DEVIATION = 0.15
 MAX_NUM_BLOCKS_DEVIATION = 0.15
@@ -24,27 +25,47 @@ ATTRIBUTES = ["func_signature",
               "exe_signature",
               "graph"]
 
-DESCRIPTION_DATA = ["data",
-                    "user_name",
-                    "password_hash"]
+QUERY_FIELDS = ["type",
+                    "username",
+                    "password",
+                    "data"]
 
 FILTERING_THRESHOLD = 0.8
 MATCHING_THRESHOLD = 0.9
 
 
+class Query:
+    def __init__(self, http_post):
+        self.query = loads(http_post.FILES['action'].read(),
+                          object_hook=_decode_dict)
+
+    def check_validity(self):
+        if not (set(self.query.keys()) == set(QUERY_FIELDS)):
+            raise "Missing query field(s) / Too many query fields."
+
+    def process(self):
+        for attr in self.query:
+            setattr(self, attr, self.query[attr])
+
+    def authenticate_user(self):
+        User.objects.get(user_name=self.username,
+                         password_hash=self.password)
+
+
 class SubmitAction:
     @log
-    def __init__(self, attributes, description_data):
-        self.attributes = attributes
-        self.description_data = description_data
+    def __init__(self, data, username):
+        self.attributes = data["attributes"]
+        self.description_data = data["description"]
+        self.username = username
         self.temp_function_wrapper = None
         self.temp_description_wrapper = None
         self.filtered_function_set = None
 
     @log
     def check_validity(self):
-        all_attributes_exist(self.attributes)
-        all_description_items_exist(self.description_data)
+        if not (set(self.attributes.keys()) == set(ATTRIBUTES)):
+            raise "Missing attribute(s) / Too many attributes."
 
     @log
     def process_attributes(self):
@@ -55,20 +76,27 @@ class SubmitAction:
         self.temp_function_wrapper = general_temp_function(self.attributes)
 
     @log
+    def process_description(self):
+        self.description_data = dumps(self.description_data,
+                                              ensure_ascii=False)
+
+    @log
     def insert_description(self):
         model_wrappers.DescriptionWrapper(self.temp_function_wrapper,
-                                          self.description_data).save()
+                                          self.description_data,
+                                          self.username).save()
 
 
 class RequestAction:
     @log
-    def __init__(self, attributes):
-        self.attributes = attributes
+    def __init__(self, data):
+        self.attributes = data["attributes"]
         self.temp_function_wrapper = None
 
     @log
     def check_validity(self):
-        all_attributes_exist(self.attributes)
+        if not (set(self.attributes.keys()) == set(ATTRIBUTES)):
+            raise "Missing attribute(s) / Too many attributes."
 
     @log
     def process_attributes(self):
@@ -173,24 +201,20 @@ class RequestAction:
     def get_descriptions(self):
         descriptions = []
         for (func, grade) in self.matching_funcs:
-            descriptions += (grade, list(func.description_set.all()))
+            for desc in func.description_set.all():
+                print desc.data
+                try:
+                    desc_data = loads(desc.data, object_hook=_decode_dict)
+                except Exception as e:
+                    print e
+
+                descriptions.append({"func_id": func.id,
+                                     "desc_num_of_insns": func.num_of_insns,
+                                     "grade": grade,
+                                     "updated_at": desc.updated_at.ctime(),
+                                     "created_by": desc.user.user_name,
+                                     "data": desc_data})
         return descriptions
-
-
-@log
-def all_attributes_exist(attributes):
-    for attribute_name in ATTRIBUTES:
-        if attribute_name not in attributes:
-            raise ("REDB: required attribute" + attribute_name +
-                   "was not found")
-
-
-@log
-def all_description_items_exist(description_data):
-    for description_item in DESCRIPTION_DATA:
-        if description_item not in description_data:
-            raise ("REDB: required description_item" + description_item +
-                   "was not found")
 
 
 @log

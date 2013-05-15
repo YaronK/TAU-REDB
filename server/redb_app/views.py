@@ -11,62 +11,52 @@ from django.http import HttpResponse
 
 # local application/library specific imports
 import actions
-from utils import log, _decode_dict
+from utils import log
 
 
 #==============================================================================
 # Handlers
 #==============================================================================
 @csrf_exempt
-@log
 def general_handler(http_post):
-    data = json.loads(http_post.FILES['action'].read(),
-                      object_hook=_decode_dict)
-    check_validity(data)
-    action_type = data['type']
-
-    if(action_type == 'request'):
-        return request_handler(data['attributes'])
-    elif(action_type == 'submit'):
-        return submit_handler(data['attributes'], data['description_data'])
-
-
-@log
-def check_validity(data):
-    # TODO
-    pass
+    try:
+        query = actions.Query(http_post)
+        query.check_validity()
+        query.process()
+        query.authenticate_user()
+        if query.type == 'request':
+            return request_handler(query.data)
+        elif query.type == 'submit':
+            return submit_handler(query.data, query.username)
+    except:
+        return HttpResponse("ERROR")
 
 
 @log
-def request_handler(attributes):
+def request_handler(data):
     """
     Handles a Request for descriptions.
     """
-    try:
-        request_action = actions.RequestAction(attributes)
-        request_action.check_validity()
-        request_action.process_attributes()
-        request_action.temp_function()
-        request_action.db_filtering()
-        request_action.dictionaries_filtering()
-        request_action.matching_grade_filtering()
-        descriptions = request_action.get_descriptions()
-        return HttpResponse(json.dumps(descriptions))
-    except:
-        return HttpResponse("ERROR")
+    request_action = actions.RequestAction(data)
+    request_action.check_validity()
+    request_action.process_attributes()
+    request_action.temp_function()
+    request_action.db_filtering()
+    request_action.dictionaries_filtering()
+    request_action.matching_grade_filtering()
+    descriptions = request_action.get_descriptions()
+    return HttpResponse(json.dumps(descriptions))
 
 
 @log
-def submit_handler(attributes, description_data):
+def submit_handler(data, username):
     """
     Handles a Submitted descriptions.
     """
-    try:
-        submit_action = actions.SubmitAction(attributes, description_data)
-        submit_action.check_validity()
-        submit_action.process_attributes()
-        submit_action.temp_function()
-        submit_action.insert_description()
-        return HttpResponse("SUCCESS")
-    except:
-        return HttpResponse("ERROR")
+    submit_action = actions.SubmitAction(data, username)
+    submit_action.check_validity()
+    submit_action.process_attributes()
+    submit_action.temp_function()
+    submit_action.process_description()
+    submit_action.insert_description()
+    return HttpResponse("SUCCESS")

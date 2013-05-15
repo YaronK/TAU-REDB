@@ -45,7 +45,6 @@ class FuncAttributes:
     string_addresses -- addresses of executables' strings
     imported_modules - list of imported modules
     """
-    @utils.log
     def __init__(self, first_addr, func_items, string_addresses,
                  imported_modules):
 
@@ -65,7 +64,6 @@ class FuncAttributes:
 
         gc.collect()
 
-    @utils.log
     def _initialize_attributes(self):
         """
         Initializes attribute classes.
@@ -77,7 +75,6 @@ class FuncAttributes:
             one_class = globals()[one_attribute]
             setattr(self, one_attribute, one_class(init_args))
 
-    @utils.log
     def _collect_all(self):
         """
         Calls the attributes' Collect functions, once for attributes in
@@ -105,7 +102,6 @@ class FuncAttributes:
             for one_attribute in ATTR_COLLECTED_ITER:
                 getattr(self, one_attribute)._collect_data(collect_args)
 
-    @utils.log
     def _extract_all(self):
         """
         Calls the attributes' Extract functions, keeps the results.
@@ -114,7 +110,6 @@ class FuncAttributes:
             self._results[one_attribute] = getattr(self,
                                                    one_attribute)._extract()
 
-    @utils.log
     def _del_all_attr(self):
         """
         After saving the results, delete attribute classes.
@@ -123,7 +118,6 @@ class FuncAttributes:
             attr = getattr(self, one_attribute)
             del attr
 
-    @utils.log
     def get_attributes(self):
         return self._results
 

@@ -4,18 +4,15 @@ import idaapi
 
 
 class Description:
-    SUGGESTED_DESCRIPTION_DICT_KEYS = ["description_data",
-                                       "matching_grade",
-                                       "can_be_embedded",
-                                       "by_user",
-                                       "date"]
-
-    def __init__(self, first_addr, suggested_description=None):
+    def __init__(self, first_addr, func_num_of_insns, sug_desc=None):
         self.first_addr = first_addr
+        self.func_num_of_insns = func_num_of_insns
 
-        if suggested_description:
-            for key in Description.SUGGESTED_DESCRIPTION_DICT_KEYS:
-                setattr(self, key, suggested_description[key])
+        if sug_desc:
+            for key in sug_desc:
+                setattr(self, key, sug_desc[key])
+            self.can_be_embedded = (self.func_num_of_insns ==
+                                    self.desc_num_of_insns)
         else:
             self.can_be_embedded = True
             self.save_changes()
@@ -25,11 +22,10 @@ class Description:
         deletes previous comments.
         """
         if self.can_be_embedded:
-            DescriptionUtils.set_all(self.first_addr, self.description_data,
-                                     append=None)
+            DescriptionUtils.set_all(self.first_addr, self.data, append=None)
 
     def save_changes(self):
-        self.description_data = DescriptionUtils.get_all(self.first_addr)
+        self.data = DescriptionUtils.get_all(self.first_addr)
 
 
 class DescriptionUtils:
@@ -76,12 +72,12 @@ class DescriptionUtils:
 
     @classmethod
     def get_both_func_comments(cls, start_addr):
-        comments = cls.get_func_comment(start_addr, 0)
-        if comments:
-            return (comments +
-                    cls.get_func_comment(start_addr, 1))
-        else:
-            return cls.get_func_comment(start_addr, 1)
+        func_comments = []
+        for repeatable in [0, 1]:
+            comment = cls.get_func_comment(start_addr, repeatable)
+            if comment:
+                func_comments.append(comment)
+        return func_comments
 
     @classmethod
     def get_func_comment(cls, start_addr, repeatable):
@@ -131,10 +127,8 @@ class DescriptionUtils:
 
         if append is None:
             cls.remove_all_comments(start_addr)
-
         cls.set_func_name(start_addr, func_name)
         cls.set_stack_members(start_addr, stack_members)
-
         cls.set_comments(start_addr, comments, append)
         cls.set_both_func_comments(start_addr, func_comments, append)
         idaapi.refresh_idaview_anyway()
@@ -159,14 +153,10 @@ class DescriptionUtils:
 
         filtered_member_set = filter(member_filter_lambda, stack_members)
 
-        member_set_data_lambda = \
-            lambda member: (idc.SetMemberName(stack, member[0], member[1]),
-                            idc.SetMemberComment(stack, member[0], 0,
-                                                 member[4]),
-                            idc.SetMemberComment(stack, member[0], 1,
-                                                 member[5]))
-
-        map(member_set_data_lambda, filtered_member_set)
+        for member in filtered_member_set:
+            idc.SetMemberName(stack, member[0], member[1])
+            idc.SetMemberComment(stack, member[0], member[4], 0)
+            idc.SetMemberComment(stack, member[0], member[5], 1)
 
     @classmethod
     def set_comments(cls, start_addr, comments, append=None):
