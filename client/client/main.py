@@ -35,8 +35,14 @@ class REDB (idaapi.plugin_t):
         This function is called by IDA when the user uses one of the plugins'
         hotkeys.
         """
-        action.Action(self._executable, self._callback_functions, arg,
-                      idc.ScreenEA()).run()
+        if arg == 8:
+            if utils.GUI_ENABLED:
+                utils.GuiMenu()
+            else:
+                print "REDB: Error importing GUI libraries."
+        else:
+            action.Action(self._executable, self._callback_functions, arg,
+                          idc.ScreenEA()).run()
 
     def term(self):
         """

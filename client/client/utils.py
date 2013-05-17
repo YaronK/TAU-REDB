@@ -18,6 +18,17 @@ import idc
 import idautils
 import idaapi
 
+GUI_ENABLED = True
+
+try:
+    import pygtk
+    pygtk.require("2.0")
+    import gtk
+    GLADE_DIR_PATH = os.path.dirname(__file__)
+    GLADE_FILE_PATH = os.path.join(GLADE_DIR_PATH, 'redb_gui.glade')
+except:
+    GUI_FLAG = False
+
 
 #==============================================================================
 # Decorators
@@ -349,3 +360,92 @@ class ServerQuery:
                 "username": self.username,
                 "password": self.password,
                 "data": self.data}
+
+
+#==============================================================================
+# GUI
+#==============================================================================
+class GuiMenu:
+    def __init__(self):
+        self.wTree = gtk.glade.XML(GLADE_FILE_PATH, "mainWindow")
+
+        callbacks = {"on_mainWindow_destroy": gtk.main_quit,
+                     "on_Submit": self.Submit,
+                     "on_Request": self.Request,
+                     "on_Restore": self.Restore,
+                     "on_Settings": self.Settings,
+                     "on_Show": self.Show,
+                     "on_Merge": self.Merge,
+                     "on_Details": self.Details}
+
+        self.wTree.signal_autoconnect(callbacks)
+
+        # Column numbers
+        self.cDescIndex = 0
+        self.cFuncName = 1
+        self.cFuncNumCmts = 2
+        self.cFuncGrade = 3
+        self.cDescUser = 4
+        self.cDescDate = 5
+
+        # Column titles
+        self.sDescIndex = "Index"
+        self.sFuncName = "Name"
+        self.sFuncNumCmts = "Number of comments"
+        self.sFuncGrade = "Grade"
+        self.sDescUser = "User"
+        self.sDescDate = "Last Modified"
+
+        # Main Widget
+        self.DescriptionView = self.wTree.get_widget("DescriptionView")
+        self.DescriptionList = gtk.ListStore(int, str, int, float, str, str)
+        self.DescriptionView.set_model(self.DescriptionList)
+
+        # Adding Columns
+        self.AddDescriptionListColumn(self.sDescIndex, self.cDescIndex)
+        self.AddDescriptionListColumn(self.sFuncName, self.cFuncName)
+        self.AddDescriptionListColumn(self.sFuncNumCmts, self.cFuncNumCmts)
+        self.AddDescriptionListColumn(self.sFuncGrade, self.cFuncGrade)
+        self.AddDescriptionListColumn(self.sDescUser, self.cDescUser)
+        self.AddDescriptionListColumn(self.sDescDate, self.cDescDate)
+
+        gtk.main()
+
+    def AddDescriptionListColumn(self, title, columnId):
+        """This function adds a column to the list view.
+        First it create the gtk.TreeViewColumn and then set
+        some needed properties"""
+
+        column = gtk.TreeViewColumn(title, gtk.CellRendererText(),
+                                    text=columnId)
+        column.set_resizable(True)
+        column.set_sort_column_id(columnId)
+        self.DescriptionView.append_column(column)
+
+    def Submit(self, widget):
+        print "Submit description"
+
+    def Request(self, widget):
+        # self.DescriptionList.append([1, "func", 5, 0.98, "yasmin", "12345"])
+        print "Request description"
+
+    def Restore(self, widget):
+        print "Restore description"
+
+    def Settings(self, widget):
+        print "Settings"
+
+    def Show(self, widget):
+        description_index = self.DescriptionView.get_selection().get_selected_rows()[0][0][0]
+        print description_index
+        print "Show description"
+
+    def Merge(self, widget):
+        description_index = self.DescriptionView.get_selection().get_selected_rows()[0][0][0]
+        print "Merge description"
+
+    def Details(self, widget):
+        description_index = self.DescriptionView.get_selection().get_selected_rows()[0][0][0]
+        # details = DescriptionDetails(self.gladefile)
+        # details.run()
+        print "Details description"
