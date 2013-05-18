@@ -3,7 +3,7 @@ from models import Function
 from utils import (log, generate_blocks_data, _decode_dict)
 from collections import Counter
 from heuristics import DictionarySimilarity, GraphSimilarity
-from json import loads, dumps
+import json
 from redb_app.models import User
 
 MAX_NUM_INSNS_DEVIATION = 0.15
@@ -36,7 +36,7 @@ MATCHING_THRESHOLD = 0.9
 
 class Query:
     def __init__(self, http_post):
-        self.query = loads(http_post.FILES['action'].read(),
+        self.query = json.loads(http_post.FILES['action'].read(),
                           object_hook=_decode_dict)
 
     def check_validity(self):
@@ -77,7 +77,7 @@ class SubmitAction:
 
     @log
     def process_description(self):
-        self.description_data = dumps(self.description_data,
+        self.description_data = json.dumps(self.description_data,
                                               ensure_ascii=False)
 
     @log
@@ -186,8 +186,8 @@ class RequestAction:
     def matching_grade_filtering(self):
         self.matching_funcs = []
         for func in self.filtered_function_set:
-            second_graph_edges = loads(func.graph.edges)
-            second_graph_data = loads(func.graph.blocks_data)
+            second_graph_edges = json.loads(func.graph.edges)
+            second_graph_data = json.loads(func.graph.blocks_data)
 
             grade = GraphSimilarity(self.temp_function_wrapper.edges,
                                     self.temp_function_wrapper.blocks_data,
@@ -204,7 +204,7 @@ class RequestAction:
             for desc in func.description_set.all():
                 print desc.data
                 try:
-                    desc_data = loads(desc.data, object_hook=_decode_dict)
+                    desc_data = json.loads(desc.data, object_hook=_decode_dict)
                 except Exception as e:
                     print e
 

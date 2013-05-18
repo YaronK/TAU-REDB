@@ -19,11 +19,14 @@ import idautils
 import idaapi
 
 GUI_ENABLED = True
-
 try:
     import pygtk
+    print "imported pygtk"
     pygtk.require("2.0")
-    import gtk
+    print "yaron"
+    import gtk.glade
+    # from gtk import glade
+    print "imported gtk"
     GLADE_DIR_PATH = os.path.dirname(__file__)
     GLADE_FILE_PATH = os.path.join(GLADE_DIR_PATH, 'redb_gui.glade')
 except:
@@ -260,9 +263,11 @@ def _create_callback_func_table():
     ida_plugins_dir = idaapi.idadir("plugins")
     ida_plugins_cfg_path = os.path.join(ida_plugins_dir, 'plugins.cfg')
     list_lines = open(ida_plugins_cfg_path, 'r').readlines()
-    first_index = \
-        list_lines.index(';REDB CALLBACK_FUNCTIONS PARSER: ENTER\n') + 1
-    last_index = list_lines.index(';REDB CALLBACK_FUNCTIONS PARSER: EXIT\n')
+    first_index = list_lines.index(';REDB: ENTER\n') + 1
+    try:
+        last_index = list_lines.index(';REDB: EXIT\n')
+    except:
+        last_index = list_lines.index(';REDB: EXIT')
     CALLBACK_FUNCTIONS = []
     list_lines = list_lines[first_index:last_index]
     for line in list_lines:
@@ -367,8 +372,9 @@ class ServerQuery:
 #==============================================================================
 class GuiMenu:
     def __init__(self):
+        print "Menu"
         self.wTree = gtk.glade.XML(GLADE_FILE_PATH, "mainWindow")
-
+        print "0"
         callbacks = {"on_mainWindow_destroy": gtk.main_quit,
                      "on_Submit": self.Submit,
                      "on_Request": self.Request,
@@ -408,8 +414,9 @@ class GuiMenu:
         self.AddDescriptionListColumn(self.sFuncGrade, self.cFuncGrade)
         self.AddDescriptionListColumn(self.sDescUser, self.cDescUser)
         self.AddDescriptionListColumn(self.sDescDate, self.cDescDate)
-
+        print "1"
         gtk.main()
+        print "/Menu"
 
     def AddDescriptionListColumn(self, title, columnId):
         """This function adds a column to the list view.
@@ -418,6 +425,7 @@ class GuiMenu:
 
         column = gtk.TreeViewColumn(title, gtk.CellRendererText(),
                                     text=columnId)
+
         column.set_resizable(True)
         column.set_sort_column_id(columnId)
         self.DescriptionView.append_column(column)
@@ -449,3 +457,16 @@ class GuiMenu:
         # details = DescriptionDetails(self.gladefile)
         # details.run()
         print "Details description"
+
+
+class DescriptionDetails:
+    def __init__(self, details):
+        print "Details"
+        wTree = gtk.glade.XML(GLADE_FILE_PATH, "DescriptionDetails")
+        descriptionDetalils = wTree.get_widget("DescriptionDetails")
+        details = wTree.get_widget("details")
+        details_buffer = details.get_buffer()
+        details_buffer.set_text(details)
+        descriptionDetalils.run()
+        descriptionDetalils.destroy()
+        print "/Details"

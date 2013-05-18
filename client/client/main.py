@@ -1,7 +1,6 @@
 """
 This module contains the main class inheriting from idaapi.plugin_t.
 """
-
 # related third party imports
 import idaapi
 import idc
@@ -38,6 +37,9 @@ class REDB (idaapi.plugin_t):
         if arg == 8:
             if utils.GUI_ENABLED:
                 utils.GuiMenu()
+                print "1"
+                utils.DescriptionDetails()
+                print "2"
             else:
                 print "REDB: Error importing GUI libraries."
         else:
