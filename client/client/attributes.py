@@ -5,7 +5,6 @@ class is created for each handled function.
 
 # standard library imports
 import hashlib
-import gc
 
 # related third party imports
 import idautils
@@ -61,8 +60,6 @@ class FuncAttributes:
         self._collect_all()
         self._extract_all()
         self._del_all_attr()
-
-        gc.collect()
 
     def _initialize_attributes(self):
         """

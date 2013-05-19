@@ -2,67 +2,7 @@
 <glade-interface>
   <!-- interface-requires gtk+ 2.6 -->
   <!-- interface-naming-policy toplevel-contextual -->
-  <widget class="GtkDialog" id="DescriptionDetails">
-    <property name="visible">True</property>
-    <property name="can_focus">False</property>
-    <property name="title" translatable="yes">Details</property>
-    <property name="window_position">center</property>
-    <property name="default_width">350</property>
-    <property name="default_height">250</property>
-    <property name="destroy_with_parent">True</property>
-    <property name="type_hint">utility</property>
-    <property name="opacity">0.97999999999999998</property>
-    <property name="has_separator">True</property>
-    <child internal-child="vbox">
-      <widget class="GtkVBox" id="dialog-vbox3">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <child internal-child="action_area">
-          <widget class="GtkHButtonBox" id="dialog-action_area3">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="layout_style">center</property>
-            <child>
-              <widget class="GtkButton" id="cancelbutton1">
-                <property name="label">Hide</property>
-                <property name="response_id">-6</property>
-                <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="can_default">True</property>
-                <property name="receives_default">True</property>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="fill">False</property>
-                <property name="position">0</property>
-              </packing>
-            </child>
-          </widget>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="pack_type">end</property>
-            <property name="position">0</property>
-          </packing>
-        </child>
-        <child>
-          <widget class="GtkTextView" id="details">
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="editable">False</property>
-            <property name="cursor_visible">False</property>
-            <property name="accepts_tab">False</property>
-          </widget>
-          <packing>
-            <property name="expand">True</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
-          </packing>
-        </child>
-      </widget>
-    </child>
-  </widget>
-  <widget class="GtkWindow" id="mainWindow">
+  <widget class="GtkWindow" id="MainWindow">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">REDB</property>
@@ -72,11 +12,11 @@
     <property name="destroy_with_parent">True</property>
     <signal name="destroy" handler="on_mainWindow_destroy" swapped="no"/>
     <child>
-      <widget class="GtkVBox" id="vbox1">
+      <widget class="GtkVBox" id="MainWindowVbox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <child>
-          <widget class="GtkToolbar" id="toolbar1">
+          <widget class="GtkToolbar" id="TopToolbar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="extension_events">all</property>
@@ -145,14 +85,19 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkScrolledWindow" id="scrolledwindow1">
+          <widget class="GtkScrolledWindow" id="DescriptionScrolledWindow">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="hscrollbar_policy">automatic</property>
+            <property name="vscrollbar_policy">automatic</property>
             <property name="shadow_type">in</property>
             <child>
-              <widget class="GtkTreeView" id="DescriptionView">
+              <widget class="GtkTreeView" id="DescriptionTable">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
+                <property name="reorderable">True</property>
+                <property name="fixed_height_mode">True</property>
+                <property name="enable_grid_lines">both</property>
               </widget>
             </child>
           </widget>
@@ -163,7 +108,27 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkToolbar" id="toolbar2">
+          <widget class="GtkScrolledWindow" id="DetailsScrolledWindow">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="hscrollbar_policy">automatic</property>
+            <property name="vscrollbar_policy">automatic</property>
+            <property name="shadow_type">in</property>
+            <child>
+              <widget class="GtkTextView" id="DescriptionDetails">
+                <property name="can_focus">True</property>
+                <property name="editable">False</property>
+              </widget>
+            </child>
+          </widget>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <widget class="GtkToolbar" id="BottomToolbar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="icon_size">2</property>
@@ -213,7 +178,7 @@
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
-            <property name="position">2</property>
+            <property name="position">3</property>
           </packing>
         </child>
       </widget>

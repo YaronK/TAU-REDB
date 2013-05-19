@@ -18,20 +18,6 @@ import idc
 import idautils
 import idaapi
 
-GUI_ENABLED = True
-try:
-    import pygtk
-    print "imported pygtk"
-    pygtk.require("2.0")
-    print "yaron"
-    import gtk.glade
-    # from gtk import glade
-    print "imported gtk"
-    GLADE_DIR_PATH = os.path.dirname(__file__)
-    GLADE_FILE_PATH = os.path.join(GLADE_DIR_PATH, 'redb_gui.glade')
-except:
-    GUI_FLAG = False
-
 
 #==============================================================================
 # Decorators
@@ -371,102 +357,71 @@ class ServerQuery:
 # GUI
 #==============================================================================
 class GuiMenu:
-    def __init__(self):
-        print "Menu"
-        self.wTree = gtk.glade.XML(GLADE_FILE_PATH, "mainWindow")
-        print "0"
-        callbacks = {"on_mainWindow_destroy": gtk.main_quit,
-                     "on_Submit": self.Submit,
-                     "on_Request": self.Request,
-                     "on_Restore": self.Restore,
-                     "on_Settings": self.Settings,
-                     "on_Show": self.Show,
-                     "on_Merge": self.Merge,
-                     "on_Details": self.Details}
+    GLADE_DIR_PATH = os.path.dirname(__file__)
+    GLADE_FILE_PATH = os.path.join(GLADE_DIR_PATH, 'redb_gui.glade')
 
-        self.wTree.signal_autoconnect(callbacks)
+    COLUMNS = ["Index", "Name", "Number of comments", "Grade", "User",
+               "Last Modified"]
 
-        # Column numbers
-        self.cDescIndex = 0
-        self.cFuncName = 1
-        self.cFuncNumCmts = 2
-        self.cFuncGrade = 3
-        self.cDescUser = 4
-        self.cDescDate = 5
+    def __init__(self, callbacks, gtk_module):
+        """
+        Necessary callback functions:
+        "on_Submit", "on_Request", "on_Restore",
+        "on_Settings", "on_Show", "on_Merge", "on_Details",
+        "on_DescriptionTable_cursor_changed"
+        """
+        self.gtk = gtk_module
 
-        # Column titles
-        self.sDescIndex = "Index"
-        self.sFuncName = "Name"
-        self.sFuncNumCmts = "Number of comments"
-        self.sFuncGrade = "Grade"
-        self.sDescUser = "User"
-        self.sDescDate = "Last Modified"
+        # Read structure from glade file
+        self.main_window = self.gtk.glade.XML(GuiMenu.GLADE_FILE_PATH,
+                                              "MainWindow")
 
-        # Main Widget
-        self.DescriptionView = self.wTree.get_widget("DescriptionView")
-        self.DescriptionList = gtk.ListStore(int, str, int, float, str, str)
-        self.DescriptionView.set_model(self.DescriptionList)
+        # Connect callback functions
+        self.main_window.signal_autoconnect(callbacks)
 
-        # Adding Columns
-        self.AddDescriptionListColumn(self.sDescIndex, self.cDescIndex)
-        self.AddDescriptionListColumn(self.sFuncName, self.cFuncName)
-        self.AddDescriptionListColumn(self.sFuncNumCmts, self.cFuncNumCmts)
-        self.AddDescriptionListColumn(self.sFuncGrade, self.cFuncGrade)
-        self.AddDescriptionListColumn(self.sDescUser, self.cDescUser)
-        self.AddDescriptionListColumn(self.sDescDate, self.cDescDate)
-        print "1"
-        gtk.main()
-        print "/Menu"
+        # Instantiate description table
+        self._init_description_table()
 
-    def AddDescriptionListColumn(self, title, columnId):
-        """This function adds a column to the list view.
-        First it create the gtk.TreeViewColumn and then set
-        some needed properties"""
+        # Set columns
+        for column_title in GuiMenu.COLUMNS:
+            self._add_column(column_title, GuiMenu.COLUMNS.index(column_title))
 
-        column = gtk.TreeViewColumn(title, gtk.CellRendererText(),
+        # Show
+        self.gtk.main()
+
+        # For future reference
+        self.description_details = \
+            self.main_window.get_widget("DescriptionDetails")
+
+    def add_descriptions(self, description_list):
+        """
+        Each description is a list. See GuiMenu.COLUMNS.
+        """
+        for description in description_list:
+            self.descriptions.append(description)
+
+    def remove_all_rows(self):
+        self.description.clear()
+
+    def get_selected_description_index(self):
+        return self.description_table.get_selection().\
+                    get_selected_rows()[0][0][0]
+
+    def set_details(self, text):
+        self.description_details.get_buffer().set_text(text)
+
+    def gtk_main_quit(self):
+        self.gtk.main_quit()
+
+    def _add_column(self, title, columnId):
+        column = self.gtk.TreeViewColumn(title, self.gtk.CellRendererText(),
                                     text=columnId)
-
         column.set_resizable(True)
         column.set_sort_column_id(columnId)
-        self.DescriptionView.append_column(column)
+        self.description_table.append_column(column)
 
-    def Submit(self, widget):
-        print "Submit description"
-
-    def Request(self, widget):
-        # self.DescriptionList.append([1, "func", 5, 0.98, "yasmin", "12345"])
-        print "Request description"
-
-    def Restore(self, widget):
-        print "Restore description"
-
-    def Settings(self, widget):
-        print "Settings"
-
-    def Show(self, widget):
-        description_index = self.DescriptionView.get_selection().get_selected_rows()[0][0][0]
-        print description_index
-        print "Show description"
-
-    def Merge(self, widget):
-        description_index = self.DescriptionView.get_selection().get_selected_rows()[0][0][0]
-        print "Merge description"
-
-    def Details(self, widget):
-        description_index = self.DescriptionView.get_selection().get_selected_rows()[0][0][0]
-        # details = DescriptionDetails(self.gladefile)
-        # details.run()
-        print "Details description"
-
-
-class DescriptionDetails:
-    def __init__(self, details):
-        print "Details"
-        wTree = gtk.glade.XML(GLADE_FILE_PATH, "DescriptionDetails")
-        descriptionDetalils = wTree.get_widget("DescriptionDetails")
-        details = wTree.get_widget("details")
-        details_buffer = details.get_buffer()
-        details_buffer.set_text(details)
-        descriptionDetalils.run()
-        descriptionDetalils.destroy()
-        print "/Details"
+    def _init_description_table(self):
+        self.description_table = \
+            self.main_window.get_widget("DescriptionTable")
+        self.descriptions = self.gtk.ListStore(int, str, int, float, str, str)
+        self.description_table.set_model(self.descriptions)

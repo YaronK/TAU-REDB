@@ -1,14 +1,26 @@
 """
 This module contains the main class inheriting from idaapi.plugin_t.
 """
-# related third party imports
+import utils
+import action
 import idaapi
 import idc
 import idautils
 
-# local application/library specific imports
-import action
-import utils
+GUI_ENABLED = True
+GUI_MENU = None
+
+try:
+    import pygtk
+    pygtk.require('2.0')
+except:
+    GUI_ENABLED = False
+
+try:
+    import gtk  # @UnusedImport
+    import gtk.glade  # @UnusedImport
+except:
+    GUI_ENABLED = False
 
 
 #==============================================================================
@@ -26,7 +38,7 @@ class REDB (idaapi.plugin_t):
 
     def init(self):
         self._executable = Executable()
-        self._callback_functions = utils._create_callback_func_table()
+        self._hotkey_callbacks = utils._create_callback_func_table()
         return idaapi.PLUGIN_KEEP
 
     def run(self, arg):
@@ -35,16 +47,20 @@ class REDB (idaapi.plugin_t):
         hotkeys.
         """
         if arg == 8:
-            if utils.GUI_ENABLED:
-                utils.GuiMenu()
-                print "1"
-                utils.DescriptionDetails()
-                print "2"
-            else:
-                print "REDB: Error importing GUI libraries."
+            callbacks = {"on_mainWindow_destroy": gtk.main_quit,
+                         "on_Submit": lambda x: x,
+                         "on_Request": lambda x: x,
+                         "on_Restore": lambda x: x,
+                         "on_Settings": lambda x: x,
+                         "on_Show": lambda x: x,
+                         "on_Merge": lambda x: x,
+                         "on_Details": lambda x: x,
+                         "on_DescriptionTable_cursor_changed": lambda x: x}
+
+            utils.GuiMenu(callbacks, gtk)
         else:
-            action.Action(self._executable, self._callback_functions, arg,
-                          idc.ScreenEA()).run()
+            action.HotkeyAction(self._executable, self._hotkey_callbacks,
+                                arg, idc.ScreenEA())
 
     def term(self):
         """
