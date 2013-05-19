@@ -327,14 +327,13 @@ def post_non_serialized_data(data, host):
                        [("action", "action", serialized_data)])
 
     if serialized_response == None:
-        print "REDB: No response from server."
-        return None
+        return "No response from server."
 
     response = None
     try:
         response = json.loads(s=serialized_response, object_hook=_decode_dict)
     except ValueError:
-        print "REDB, Response: " + serialized_response
+        return "Server: " + serialized_response
 
     return response
 
@@ -386,12 +385,12 @@ class GuiMenu:
         for column_title in GuiMenu.COLUMNS:
             self._add_column(column_title, GuiMenu.COLUMNS.index(column_title))
 
-        # Show
-        self.gtk.main()
-
         # For future reference
         self.description_details = \
             self.main_window.get_widget("DescriptionDetails")
+
+    #def gtk_main(self):
+        self.gtk.main()
 
     def add_descriptions(self, description_list):
         """

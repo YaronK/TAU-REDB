@@ -24,6 +24,10 @@ class Description:
         if self.can_be_embedded:
             DescriptionUtils.set_all(self.first_addr, self.data, append=None)
 
+    def merge(self):
+        if self.can_be_embedded:
+            DescriptionUtils.set_all(self.first_addr, self.data, append=True)
+
     def save_changes(self):
         self.data = DescriptionUtils.get_all(self.first_addr)
 

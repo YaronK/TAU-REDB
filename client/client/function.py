@@ -23,7 +23,7 @@ class Function:
         self._string_addresses = string_addresses
         self._descriptions = [descriptions.Description(self._first_addr,
                                                        len(self._func_items))]
-        self._desc_index = 0
+        self.cur_index = 0
         self._attributes = attributes.FuncAttributes(self._first_addr,
                                                      self._func_items,
                                                      self._string_addresses,
@@ -31,9 +31,6 @@ class Function:
                                                      get_attributes()
 
     def request_descriptions(self):
-        """
-        Request descriptions for a function.
-        """
         # Reset public descriptions
         self.restore_user_description()
         self._discard_public_descriptions()
@@ -48,103 +45,94 @@ class Function:
                     data_dict=data).to_dict()
 
         response = utils.post_non_serialized_data(query, host)
-        if response:
-            for description in response:
-                self._descriptions.append(descriptions.\
-                                          Description(self._first_addr,
-                                                      len(self._func_items),
-                                                      description))
-            num_of_rec_desc = len(response)
-            print ("REDB: Received " + str(num_of_rec_desc) + " descriptions.")
+        if not response:
+            return "No reply or an error occurred!"
 
-            if num_of_rec_desc:
-                self.next_description()
-        else:
-            print "REDB: No reply or an error occurred!"
+        for description in response:
+            self._add_description(description)
+        num_of_rec_desc = len(response)
+        if num_of_rec_desc:
+            self.show_next_description()
+        return ("Received " + str(num_of_rec_desc) + " descriptions.")
 
     def submit_description(self):
         """
         Submits the user's description.
         """
+        if not self._is_cur_user_desc():
+            return "Can't submit a public description."
+
+        host = utils.Configuration.get_option('host')
+        self._cur_description().save_changes()
+
+        data = {"attributes": self._attributes,
+                "description": self._cur_description().data}
+
+        query = utils.ServerQuery(query_type="submit",
+                username=utils.Configuration.get_option('username'),
+                password=utils.Configuration.get_option('password'),
+                data_dict=data).to_dict()
+
+        return utils.post_non_serialized_data(query, host)
+
+    def show_description_by_index(self, index):
+        if not self._public_desc_exist():
+            return "No public descriptions available."
+        if index >= self.num_of_decriptions():
+            return "Bad description index."
         if self._is_cur_user_desc():
-            host = utils.Configuration.get_option('host')
-            self._cur_description().save_changes()
+            self._save_changes()
+        self.cur_index = index
+        self.get_descripition_by_index(index).show()
 
-            data = {"attributes": self._attributes,
-                    "description": self._cur_description().data}
+    def get_descripition_by_index(self, index):
+        return self._descriptions[index]
 
-            query = utils.ServerQuery(query_type="submit",
-                    username=utils.Configuration.get_option('username'),
-                    password=utils.Configuration.get_option('password'),
-                    data_dict=data).to_dict()
+    def num_of_decriptions(self):
+        return len(self._descriptions)
 
-            utils.post_non_serialized_data(query, host)
-        else:
-            print "REDB: Can't submit a public description."
+    def show_next_description(self):
+        return self.show_description_by_index(self._get_next_desc_index())
 
-    def next_description(self):
-        """
-        View next public description.
-        """
-        if self._public_desc_exist():
-            if self._is_cur_user_desc():
-                self._descriptions[self._desc_index].save_changes()
-            self._desc_index = (self._desc_index + 1) % len(self._descriptions)
-            self._descriptions[self._desc_index].show()
-        else:
-            print "REDB: You don't have any public descriptions!"
-
-    def previous_description(self):
-        """
-        View previous public description.
-        """
-        if self._public_desc_exist():
-            if self._is_cur_user_desc():
-                self._descriptions[self._desc_index].save_changes()
-            self._desc_index = (self._desc_index - 1) % len(self._descriptions)
-            self._descriptions[self._desc_index].show()
-        else:
-            print "REDB: You don't have any public descriptions!"
+    def show_prev_description(self):
+        return self.show_description_by_index(self._get_prev_desc_index())
 
     def restore_user_description(self):
-        """
-        Restore the user's description.
-        """
-        if not self._is_cur_user_desc():
-            self._desc_index = 0
-            self._descriptions[self._desc_index].show()
-        else:
-            print "REDB: This is the user's description."
+        if self._is_cur_user_desc():
+            return "This is the user's description."
+        return self.show_description_by_index(0)
 
     def merge_public_to_users(self):
-        """
-        Merge current public description into the user's description.
-        """
         if self._is_cur_user_desc():
-            print "REDB: Current Description IS the user's description."
-        else:
-            self._current_description.remove_desc()
-
-            self._set_current_description(self._user_description)
-            self._current_description.show_desc()
-            self._public_descriptions[self._public_desc_index].\
-                                                        merge_into_users()
-            print ("REDB: Description No." +
-                   str(self._public_desc_index + 1) +
-                   " was merged into the user's description.")
+            return "This is the user's description."
+        self.get_descripition_by_index(self.cur_index).merge()
 
 #==============================================================================
 # Utility methods
 #==============================================================================
+    def _add_description(self, description):
+        self._descriptions.append(descriptions.\
+                                      Description(self._first_addr,
+                                                  len(self._func_items),
+                                                  description))
+
+    def _save_changes(self):
+        self.get_descripition_by_index(self.cur_index).save_changes()
+
+    def _get_next_desc_index(self):
+        return (self.cur_index + 1) % self._num_of_descriptions()
+
+    def _get_prev_desc_index(self):
+        return (self.cur_index - 1) % self._num_of_descriptions()
 
     def _is_cur_user_desc(self):
-        return self._desc_index == 0
+        return self.cur_index == 0
 
     def _public_desc_exist(self):
         return len(self._descriptions) > 1
 
     def _cur_description(self):
-        return self._descriptions[self._desc_index]
+        return self._descriptions[self.cur_index]
 
     def _discard_public_descriptions(self):
         self._descriptions = self._descriptions[0:1]

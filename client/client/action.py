@@ -18,41 +18,44 @@ MIN_INS_PER_HANDLED_FUNCTION = 5
 #==============================================================================
 # Client Interface
 #==============================================================================
-class Action(object):
-    def __init__(self, redb_item, current_addr):
-        self._redb_functions = redb_item._redb_functions
-        self._string_addresses = redb_item._string_addresses
-        self._imported_modules = redb_item._imported_modules
+class Actions():
+    REDB_FUNCTIONS = {}
+    STRING_ADDRESSES = []
+    IMOPRTED_MODULES = []
 
-        self._is_a_function = False
-        self._cur_func = None
+    @classmethod
+    def initialize(cls):
+        """
+        Preparations which take place in the loading process.
+        """
+        idaapi.show_wait_box("REDB Plugin is loading, please wait...")
 
-        # Establish if cursor is pointing at a function,
-        # and if so, if the function is in the handled functions list.
-        # updates self._cur_function.
-        func = idaapi.get_func(current_addr)
-        if func is not None:
-            self._is_a_function = True
-            self._start_addr = func.startEA
-            self.func_items = list(idautils.FuncItems(self._start_addr))
+        utils._backup_idb_file()
+        utils.Configuration.assert_config_file_validity()
+        cls._collect_string_addresses()
+        cls._collect_imported_modules()
 
-            if str(self._start_addr) in self._redb_functions:
-                self._cur_func = self._redb_functions[str(self._start_addr)]
+        print "*** REDB Plugin loaded. ***"
+        idaapi.hide_wait_box()
 
-    def submit(self):
-        result = None
+    @classmethod
+    def submit_current(cls):
+        func = cls._get_current_function()
+        if not isinstance(func, function.Function):
+            return func
+
+        first_addr = func._first_addr
+        func_items = func._func_items
+        num_of_insns = len(func_items)
+
+        if cls._is_lib_thunk(first_addr):
+            return "Lib and thunk functions are not admissible."
+        if not cls._is_long_enough(num_of_insns):
+            return "Short functions are not admisible."
+
+        idaapi.show_wait_box("Submitting...")
         try:
-            if not self._is_a_function:
-                return "Not pointing at a function."
-            if self._is_lib_thunk():
-                return "Lib and thunk functions are not admissible."
-            if not self._is_long_enough():
-                return "Short functions are not admisible."
-            if (not self._is_handled()):
-                self._add_function()
-
-            idaapi.show_wait_box("Submitting...")
-            result = self._cur_func.submit_description()
+            result = func.submit_description()
         except Exception as e:
             return "Error occurred while submitting: " + str(e)
         else:
@@ -60,15 +63,15 @@ class Action(object):
         finally:
             idaapi.hide_wait_box()
 
-    def request(self):
-        result = None
+    @classmethod
+    def request_current(cls):
+        func = cls._get_current_function()
+        if not isinstance(func, function.Function):
+            return func
+
+        idaapi.show_wait_box("Requesting...")
         try:
-            if not self._is_a_function:
-                return "Not pointing at a function."
-            if (not self._is_handled()):
-                self._add_function()
-            idaapi.show_wait_box("Requesting...")
-            result = self._cur_func.request_descriptions()
+            result = func.request_descriptions()
         except Exception as e:
             return "Error occurred while requesting: " + str(e)
         else:
@@ -76,131 +79,154 @@ class Action(object):
         finally:
             idaapi.hide_wait_box()
 
-    def restore_user_description(self):
-        try:
-            if not self._is_a_function:
-                return "Not pointing at a function."
-            if (not self._is_handled()):
-                return "Function not handled (no descriptions saved)."
-            self._cur_func.restore_user_description()
-        except Exception as e:
-            return "Error occurred while restoring: " + str(e)
+    @classmethod
+    def restore_user_description(cls):
+        func = cls._get_current_function()
+        if not isinstance(func, function.Function):
+            return func
+        return func.restore_user_description()
 
-    def merge(self):
-        try:
-            if not self._is_a_function:
-                return "Not pointing at a function."
-            if (not self._is_handled()):
-                return "Function not handled (no descriptions saved)."
-            self._cur_func.merge_public_to_users()
-        except Exception as e:
-            return "Error occurred while merging: " + str(e)
+    @classmethod
+    def merge(cls):
+        func = cls._get_current_function()
+        if not isinstance(func, function.Function):
+            return func
+        return func.merge_public_to_users()
 
-    def _is_handled(self):
-        return self._cur_func != None
+    @classmethod
+    def _get_current_function(cls):
+        func = idaapi.get_func(idc.ScreenEA())
+        if func is None:
+            return "Not pointing at a function."
+        if str(func.startEA) not in cls.REDB_FUNCTIONS:
+            cls._add_function(func.startEA)
+        return cls.REDB_FUNCTIONS[str(func.startEA)]
 
-    def _is_lib_thunk(self):
-        flags = idc.GetFunctionFlags(self._start_addr)
+    @classmethod
+    def _collect_string_addresses(cls):
+        cls.STRING_ADDRESSES = [string.ea for string in idautils.Strings()]
+
+    @classmethod
+    def _collect_imported_modules(cls):
+        cls.IMOPRTED_MODULES = \
+            utils.ImportsAndFunctions().collect_imports_data()
+
+    @classmethod
+    def _is_lib_thunk(cls, startEA):
+        flags = idc.GetFunctionFlags(startEA)
         return (flags & (idc.FUNC_THUNK | idc.FUNC_LIB))
 
-    def _is_long_enough(self):
-        return (len(self.func_items) >= MIN_INS_PER_HANDLED_FUNCTION)
+    @classmethod
+    def _is_long_enough(cls, num_of_insns):
+        return (num_of_insns >= MIN_INS_PER_HANDLED_FUNCTION)
 
-    def _add_function(self):
-        """
-        Adds a function to handled functions dictionary.
-        """
-        self._cur_func = function.Function(self._start_addr,
-                                           self._string_addresses,
-                                           self._imported_modules)
-        self._redb_functions[str(self._start_addr)] = self._cur_func
+    @classmethod
+    def _add_function(cls, startEA):
+        func = function.Function(startEA, cls.STRING_ADDRESSES,
+                                 cls.IMOPRTED_MODULES)
+        cls.REDB_FUNCTIONS[str(startEA)] = func
+
+    @classmethod
+    def term(cls):
+        idaapi.hide_wait_box()
+        for function in cls.REDB_FUNCTIONS.values():
+            function.restore_user_description()
 
 
-class HotkeyAction(Action):
-    def __init__(self, redb_item, hotkey_callbacks, arg, current_addr):
-        super(HotkeyAction, self).__init__(redb_item, current_addr)
-        self._arg = arg
-        self._hotkey_callbacks = hotkey_callbacks
-        print self._hotkey_callbacks
-        getattr(self, self._hotkey_callbacks[self._arg][2])()
+class Hotkeys():
+    @classmethod
+    def hotkey_submit_current(cls):
+        print Actions.submit_current()
 
-    def information(self):
-        print "1"
-        help_string = "\r\nREDB Commands:\r\n"
-        help_string += "============\r\n"
-        for function in self._hotkey_callbacks:
-            help_string += function[1]
-            help_string += "\t"
-            help_string += function[0]
-            help_string += "\r\n"
+    @classmethod
+    def hotkey_request_current(cls):
+        print Actions.request_current()
 
-        print help_string
+    @classmethod
+    def hotkey_next_public_desc(cls):
+        func = Actions._get_current_function()
+        if not isinstance(func, function.Function):
+            return func
+        print func.show_next_description()
 
-    def submit_current(self):
-        print self.submit()
+    @classmethod
+    def hotkey_prev_public_desc(cls):
+        func = Actions._get_current_function()
+        if not isinstance(func, function.Function):
+            return func
+        print func.show_prev_description()
 
-    def request_current(self):
-        print self.request()
+    @classmethod
+    def hotkey_restore_user_description(cls):
+        return Actions.restore_user_description()
 
-    def next_public_description(self):
-        try:
-            if not self._is_a_function:
-                print "Not pointing at a function."
-            if (not self._is_handled()):
-                print "Function not handled (no descriptions saved)."
-            self._cur_func.next_description()
-        except Exception as e:
-            return "An error occurred: " + str(e)
+    @classmethod
+    def hotkey_merge(cls):
+        return Actions.merge()
 
-    def previous_public_description(self):
-        try:
-            if not self._is_a_function:
-                print "Not pointing at a function."
-            if (not self._is_handled()):
-                print "Function not handled (no descriptions saved)."
-            self._cur_func.previous_description()
-        except Exception as e:
-            return "An error occurred: " + str(e)
-
-    def restore_my_description(self):
-        print super(HotkeyAction, self).restore_user_description()
-
-    def merge_public_into_users(self):
-        print self.merge()
-
-    def settings(self):
-        """
-        Change configurations.
-        """
+    @classmethod
+    def hotkey_settings(cls):
         for opt in utils.Configuration.OPTIONS.keys():
             value = utils.Configuration.get_opt_from_user(opt)
             utils.Configuration.set_option(opt, value)
 
-#-----------------------------------------------------------------------------
-# Client Interface Utilities
-#-----------------------------------------------------------------------------
 
-    def _request_neighbors(self):
-        """
-        Applying 'request' on immediate neighbors.
-        """
-        # CodeRefsTo current function
-        neighbors_list = list(idautils.CodeRefsTo(self._start_addr, 0))
+class GuiActions:
+    GTK = None
+    GUI_MENU = None
+    CALLBACKS = None
 
-        # CodeRefsFrom current function
-        for item in self._cur_func._func_items:
-            if idaapi.get_func(item).startEA != self._start_addr:
-                neighbors_list += list(idautils.CodeRefsFrom(item, 0))
+    @classmethod
+    def initialize(cls, gtk):
+        cls.GTK = gtk
+        cls.CALLBACKS = {"on_mainWindow_destroy": cls.on_mainWindow_destroy,
+                         "on_Submit": cls.on_Submit,
+                         "on_Request": cls.on_Request,
+                         "on_Restore": cls.on_Restore,
+                         "on_Settings": cls.on_Settings,
+                         "on_Show": cls.on_Show,
+                         "on_Merge": cls.on_Merge,
+                         "on_DescriptionTable_cursor_changed":
+                            cls.on_DescriptionTable_cursor_changed}
 
-        # Prompting the user for desired action
-        prompt_string = (str(len(neighbors_list)) +
-                         " neighbor functions were found.\n " +
-                         "Request descriptions for these functions?")
-        answer = idc.AskYN(-1, prompt_string)
+    @classmethod
+    def show_mainWindow(cls):
+        if cls.GUI_MENU == None:
+            cls.GUI_MENU = utils.GuiMenu(cls.CALLBACKS, cls.GTK)
 
-        # Request neighbor function
-        if (answer):
-            for func_addr in neighbors_list:
-                client = Action(self._redb_item, self._hotkey_callbacks,
-                                self._arg, func_addr)
-                client._request_one()
+    @classmethod
+    def on_mainWindow_destroy(cls, widget):
+        pass
+
+    @classmethod
+    def on_Submit(cls, widget):
+        print Actions.submit_current()
+
+    @classmethod
+    def on_Request(cls, widget):
+        print Actions.request_current()
+
+    @classmethod
+    def on_Restore(cls, widget):
+        return Actions.restore_user_description()
+
+    @classmethod
+    def on_Settings(cls, widget):
+        for opt in utils.Configuration.OPTIONS.keys():
+            value = utils.Configuration.get_opt_from_user(opt)
+            utils.Configuration.set_option(opt, value)
+
+    @classmethod
+    def on_Show(cls, widget):
+        func = Actions._get_current_function()
+        if not isinstance(func, function.Function):
+            return func
+        print func.show_next_description()
+
+    @classmethod
+    def on_Merge(cls, widget):
+        return Actions.merge()
+
+    @classmethod
+    def on_DescriptionTable_cursor_changed(cls, widget):
+        pass
