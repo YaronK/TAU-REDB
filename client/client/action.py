@@ -10,6 +10,7 @@ import idc
 # local application/library specific imports
 import function
 import utils
+import hashlib
 
 
 #==============================================================================
@@ -97,13 +98,13 @@ class HotkeyActions(Actions):
         elif action_name == "Submit current":
             self._hotkey_submit_current()
         elif action_name == "Request current":
-            self.Hotkeys._hotkey_request_current()
+            self._hotkey_request_current()
         elif action_name == "Next public description":
-            self.Hotkeys._hotkey_next_public_desc()
+            self._hotkey_next_public_desc()
         elif action_name == "Previous public description":
             self._hotkey_prev_public_desc()
         elif action_name == "Restore my description":
-            self.Hotkeys._hotkey_restore_user_description()
+            self._hotkey_restore_user_description()
         elif action_name == "Merge description":
             self._hotkey_merge()
         elif action_name == "Settings":
@@ -144,6 +145,10 @@ class HotkeyActions(Actions):
     def _hotkey_settings(self):
         for opt in utils.Configuration.OPTIONS.keys():
             value = utils.Configuration.get_opt_from_user(opt)
+            if opt == "password":
+                m = hashlib.md5()
+                m.update(value)
+                value = m.hexdigest()
             utils.Configuration.set_option(opt, value)
 
     def term(self):
@@ -183,6 +188,7 @@ class GuiActions(HotkeyActions):
         self.gui_menu.set_status_bar(result)
 
         self.gui_menu.remove_all_rows()
+        self.gui_menu.set_details("")
         desc_rows = self._generate_description_rows()
         self.gui_menu.add_descriptions(desc_rows)
 
@@ -192,6 +198,8 @@ class GuiActions(HotkeyActions):
 
     def _on_Settings(self, widget):
         HotkeyActions._hotkey_settings(self)
+        self.gui_menu.show()
+        self.gui_menu.set_status_bar("Settings saved.")
 
     def _on_Embed(self, widget):
         # TODO: check we haven't changed function
@@ -221,18 +229,33 @@ class GuiActions(HotkeyActions):
     def _data_to_details(self, data):
         details = ""
 
-        def list_to_details(lst):
+        def list_to_details(lst, line_format):
             details = ""
             for item in lst:
-                details += "\t" + str(item) + "\n"
+                details += "\t"
+                for format_item in line_format:
+                    details += format_item + ": "
+                    details += str(item[line_format[format_item]]) + "\t\t "
+                details += "\n"
             return details
 
-        details += "Comments (Instruction, regular, text):\n"
-        details += list_to_details(data["comments"])
+        details += "Function comments:\n"
+        func_comments_line_format = {"Repeatable": 0,
+                                     "Text": 1}
+        details += list_to_details(data["func_comments"],
+                                   func_comments_line_format)
+
+        details += "Comments:\n"
+        comments_line_format = {"Repeatable": 1,
+                                "Relative address": 0,
+                                "Text": 2}
+        details += list_to_details(data["comments"], comments_line_format)
 
         details += "Stack members:\n"
-        details += list_to_details(data["stack_members"])
-
+        stack_members_line_format = {"Address": 0,
+                                     "Name": 1}
+        details += list_to_details(data["stack_members"],
+                                   stack_members_line_format)
         return details
 
     def term(self):

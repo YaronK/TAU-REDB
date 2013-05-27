@@ -58,7 +58,7 @@
                 <property name="tooltip_text" translatable="yes">Plugin settings.</property>
                 <property name="label" translatable="yes">Settings</property>
                 <property name="use_underline">True</property>
-                <property name="stock_id">gtk-preferences</property>
+                <property name="stock_id">gtk-execute</property>
                 <signal name="clicked" handler="on_Settings" swapped="no"/>
               </object>
               <packing>
@@ -139,7 +139,6 @@
             </child>
             <child>
               <object class="GtkToolButton" id="tbMerge">
-                <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Merge description into user's description.</property>
                 <property name="label" translatable="yes">Merge</property>

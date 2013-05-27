@@ -18,7 +18,6 @@ try:
         gtk  # @UndefinedVariable
     except:
         import gtk  # @UnusedImport
-        #import gtk.glade  # @UnusedImport
 except:
     GUI_ENABLED = False
 

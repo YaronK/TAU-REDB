@@ -22,6 +22,7 @@ import idaapi
 #==============================================================================
 # Decorators
 #==============================================================================
+"""
 def log(f):
     @functools.wraps(f)
     def wrapped(*args, **kwargs):
@@ -37,7 +38,7 @@ def log(f):
                 print os.path.basename(frame[0]), str(frame[1])
             raise
     return wrapped
-
+"""
 
 #==============================================================================
 # Configuration
@@ -51,7 +52,7 @@ class Configuration:
     SECTION = "REDB"
     OPTIONS = {"host": "Host (ip:port)",
                "username": "Username",
-               "password": "Password"}
+               "password": ""}
 
     @classmethod
     def get_option(cls, opt):
@@ -90,8 +91,16 @@ class Configuration:
     def get_opt_from_user(cls, opt):
         value = None
         while value is None:
+            if opt != "password":
+                try:
+                    defval = cls.get_option(opt)
+                except:
+                    defval = cls.OPTIONS[opt]
+            else:
+                defval = cls.OPTIONS[opt]
+
             try:
-                value = idc.AskStr(cls.OPTIONS[opt], cls.OPTIONS[opt])
+                value = idc.AskStr(defval, cls.OPTIONS[opt])
             except:
                 pass
         return value
@@ -227,7 +236,6 @@ def instruction_data(func_item):
 #-----------------------------------------------------------------------------
 # Additional general Utilities
 #-----------------------------------------------------------------------------
-@log
 def _backup_idb_file():
     """
     Creating a backup of the .idb, just in case.

@@ -212,7 +212,7 @@ class DescriptionUtils:
         discard current if null.
         """
         for (repeatable, text) in func_comments:
-            cls.set_func_comment(start_addr, append, repeatable, text)
+            cls.set_func_comment(start_addr, repeatable, text, append)
 
     @classmethod
     def set_func_comment(cls, start_addr, repeatable, text, append=None):

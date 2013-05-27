@@ -51,9 +51,12 @@ class Function:
         if not response:
             result = "No reply or an error occurred!"
         else:
-            for description in response:
-                self._add_description(description)
-            result = "Received " + str(len(response)) + " descriptions."
+            if isinstance(response, str):
+                result = response
+            else:
+                for description in response:
+                    self._add_description(description)
+                result = "Received " + str(len(response)) + " descriptions."
 
         idaapi.hide_wait_box()
         return result
