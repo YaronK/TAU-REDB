@@ -1,83 +1,72 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<glade-interface>
+<interface>
   <!-- interface-requires gtk+ 2.6 -->
   <!-- interface-naming-policy toplevel-contextual -->
-  <widget class="GtkWindow" id="MainWindow">
+  <object class="GtkWindow" id="MainWindow">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">REDB</property>
     <property name="window_position">center</property>
-    <property name="default_width">600</property>
-    <property name="default_height">400</property>
+    <property name="default_width">700</property>
+    <property name="default_height">500</property>
     <property name="destroy_with_parent">True</property>
     <signal name="destroy" handler="on_mainWindow_destroy" swapped="no"/>
     <child>
-      <widget class="GtkVBox" id="MainWindowVbox">
+      <object class="GtkVBox" id="MainWindowVbox">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <child>
-          <widget class="GtkToolbar" id="TopToolbar">
+          <object class="GtkToolbar" id="TopToolbar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="extension_events">all</property>
             <property name="toolbar_style">both</property>
             <child>
-              <widget class="GtkToolButton" id="tbSubmit">
+              <object class="GtkToolButton" id="tbSubmit">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="tooltip_text" translatable="yes">Submit the user's description.</property>
                 <property name="label" translatable="yes">Submit</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-goto-top</property>
                 <signal name="clicked" handler="on_Submit" swapped="no"/>
-              </widget>
+              </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
-              <widget class="GtkToolButton" id="tbRequest">
+              <object class="GtkToolButton" id="tbRequest">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="tooltip_text" translatable="yes">Request public descriptions.</property>
                 <property name="label" translatable="yes">Request</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-goto-bottom</property>
                 <signal name="clicked" handler="on_Request" swapped="no"/>
-              </widget>
+              </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
-              <widget class="GtkToolButton" id="tbRestore">
+              <object class="GtkToolButton" id="tbSettings">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Restore</property>
-                <property name="use_underline">True</property>
-                <property name="stock_id">gtk-undo</property>
-                <signal name="clicked" handler="on_Restore" swapped="no"/>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <widget class="GtkToolButton" id="tbSettings">
-                <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="tooltip_text" translatable="yes">Plugin settings.</property>
                 <property name="label" translatable="yes">Settings</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-preferences</property>
                 <signal name="clicked" handler="on_Settings" swapped="no"/>
-              </widget>
+              </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="homogeneous">True</property>
               </packing>
             </child>
-          </widget>
+          </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">False</property>
@@ -85,22 +74,22 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkScrolledWindow" id="DescriptionScrolledWindow">
+          <object class="GtkScrolledWindow" id="DescriptionScrolledWindow">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="hscrollbar_policy">automatic</property>
             <property name="vscrollbar_policy">automatic</property>
             <property name="shadow_type">in</property>
             <child>
-              <widget class="GtkTreeView" id="DescriptionTable">
+              <object class="GtkTreeView" id="DescriptionTable">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="reorderable">True</property>
-                <property name="fixed_height_mode">True</property>
-                <property name="enable_grid_lines">both</property>
-              </widget>
+                <property name="show_expanders">False</property>
+                <signal name="cursor-changed" handler="on_DescriptionTable_cursor_changed" swapped="no"/>
+              </object>
             </child>
-          </widget>
+          </object>
           <packing>
             <property name="expand">True</property>
             <property name="fill">True</property>
@@ -108,19 +97,20 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkScrolledWindow" id="DetailsScrolledWindow">
+          <object class="GtkScrolledWindow" id="DetailsScrolledWindow">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="hscrollbar_policy">automatic</property>
             <property name="vscrollbar_policy">automatic</property>
             <property name="shadow_type">in</property>
             <child>
-              <widget class="GtkTextView" id="DescriptionDetails">
+              <object class="GtkTextView" id="DescriptionDetails">
+                <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="editable">False</property>
-              </widget>
+              </object>
             </child>
-          </widget>
+          </object>
           <packing>
             <property name="expand">True</property>
             <property name="fill">True</property>
@@ -128,39 +118,56 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkToolbar" id="BottomToolbar">
+          <object class="GtkToolbar" id="BottomToolbar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="icon_size">2</property>
             <child>
-              <widget class="GtkToolButton" id="tbShow">
+              <object class="GtkToolButton" id="tbEmbed">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">Show</property>
+                <property name="tooltip_text" translatable="yes">Embed description in function.</property>
+                <property name="label" translatable="yes">Embed</property>
                 <property name="use_underline">True</property>
-                <property name="stock_id">gtk-apply</property>
-                <signal name="clicked" handler="on_Show" swapped="no"/>
-              </widget>
+                <property name="stock_id">gtk-zoom-in</property>
+                <signal name="clicked" handler="on_Embed" swapped="no"/>
+              </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="homogeneous">True</property>
               </packing>
             </child>
             <child>
-              <widget class="GtkToolButton" id="tbMerge">
+              <object class="GtkToolButton" id="tbMerge">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="tooltip_text" translatable="yes">Merge description into user's description.</property>
                 <property name="label" translatable="yes">Merge</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-jump-to</property>
                 <signal name="clicked" handler="on_Merge" swapped="no"/>
-              </widget>
+              </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="homogeneous">True</property>
               </packing>
             </child>
-          </widget>
+            <child>
+              <object class="GtkToolButton" id="tbRestore">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="tooltip_text" translatable="yes">Embed user's description.</property>
+                <property name="label" translatable="yes">Restore</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-undo</property>
+                <signal name="clicked" handler="on_Restore" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+          </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
@@ -168,18 +175,18 @@
           </packing>
         </child>
         <child>
-          <widget class="GtkStatusbar" id="statusbar1">
+          <object class="GtkStatusbar" id="StatusBar">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="spacing">2</property>
-          </widget>
+          </object>
           <packing>
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">4</property>
           </packing>
         </child>
-      </widget>
+      </object>
     </child>
-  </widget>
-</glade-interface>
+  </object>
+</interface>

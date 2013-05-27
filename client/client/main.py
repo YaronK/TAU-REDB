@@ -5,7 +5,6 @@ import action
 import idaapi
 
 GUI_ENABLED = True
-GUI_MENU = None
 
 try:
     import pygtk
@@ -14,8 +13,12 @@ except:
     GUI_ENABLED = False
 
 try:
-    import gtk  # @UnusedImport
-    import gtk.glade  # @UnusedImport
+    # Prevent importing when already imported
+    try:
+        gtk  # @UndefinedVariable
+    except:
+        import gtk  # @UnusedImport
+        #import gtk.glade  # @UnusedImport
 except:
     GUI_ENABLED = False
 
@@ -34,24 +37,18 @@ class REDB (idaapi.plugin_t):
     wanted_hotkey = ""
 
     def init(self):
-        action.Actions.initialize()
-        action.GuiActions.initialize(gtk)
-        # self._hotkey_callbacks = utils._create_callback_func_table()
+        if GUI_ENABLED:
+            self.actions = action.GuiActions(gtk)
+        else:
+            print "GUI disabled."
+            self.actions = action.HotkeyActions()
         return idaapi.PLUGIN_KEEP
 
     def run(self, arg):
-        if arg == 8:
-            action.GuiActions.show_mainWindow()
-        else:
-            pass
-            #action.HotkeyAction(self._executable, idc.ScreenEA(),
-            #                    self._hotkey_callbacks, arg)
+        self.actions.action(arg)
 
     def term(self):
-        """
-        Called by IDA upon termination.
-        """
-        pass
+        self.actions.term()
 
 
 def PLUGIN_ENTRY():

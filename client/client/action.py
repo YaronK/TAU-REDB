@@ -11,222 +11,230 @@ import idc
 import function
 import utils
 
-# Constants
-MIN_INS_PER_HANDLED_FUNCTION = 5
-
 
 #==============================================================================
 # Client Interface
 #==============================================================================
-class Actions():
-    REDB_FUNCTIONS = {}
-    STRING_ADDRESSES = []
-    IMOPRTED_MODULES = []
-
-    @classmethod
-    def initialize(cls):
-        """
-        Preparations which take place in the loading process.
-        """
+class Actions(object):
+    def __init__(self):
         idaapi.show_wait_box("REDB Plugin is loading, please wait...")
+
+        self.functions = {}
 
         utils._backup_idb_file()
         utils.Configuration.assert_config_file_validity()
-        cls._collect_string_addresses()
-        cls._collect_imported_modules()
+        self._collect_string_addresses()
+        self._collect_imported_modules()
 
         print "*** REDB Plugin loaded. ***"
         idaapi.hide_wait_box()
 
-    @classmethod
-    def submit_current(cls):
-        func = cls._get_current_function()
-        if not isinstance(func, function.Function):
-            return func
-
-        first_addr = func._first_addr
-        func_items = func._func_items
-        num_of_insns = len(func_items)
-
-        if cls._is_lib_thunk(first_addr):
-            return "Lib and thunk functions are not admissible."
-        if not cls._is_long_enough(num_of_insns):
-            return "Short functions are not admisible."
-
-        idaapi.show_wait_box("Submitting...")
-        try:
-            result = func.submit_description()
-        except Exception as e:
-            return "Error occurred while submitting: " + str(e)
-        else:
-            return result
-        finally:
-            idaapi.hide_wait_box()
-
-    @classmethod
-    def request_current(cls):
-        func = cls._get_current_function()
-        if not isinstance(func, function.Function):
-            return func
-
-        idaapi.show_wait_box("Requesting...")
-        try:
-            result = func.request_descriptions()
-        except Exception as e:
-            return "Error occurred while requesting: " + str(e)
-        else:
-            return result
-        finally:
-            idaapi.hide_wait_box()
-
-    @classmethod
-    def restore_user_description(cls):
-        func = cls._get_current_function()
-        if not isinstance(func, function.Function):
-            return func
-        return func.restore_user_description()
-
-    @classmethod
-    def merge(cls):
-        func = cls._get_current_function()
-        if not isinstance(func, function.Function):
-            return func
-        return func.merge_public_to_users()
-
-    @classmethod
-    def _get_current_function(cls):
-        func = idaapi.get_func(idc.ScreenEA())
-        if func is None:
+    def _submit_cur_func(self):
+        if not self._set_cur_func():
             return "Not pointing at a function."
-        if str(func.startEA) not in cls.REDB_FUNCTIONS:
-            cls._add_function(func.startEA)
-        return cls.REDB_FUNCTIONS[str(func.startEA)]
+        return self.cur_func.submit_description()
 
-    @classmethod
-    def _collect_string_addresses(cls):
-        cls.STRING_ADDRESSES = [string.ea for string in idautils.Strings()]
+    def _request_cur_func(self):
+        if not self._set_cur_func():
+            return "Not pointing at a function."
+        return self.cur_func.request_descriptions()
 
-    @classmethod
-    def _collect_imported_modules(cls):
-        cls.IMOPRTED_MODULES = \
+    def _restore_cur_func(self):
+        if not self._set_cur_func():
+            return "Not pointing at a function."
+        return self.cur_func.restore_user_description()
+
+    def merge_cur_func(self):
+        if not self._set_cur_func():
+            return "Not pointing at a function."
+        return self.cur_func.merge_public_to_users()
+
+    def _set_cur_func(self):
+        """
+        Sets self.cur_func to be the function instance of the function the
+        user is currently pointing at. Sets it to None if user is not pointing
+        at a function. If current function hasn't been processed using the
+        plugin, it is added the function list.
+        Returns True iff currently pointing at a function.
+        """
+        func = idaapi.get_func(idc.ScreenEA())
+        if isinstance(func, idaapi.func_t):
+            if str(func.startEA) not in self.functions:
+                self._add_function(func.startEA)
+            self.cur_func = self.functions[str(func.startEA)]
+            return True
+        else:
+            self.cur_func = None
+            return False
+
+    def _collect_string_addresses(self):
+        self.string_addresses = [string.ea for string in idautils.Strings()]
+
+    def _collect_imported_modules(self):
+        self.imported_modules = \
             utils.ImportsAndFunctions().collect_imports_data()
 
-    @classmethod
-    def _is_lib_thunk(cls, startEA):
-        flags = idc.GetFunctionFlags(startEA)
-        return (flags & (idc.FUNC_THUNK | idc.FUNC_LIB))
+    def _add_function(self, startEA):
+        func = function.Function(startEA, self.string_addresses,
+                                 self.imported_modules)
+        self.functions[str(startEA)] = func
 
-    @classmethod
-    def _is_long_enough(cls, num_of_insns):
-        return (num_of_insns >= MIN_INS_PER_HANDLED_FUNCTION)
-
-    @classmethod
-    def _add_function(cls, startEA):
-        func = function.Function(startEA, cls.STRING_ADDRESSES,
-                                 cls.IMOPRTED_MODULES)
-        cls.REDB_FUNCTIONS[str(startEA)] = func
-
-    @classmethod
-    def term(cls):
-        idaapi.hide_wait_box()
-        for function in cls.REDB_FUNCTIONS.values():
+    def term(self):
+        for function in self.functions.values():
             function.restore_user_description()
 
 
-class Hotkeys():
-    @classmethod
-    def hotkey_submit_current(cls):
-        print Actions.submit_current()
+class HotkeyActions(Actions):
+    def __init__(self):
+        Actions.__init__(self)
+        self._hotkeys = utils._generate_hotkey_table()
 
-    @classmethod
-    def hotkey_request_current(cls):
-        print Actions.request_current()
+    def action(self, arg):
+        action_name = self._hotkeys[arg][0]
 
-    @classmethod
-    def hotkey_next_public_desc(cls):
-        func = Actions._get_current_function()
-        if not isinstance(func, function.Function):
-            return func
-        print func.show_next_description()
+        if action_name == "Information":
+            self._hotkey_information(self._hotkeys)
+        elif action_name == "Submit current":
+            self._hotkey_submit_current()
+        elif action_name == "Request current":
+            self.Hotkeys._hotkey_request_current()
+        elif action_name == "Next public description":
+            self.Hotkeys._hotkey_next_public_desc()
+        elif action_name == "Previous public description":
+            self._hotkey_prev_public_desc()
+        elif action_name == "Restore my description":
+            self.Hotkeys._hotkey_restore_user_description()
+        elif action_name == "Merge description":
+            self._hotkey_merge()
+        elif action_name == "Settings":
+            self._hotkey_settings()
 
-    @classmethod
-    def hotkey_prev_public_desc(cls):
-        func = Actions._get_current_function()
-        if not isinstance(func, function.Function):
-            return func
-        print func.show_prev_description()
+    def _hotkey_information(self, hotkeys):
+        help_string = "\r\nREDB HotkeyActions:\r\n"
+        help_string += "===========\r\n"
+        for function in hotkeys:
+            help_string += function[1]
+            help_string += "\t"
+            help_string += function[0]
+            help_string += "\r\n"
+        print help_string
 
-    @classmethod
-    def hotkey_restore_user_description(cls):
+    def _hotkey_submit_current(self):
+        print self._submit_cur_func()
+
+    def _hotkey_request_current(self):
+        print self._request_cur_func()
+
+    def _hotkey_next_public_desc(self):
+        if not self._set_cur_func():
+            print "Not pointing at a function."
+        print self.cur_func.show_next_description()
+
+    def _hotkey_prev_public_desc(self):
+        if not self._set_cur_func():
+            print "Not pointing at a function."
+        print self.cur_func.show_prev_description()
+
+    def _hotkey_restore_user_description(self):
         return Actions.restore_user_description()
 
-    @classmethod
-    def hotkey_merge(cls):
-        return Actions.merge()
+    def _hotkey_merge(self):
+        return Actions.merge_cur_func()
 
-    @classmethod
-    def hotkey_settings(cls):
+    def _hotkey_settings(self):
         for opt in utils.Configuration.OPTIONS.keys():
             value = utils.Configuration.get_opt_from_user(opt)
             utils.Configuration.set_option(opt, value)
 
+    def term(self):
+        Actions.term(self)
 
-class GuiActions:
-    GTK = None
-    GUI_MENU = None
-    CALLBACKS = None
 
-    @classmethod
-    def initialize(cls, gtk):
-        cls.GTK = gtk
-        cls.CALLBACKS = {"on_mainWindow_destroy": cls.on_mainWindow_destroy,
-                         "on_Submit": cls.on_Submit,
-                         "on_Request": cls.on_Request,
-                         "on_Restore": cls.on_Restore,
-                         "on_Settings": cls.on_Settings,
-                         "on_Show": cls.on_Show,
-                         "on_Merge": cls.on_Merge,
-                         "on_DescriptionTable_cursor_changed":
-                            cls.on_DescriptionTable_cursor_changed}
+class GuiActions(HotkeyActions):
+    def __init__(self, gtk):
+        HotkeyActions.__init__(self)
+        callbacks = {"on_mainWindow_destroy": self._on_mainWindow_destroy,
+                     "on_Submit": self._on_Submit,
+                     "on_Request": self._on_Request,
+                     "on_Restore": self._on_Restore,
+                     "on_Settings": self._on_Settings,
+                     "on_Embed": self._on_Embed,
+                     "on_Merge": self._on_Merge,
+                     "on_DescriptionTable_cursor_changed":
+                        self._on_DescriptionTable_cursor_changed}
+        self.gui_menu = utils.GuiMenu(callbacks, gtk)
 
-    @classmethod
-    def show_mainWindow(cls):
-        if cls.GUI_MENU == None:
-            cls.GUI_MENU = utils.GuiMenu(cls.CALLBACKS, cls.GTK)
+    def action(self, arg):
+        action_name = self._hotkeys[arg][0]
+        if action_name == "GUI":
+            self.gui_menu.show()
+        else:
+            HotkeyActions.action(self, arg)
 
-    @classmethod
-    def on_mainWindow_destroy(cls, widget):
-        pass
+    def _on_mainWindow_destroy(self, widget):
+        self._destroy_main_window()
 
-    @classmethod
-    def on_Submit(cls, widget):
-        print Actions.submit_current()
+    def _on_Submit(self, widget):
+        result = self._submit_cur_func()
+        self.gui_menu.set_status_bar(result)
 
-    @classmethod
-    def on_Request(cls, widget):
-        print Actions.request_current()
+    def _on_Request(self, widget):
+        result = self._request_cur_func()
+        self.gui_menu.set_status_bar(result)
 
-    @classmethod
-    def on_Restore(cls, widget):
-        return Actions.restore_user_description()
+        self.gui_menu.remove_all_rows()
+        desc_rows = self._generate_description_rows()
+        self.gui_menu.add_descriptions(desc_rows)
 
-    @classmethod
-    def on_Settings(cls, widget):
-        for opt in utils.Configuration.OPTIONS.keys():
-            value = utils.Configuration.get_opt_from_user(opt)
-            utils.Configuration.set_option(opt, value)
+    def _on_Restore(self, widget):
+        result = self._restore_cur_func()
+        self.gui_menu.set_status_bar(result)
 
-    @classmethod
-    def on_Show(cls, widget):
-        func = Actions._get_current_function()
-        if not isinstance(func, function.Function):
-            return func
-        print func.show_next_description()
+    def _on_Settings(self, widget):
+        HotkeyActions._hotkey_settings(self)
 
-    @classmethod
-    def on_Merge(cls, widget):
-        return Actions.merge()
+    def _on_Embed(self, widget):
+        # TODO: check we haven't changed function
+        if not self._set_cur_func():
+            print "Not pointing at a function."
+        else:
+            index = self.gui_menu.get_selected_description_index()
+            result = self.cur_func.show_description_by_index(index)
+        self.gui_menu.set_status_bar(result)
 
-    @classmethod
-    def on_DescriptionTable_cursor_changed(cls, widget):
-        pass
+    def _on_Merge(self, widget):
+        result = Actions.merge_cur_func()
+        self.gui_menu.set_status_bar(result)
+
+    def _on_DescriptionTable_cursor_changed(self, widget):
+        index = self.gui_menu.get_selected_description_index()
+        description = self.cur_func.get_descripition_by_index(index)
+        self.gui_menu.set_details(self._data_to_details(description.data))
+
+    def _destroy_main_window(self):
+        self.gui_menu.hide()
+
+    def _generate_description_rows(self):
+        descs = self.cur_func._descriptions
+        return [[descs.index(desc)] + desc.get_row() for desc in descs]
+
+    def _data_to_details(self, data):
+        details = ""
+
+        def list_to_details(lst):
+            details = ""
+            for item in lst:
+                details += "\t" + str(item) + "\n"
+            return details
+
+        details += "Comments (Instruction, regular, text):\n"
+        details += list_to_details(data["comments"])
+
+        details += "Stack members:\n"
+        details += list_to_details(data["stack_members"])
+
+        return details
+
+    def term(self):
+        HotkeyActions.term(self)
+        self._destroy_main_window()

@@ -9,11 +9,13 @@ class Description:
         self.func_num_of_insns = func_num_of_insns
 
         if sug_desc:
+            self.is_user_description = False
             for key in sug_desc:
                 setattr(self, key, sug_desc[key])
             self.can_be_embedded = (self.func_num_of_insns ==
                                     self.desc_num_of_insns)
         else:
+            self.is_user_description = True
             self.can_be_embedded = True
             self.save_changes()
 
@@ -24,12 +26,27 @@ class Description:
         if self.can_be_embedded:
             DescriptionUtils.set_all(self.first_addr, self.data, append=None)
 
-    def merge(self):
+    def merge_cur_func(self):
         if self.can_be_embedded:
             DescriptionUtils.set_all(self.first_addr, self.data, append=True)
+        return "Merged description."
 
     def save_changes(self):
         self.data = DescriptionUtils.get_all(self.first_addr)
+
+    def get_row(self):
+        if self.is_user_description:
+            return [self.data["func_name"],
+                    len(self.data["comments"]),
+                    1.0,
+                    "User",
+                    ""]
+        else:
+            return [self.data["func_name"],
+                    len(self.data["comments"]),
+                    self.grade,
+                    self.created_by,
+                    self.updated_at]
 
 
 class DescriptionUtils:

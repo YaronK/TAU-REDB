@@ -11,7 +11,7 @@ import httplib
 import mimetypes
 import mimetools
 import ConfigParser
-import json
+import simplejson as json
 
 # related third party imports
 import idc
@@ -245,7 +245,7 @@ def _backup_idb_file():
         print "REDB: Failed to backup the .idb file."
 
 
-def _create_callback_func_table():
+def _generate_hotkey_table():
     ida_plugins_dir = idaapi.idadir("plugins")
     ida_plugins_cfg_path = os.path.join(ida_plugins_dir, 'plugins.cfg')
     list_lines = open(ida_plugins_cfg_path, 'r').readlines()
@@ -254,14 +254,13 @@ def _create_callback_func_table():
         last_index = list_lines.index(';REDB: EXIT\n')
     except:
         last_index = list_lines.index(';REDB: EXIT')
-    CALLBACK_FUNCTIONS = []
+    hotkeys = []
     list_lines = list_lines[first_index:last_index]
     for line in list_lines:
         split_line = line.split("\t")
-        CALLBACK_FUNCTIONS.append((split_line[0], split_line[2],
-                                   split_line[0].lower()))
+        hotkeys.append((split_line[0].replace('_', ' '), split_line[2]))
 
-    return CALLBACK_FUNCTIONS
+    return hotkeys
 
 
 #==============================================================================
@@ -363,34 +362,9 @@ class GuiMenu:
                "Last Modified"]
 
     def __init__(self, callbacks, gtk_module):
-        """
-        Necessary callback functions:
-        "on_Submit", "on_Request", "on_Restore",
-        "on_Settings", "on_Show", "on_Merge", "on_Details",
-        "on_DescriptionTable_cursor_changed"
-        """
         self.gtk = gtk_module
-
-        # Read structure from glade file
-        self.main_window = self.gtk.glade.XML(GuiMenu.GLADE_FILE_PATH,
-                                              "MainWindow")
-
-        # Connect callback functions
-        self.main_window.signal_autoconnect(callbacks)
-
-        # Instantiate description table
-        self._init_description_table()
-
-        # Set columns
-        for column_title in GuiMenu.COLUMNS:
-            self._add_column(column_title, GuiMenu.COLUMNS.index(column_title))
-
-        # For future reference
-        self.description_details = \
-            self.main_window.get_widget("DescriptionDetails")
-
-    #def gtk_main(self):
-        self.gtk.main()
+        self.callbacks = callbacks
+        self.exists = False
 
     def add_descriptions(self, description_list):
         """
@@ -400,27 +374,77 @@ class GuiMenu:
             self.descriptions.append(description)
 
     def remove_all_rows(self):
-        self.description.clear()
+        self.descriptions.clear()
 
     def get_selected_description_index(self):
-        return self.description_table.get_selection().\
-                    get_selected_rows()[0][0][0]
+        selection = self.description_table.get_selection()
+        model, it = selection.get_selected()
+        return model.get(it, 0)[0]
+
+    def set_status_bar(self, text):
+        self.status_bar.push(0, text)
 
     def set_details(self, text):
         self.description_details.get_buffer().set_text(text)
 
-    def gtk_main_quit(self):
-        self.gtk.main_quit()
+    def show(self):
+        if not self.exists:
+            # Read structure from glade file
+            self.xml = self.gtk.Builder()
+            self.xml.add_from_file(GuiMenu.GLADE_FILE_PATH)
+
+            # Connect callback functions
+            self.xml.connect_signals(self.callbacks)
+
+            # For future reference
+            self._get_widgets()
+
+            # Instantiate description table
+            self._init_description_table()
+
+            self.exists = True
+            self.gtk.main()
+        else:
+            self.main_window.present()
+
+    def hide(self):
+        if self.exists:
+            self.exists = False
+            self.main_window.destroy()
+            self.gtk.main_quit()
+
+    def _get_widgets(self):
+        self.main_window = self.xml.get_object("MainWindow")
+
+        # Toolbars
+        self.top_toolbar = self.xml.get_object("TopToolbar")
+        self.bottom_toolbar = self.xml.get_object("BottomToolbar")
+
+        # descriptions
+        self.desc_scrolled_window =\
+            self.xml.get_object("DescriptionScrolledWindow")
+        self.description_table = self.xml.get_object("DescriptionTable")
+
+        # description details
+        self.details_scrolled_window =\
+            self.xml.get_object("DetailsScrolledWindow")
+        self.description_details =\
+            self.xml.get_object("DescriptionDetails")
+
+        # status bar
+        self.status_bar = self.xml.get_object("StatusBar")
+
+    def _init_description_table(self):
+        self.descriptions = self.gtk.ListStore(int, str, int, float, str, str)
+        self.description_table.set_model(self.descriptions)
+        for column_title in GuiMenu.COLUMNS:
+            self._add_column(column_title, GuiMenu.COLUMNS.index(column_title))
 
     def _add_column(self, title, columnId):
-        column = self.gtk.TreeViewColumn(title, self.gtk.CellRendererText(),
-                                    text=columnId)
+        column = self.gtk.TreeViewColumn(title,
+                                         self.gtk.CellRendererText(),
+                                         text=columnId)
+        column.set_sizing(self.gtk.TREE_VIEW_COLUMN_AUTOSIZE)
         column.set_resizable(True)
         column.set_sort_column_id(columnId)
         self.description_table.append_column(column)
-
-    def _init_description_table(self):
-        self.description_table = \
-            self.main_window.get_widget("DescriptionTable")
-        self.descriptions = self.gtk.ListStore(int, str, int, float, str, str)
-        self.description_table.set_model(self.descriptions)
