@@ -4,7 +4,6 @@ from utils import (log, generate_blocks_data, _decode_dict)
 from collections import Counter
 from heuristics import DictionarySimilarity, GraphSimilarity
 import json
-from redb_app.models import User
 
 MAX_NUM_INSNS_DEVIATION = 0.15
 MAX_NUM_BLOCKS_DEVIATION = 0.15
@@ -25,39 +24,48 @@ ATTRIBUTES = ["func_signature",
               "exe_signature",
               "graph"]
 
-QUERY_FIELDS = ["type",
-                    "username",
-                    "password",
-                    "data"]
-
 FILTERING_THRESHOLD = 0.8
 MATCHING_THRESHOLD = 0.9
 
 
 class Query:
-    def __init__(self, http_post):
-        self.query = json.loads(http_post.FILES['action'].read(),
-                          object_hook=_decode_dict)
+    def __init__(self, request):
+        self.request = request
 
     def check_validity(self):
-        if not (set(self.query.keys()) == set(QUERY_FIELDS)):
-            raise "Missing query field(s) / Too many query fields."
+        if not self.request.method == 'POST':
+            raise "Request's method is not POST."
+        if 'action' not in self.request.FILES:
+            raise "Request does not contain 'action' file."
 
     def process(self):
-        for attr in self.query:
-            setattr(self, attr, self.query[attr])
+        try:
+            query = json.loads(self.request.FILES['action'].read(),
+                               object_hook=_decode_dict)
+        except Exception as e:
+            raise "Error loading 'action' file: " + str(e)
 
-    def authenticate_user(self):
-        User.objects.get(user_name=self.username,
-                         password_hash=self.password)
+        # type field
+        if not 'type' in query:
+            raise "Missing query type."
+        query_type = query['type']
+        if not type in ['request', 'submit']:
+            raise "Unknown query type."
+
+        # data field
+        if not 'data' in query:
+            raise "Missing query data."
+        query_data = query['data']
+
+        return query_type, query_data
 
 
 class SubmitAction:
     @log
-    def __init__(self, data, username):
-        self.attributes = data["attributes"]
-        self.description_data = data["description"]
-        self.username = username
+    def __init__(self, query_data, user):
+        self.attributes = query_data["attributes"]
+        self.description_data = query_data["description"]
+        self.user = user
         self.temp_function_wrapper = None
         self.temp_description_wrapper = None
         self.filtered_function_set = None
@@ -84,13 +92,13 @@ class SubmitAction:
     def insert_description(self):
         model_wrappers.DescriptionWrapper(self.temp_function_wrapper,
                                           self.description_data,
-                                          self.username).save()
+                                          self.user).save()
 
 
 class RequestAction:
     @log
-    def __init__(self, data):
-        self.attributes = data["attributes"]
+    def __init__(self, query_data):
+        self.attributes = query_data["attributes"]
         self.temp_function_wrapper = None
 
     @log

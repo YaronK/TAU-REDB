@@ -18,26 +18,31 @@ from utils import log
 # Handlers
 #==============================================================================
 @csrf_exempt
-def general_handler(http_post):
+def general_handler(request):
     try:
-        query = actions.Query(http_post)
+        query = actions.Query(request)
         query.check_validity()
-        query.process()
-        query.authenticate_user()
-        if query.type == 'request':
-            return request_handler(query.data)
-        elif query.type == 'submit':
-            return submit_handler(query.data, query.username)
-    except:
+        query_type, query_data = query.process()
+
+        if not request.user.is_authenticated():
+            raise("Unknown user.")
+
+        if query_type == 'request':
+            return request_handler(query_data)
+        elif query_type == 'submit':
+            return submit_handler(query_data, request.user)
+
+    except Exception as e:
+        print e
         return HttpResponse("ERROR")
 
 
 @log
-def request_handler(data):
+def request_handler(query_data):
     """
     Handles a Request for descriptions.
     """
-    request_action = actions.RequestAction(data)
+    request_action = actions.RequestAction(query_data)
     request_action.check_validity()
     request_action.process_attributes()
     request_action.temp_function()
@@ -49,11 +54,11 @@ def request_handler(data):
 
 
 @log
-def submit_handler(data, username):
+def submit_handler(query_data, user):
     """
     Handles a Submitted descriptions.
     """
-    submit_action = actions.SubmitAction(data, username)
+    submit_action = actions.SubmitAction(query_data, user)
     submit_action.check_validity()
     submit_action.process_attributes()
     submit_action.temp_function()

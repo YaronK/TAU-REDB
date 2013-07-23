@@ -1,0 +1,17 @@
+<form action="/accounts/auth/" method="post">
+
+	{% csrf_token %}
+	<table>
+	<tr>
+		<td><label for="username">Username:</label></td>
+		<td><input type="text" name="username" value="" id="username" /></td>
+	</tr>
+	<tr>
+		<td><label for="password">Password:</label></td>
+		<td><input type="password" name="password" value="" id="password" /></td>
+	</tr>
+	<tr>
+		<td><input type="submit" value="login" /></td>
+	</tr>
+	</table>
+</form>

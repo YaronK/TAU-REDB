@@ -14,7 +14,7 @@ import hashlib
 
 
 #==============================================================================
-# Client Interface
+# Actions
 #==============================================================================
 class Actions(object):
     def __init__(self):
@@ -85,6 +85,9 @@ class Actions(object):
             function.restore_user_description()
 
 
+#==============================================================================
+# HotkeyActions
+#==============================================================================
 class HotkeyActions(Actions):
     def __init__(self):
         Actions.__init__(self)
@@ -155,6 +158,9 @@ class HotkeyActions(Actions):
         Actions.term(self)
 
 
+#==============================================================================
+# GuiActions
+#==============================================================================
 class GuiActions(HotkeyActions):
     def __init__(self, gtk):
         HotkeyActions.__init__(self)
