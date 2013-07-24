@@ -1,40 +1,45 @@
-# Django settings for REDBServer project.
-
+# Django settings for server project.
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
 ADMINS = (
-    ('Yaron', 'yaron.kaner@gmail.com'),
+    ('1', '1@1.com'),
 )
 
 MANAGERS = ADMINS
 
+import os
+
+# getting the db's path, relatively to the settings file.
+cur_file_path = os.path.realpath(__file__)
+db_dir = os.path.dirname(os.path.dirname(cur_file_path))
+db_path = os.path.join(db_dir, "db", "redb.db")
+
+if not os.path.exists(db_dir):
+    print "Warning: db's directory does not exist."
+
+if not os.path.exists(db_path):
+    print "Warning: db does not exist."
+
+print db_path
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME':
-        'C:\\Users\\Yaron\\Documents\\GitHub\\REDB\\REDBServer\\sqlite.db',
-        # Or path to database file if using sqlite3.
-        # The following settings are not used with sqlite3:
+        'NAME': db_path,
         'USER': '',
         'PASSWORD': '',
-        # Empty for localhost through domain sockets or '127.0.0.1' for
-        # localhost through TCP.
         'HOST': '',
-        # Set to empty string for default.
         'PORT': '',
     }
 }
 
-# Hosts/domain names that are valid for this site; required if DEBUG is False
-# See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = []
-
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # although not all choices may be available on all operating systems.
-# In a Windows environment this must be set to your system time zone.
+# On Unix systems, a value of None will cause Django to use the same
+# timezone as the operating system.
+# If running in a Windows environment this must be set to the same as your
+# system time zone.
 TIME_ZONE = 'Israel'
 
 # Language code for this installation. All choices can be found here:
@@ -55,22 +60,22 @@ USE_L10N = True
 USE_TZ = True
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
-# Example: "/var/www/example.com/media/"
+# Example: "/home/media/media.lawrence.com/media/"
 MEDIA_ROOT = ''
 
 # URL that handles the media served from MEDIA_ROOT. Make sure to use a
 # trailing slash.
-# Examples: "http://example.com/media/", "http://media.example.com/"
+# Examples: "http://media.lawrence.com/media/", "http://example.com/media/"
 MEDIA_URL = ''
 
 # Absolute path to the directory static files should be collected to.
 # Don't put anything in this directory yourself; store your static files
 # in apps' "static/" subdirectories and in STATICFILES_DIRS.
-# Example: "/var/www/example.com/static/"
+# Example: "/home/media/media.lawrence.com/static/"
 STATIC_ROOT = ''
 
 # URL prefix for static files.
-# Example: "http://example.com/static/", "http://static.example.com/"
+# Example: "http://media.lawrence.com/static/"
 STATIC_URL = '/static/'
 
 # Additional locations of static files
@@ -89,7 +94,7 @@ STATICFILES_FINDERS = (
 )
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = 'sqih-s5=gns+c32kp_191adocd1yv*-if*bjn6-c8s0!(n62ql'
+SECRET_KEY = '!-$xr%zr+t(@x+3r1z03i_&amp;s12y%hr0wegv^8dh9)nh3)52r39'
 
 # List of callables that know how to import templates from various sources.
 TEMPLATE_LOADERS = (
@@ -108,15 +113,14 @@ MIDDLEWARE_CLASSES = (
     # 'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
-ROOT_URLCONF = 'REDBServer.urls'
+ROOT_URLCONF = 'server.urls'
 
 # Python dotted path to the WSGI application used by Django's runserver.
-WSGI_APPLICATION = 'REDBServer.wsgi.application'
+WSGI_APPLICATION = 'server.wsgi.application'
 
 TEMPLATE_DIRS = (
-    "C:/Users/Yaron/Documents/GitHub/REDBServer/REDBServer/templates",
-    # Put strings here, like "/home/html/django_templates"
-    # or "C:/www/django/templates".
+    # Put strings here, like "/home/html/django_templates" or
+    # "C:/www/django/templates".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
 )
@@ -125,14 +129,14 @@ INSTALLED_APPS = (
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
-    #'django.contrib.sites',
+    'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'redb_app',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
-    'django.contrib.admindocs',
-    'redb_app',
+    # 'django.contrib.admindocs',
 )
 
 # A sample logging configuration. The only tangible logging

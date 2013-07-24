@@ -329,12 +329,9 @@ def get_content_type(filename):
 
 def post_non_serialized_data(data, host):
     serialized_data = json.dumps(data)
-    try:
-        serialized_response = \
-            post_multipart(host, "/redb/", [],
-                           [("action", "action", serialized_data)])
-    except Exception as e:
-        return e
+    serialized_response = \
+        post_multipart(host, "/redb/", [],
+                       [("action", "action", serialized_data)])
 
     if serialized_response == None:
         return "No response from server."

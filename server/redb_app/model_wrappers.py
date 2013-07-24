@@ -1,5 +1,5 @@
-from models import Function, Description, String, LibraryCall, Executable, \
-    Instruction, Graph
+from models import (Function, Description, String, LibraryCall,
+                    Executable, Instruction, User, Graph)
 
 
 class FunctionWrapper:
@@ -118,23 +118,24 @@ class InstructionWrapper:
 
 
 class DescriptionWrapper:
-    def __init__(self, function_wrapper, description_data, user):
+    def __init__(self, function_wrapper, description_data, user_name):
         self.function_wrapper = function_wrapper
         self.data = description_data
-        self.user = user
+        self.user_name = user_name
 
     def save(self):
+        user = User.objects.get(user_name=self.user_name)
         func = self.function_wrapper.save()
 
         try:
             desc = func.description_set.get(data=self.data)
         except Description.DoesNotExist:
             try:
-                desc = func.description_set.get(user=self.user)
+                desc = func.description_set.get(user=user)
                 desc.data = self.data
                 desc.save()
             except Description.DoesNotExist:
                 desc = Description.objects.create(data=self.data,
                                                   function=func,
-                                                  user=self.user)
+                                                  user=user)
         return desc
