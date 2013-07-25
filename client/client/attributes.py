@@ -311,10 +311,10 @@ class graph(Attribute):
 
         self.func_flow_chart = \
             idaapi.FlowChart(f=idaapi.get_func(self._first_addr))
-
         for basic_block in self.func_flow_chart:
+            if basic_block.startEA not in self._func_items:
+                continue
             start_index = self._func_items.index(basic_block.startEA)
-
             if basic_block.endEA in self._func_items:
                 end_index = self._func_items.index(basic_block.endEA) - 1
             else:  # last block

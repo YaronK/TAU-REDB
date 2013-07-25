@@ -369,6 +369,8 @@ class GuiMenu:
     COLUMNS = ["Index", "Name", "Number of comments", "Grade", "User",
                "Last Modified"]
 
+    HISTORY_COLUMNS = ["Index", "Name", "Number of comments"]
+
     def __init__(self, callbacks, gtk_module):
         self.gtk = gtk_module
         self.callbacks = callbacks
@@ -381,13 +383,26 @@ class GuiMenu:
         for description in description_list:
             self.descriptions.append(description)
 
+    def add_history(self, history_list):
+        """
+        Each description is a list. See GuiMenu.COLUMNS.
+        """
+        for description in history_list:
+            self.history_buffer.append(description)
+
     def remove_all_rows(self):
         self.descriptions.clear()
 
-    def get_selected_description_index(self):
-        selection = self.description_table.get_selection()
+    def get_selected_item_index(self, table):
+        selection = table.get_selection()
         model, it = selection.get_selected()
         return model.get(it, 0)[0]
+
+    def get_selected_description_index(self):
+        return self.get_selected_item_index(self.description_table)
+
+    def get_selected_history_index(self):
+        return self.get_selected_item_index(self.history_table)
 
     def set_status_bar(self, text):
         self.status_bar.push(0, text)
@@ -395,21 +410,25 @@ class GuiMenu:
     def set_details(self, text):
         self.description_details.get_buffer().set_text(text)
 
+    def load_xml(self):
+        # Read structure from glade file
+        self.xml = self.gtk.Builder()
+        self.xml.add_from_file(GuiMenu.GLADE_FILE_PATH)
+
+        # Connect callback functions
+        self.xml.connect_signals(self.callbacks)
+
+        # For future reference
+        self._get_widgets()
+
+        # Instantiate description table
+        self._init_description_table()
+
+        # Instantiate history table
+        self._init_history_table()
+
     def show(self):
         if not self.exists:
-            # Read structure from glade file
-            self.xml = self.gtk.Builder()
-            self.xml.add_from_file(GuiMenu.GLADE_FILE_PATH)
-
-            # Connect callback functions
-            self.xml.connect_signals(self.callbacks)
-
-            # For future reference
-            self._get_widgets()
-
-            # Instantiate description table
-            self._init_description_table()
-
             self.exists = True
             self.gtk.main()
         else:
@@ -429,15 +448,20 @@ class GuiMenu:
         self.bottom_toolbar = self.xml.get_object("BottomToolbar")
 
         # descriptions
-        self.desc_scrolled_window =\
+        self.desc_scrolled_window = \
             self.xml.get_object("DescriptionScrolledWindow")
         self.description_table = self.xml.get_object("DescriptionTable")
 
         # description details
-        self.details_scrolled_window =\
+        self.details_scrolled_window = \
             self.xml.get_object("DetailsScrolledWindow")
-        self.description_details =\
+        self.description_details = \
             self.xml.get_object("DescriptionDetails")
+
+        #saved history
+        self.history_scrolled_window = \
+             self.xml.get_object("HistoryScrolledWindow")
+        self.history_table = self.xml.get_object("HistoryTable")
 
         # status bar
         self.status_bar = self.xml.get_object("StatusBar")
@@ -448,6 +472,14 @@ class GuiMenu:
         for column_title in GuiMenu.COLUMNS:
             self._add_column(column_title, GuiMenu.COLUMNS.index(column_title))
 
+    def _init_history_table(self):
+        self.history_buffer = \
+            self.gtk.ListStore(int, str, int)
+        self.history_table.set_model(self.history_buffer)
+        for column_title in GuiMenu.HISTORY_COLUMNS:
+            self._add_column_history(column_title,
+                                     GuiMenu.COLUMNS.index(column_title))
+
     def _add_column(self, title, columnId):
         column = self.gtk.TreeViewColumn(title,
                                          self.gtk.CellRendererText(),
@@ -456,3 +488,12 @@ class GuiMenu:
         column.set_resizable(True)
         column.set_sort_column_id(columnId)
         self.description_table.append_column(column)
+
+    def _add_column_history(self, title, columnId):
+        column = self.gtk.TreeViewColumn(title,
+                                         self.gtk.CellRendererText(),
+                                         text=columnId)
+        column.set_sizing(self.gtk.TREE_VIEW_COLUMN_AUTOSIZE)
+        column.set_resizable(True)
+        column.set_sort_column_id(columnId)
+        self.history_table.append_column(column)

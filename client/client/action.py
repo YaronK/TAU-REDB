@@ -11,6 +11,7 @@ import idc
 import function
 import utils
 import hashlib
+import copy
 
 
 #==============================================================================
@@ -39,16 +40,6 @@ class Actions(object):
         if not self._set_cur_func():
             return "Not pointing at a function."
         return self.cur_func.request_descriptions()
-
-    def _restore_cur_func(self):
-        if not self._set_cur_func():
-            return "Not pointing at a function."
-        return self.cur_func.restore_user_description()
-
-    def merge_cur_func(self):
-        if not self._set_cur_func():
-            return "Not pointing at a function."
-        return self.cur_func.merge_public_to_users()
 
     def _set_cur_func(self):
         """
@@ -80,9 +71,11 @@ class Actions(object):
                                  self.imported_modules)
         self.functions[str(startEA)] = func
 
-    def term(self):
-        for function in self.functions.values():
-            function.restore_user_description()
+    def _show_public_description(self, index):
+        return self.cur_func.show_description_by_index(index)
+
+    def _show_history_description(self, index):
+        return self.cur_func.show_history_item_by_index(index)
 
 
 class HotkeyActions(Actions):
@@ -103,10 +96,6 @@ class HotkeyActions(Actions):
             self._hotkey_next_public_desc()
         elif action_name == "Previous public description":
             self._hotkey_prev_public_desc()
-        elif action_name == "Restore my description":
-            self._hotkey_restore_user_description()
-        elif action_name == "Merge description":
-            self._hotkey_merge()
         elif action_name == "Settings":
             self._hotkey_settings()
 
@@ -129,18 +118,12 @@ class HotkeyActions(Actions):
     def _hotkey_next_public_desc(self):
         if not self._set_cur_func():
             print "Not pointing at a function."
-        print self.cur_func.show_next_description()
+        #print self.cur_func.show_next_description()
 
     def _hotkey_prev_public_desc(self):
         if not self._set_cur_func():
             print "Not pointing at a function."
-        print self.cur_func.show_prev_description()
-
-    def _hotkey_restore_user_description(self):
-        return Actions.restore_user_description()
-
-    def _hotkey_merge(self):
-        return Actions.merge_cur_func()
+        #print self.cur_func.show_prev_description()
 
     def _hotkey_settings(self):
         for opt in utils.Configuration.OPTIONS.keys():
@@ -152,7 +135,7 @@ class HotkeyActions(Actions):
             utils.Configuration.set_option(opt, value)
 
     def term(self):
-        Actions.term(self)
+        pass
 
 
 class GuiActions(HotkeyActions):
@@ -161,20 +144,31 @@ class GuiActions(HotkeyActions):
         callbacks = {"on_mainWindow_destroy": self._on_mainWindow_destroy,
                      "on_Submit": self._on_Submit,
                      "on_Request": self._on_Request,
-                     "on_Restore": self._on_Restore,
                      "on_Settings": self._on_Settings,
                      "on_Embed": self._on_Embed,
-                     "on_Merge": self._on_Merge,
+                     "on_Embed_history": self._on_Embed_history,
                      "on_DescriptionTable_cursor_changed":
-                        self._on_DescriptionTable_cursor_changed}
+                        self._on_DescriptionTable_cursor_changed,
+                     "on_HistoryTable_cursor_changed":
+                        self._on_HistoryTable_cursor_changed}
         self.gui_menu = utils.GuiMenu(callbacks, gtk)
 
     def action(self, arg):
         action_name = self._hotkeys[arg][0]
         if action_name == "GUI":
-            self.gui_menu.show()
+            self.load_gui()
         else:
             HotkeyActions.action(self, arg)
+
+    def load_gui(self):
+        self.gui_menu.load_xml()
+        if self._set_cur_func():
+            desc_rows = self._generate_description_rows()
+            self.gui_menu.add_descriptions(desc_rows)
+            history_rows = self._generate_history_rows()
+            self.gui_menu.add_history(history_rows)
+
+        self.gui_menu.show()
 
     def _on_mainWindow_destroy(self, widget):
         self._destroy_main_window()
@@ -192,39 +186,55 @@ class GuiActions(HotkeyActions):
         desc_rows = self._generate_description_rows()
         self.gui_menu.add_descriptions(desc_rows)
 
-    def _on_Restore(self, widget):
-        result = self._restore_cur_func()
-        self.gui_menu.set_status_bar(result)
-
     def _on_Settings(self, widget):
         HotkeyActions._hotkey_settings(self)
         self.gui_menu.show()
         self.gui_menu.set_status_bar("Settings saved.")
 
-    def _on_Embed(self, widget):
+    def _on_Embed(self, widget, arg2=None, arg3=None):
         # TODO: check we haven't changed function
-        if not self._set_cur_func():
-            print "Not pointing at a function."
-        else:
-            index = self.gui_menu.get_selected_description_index()
-            result = self.cur_func.show_description_by_index(index)
+        index = self.gui_menu.get_selected_description_index()
+        result = self._show_public_description(index)
+        self.gui_menu.history_buffer.clear()
+        history_rows = self._generate_history_rows()
+        self.gui_menu.add_history(history_rows)
         self.gui_menu.set_status_bar(result)
 
-    def _on_Merge(self, widget):
-        result = Actions.merge_cur_func()
+    def _on_Embed_history(self, widget, arg2=None, arg3=None):
+        index = self.gui_menu.get_selected_history_index()
+        result = self._show_history_description(index)
+        self.gui_menu.history_buffer.clear()
+        history_rows = self._generate_history_rows()
+        self.gui_menu.add_history(history_rows)
         self.gui_menu.set_status_bar(result)
+
+    def _on_item_cursor_changed(self, item_container, table):
+        index = self.gui_menu.get_selected_item_index(table)
+        description = self.cur_func.get_item_by_index(index, item_container)
+        self.gui_menu.set_details(self._data_to_details(description.data))
 
     def _on_DescriptionTable_cursor_changed(self, widget):
         index = self.gui_menu.get_selected_description_index()
-        description = self.cur_func.get_descripition_by_index(index)
+        description = self.cur_func._public_descriptions[index]
+        self.gui_menu.set_details(self._data_to_details(description.data))
+
+    def _on_HistoryTable_cursor_changed(self, widget):
+        index = self.gui_menu.get_selected_history_index()
+        description = self.cur_func._history_buffer[index]
         self.gui_menu.set_details(self._data_to_details(description.data))
 
     def _destroy_main_window(self):
         self.gui_menu.hide()
 
     def _generate_description_rows(self):
-        descs = self.cur_func._descriptions
-        return [[descs.index(desc)] + desc.get_row() for desc in descs]
+        descs = self.cur_func._public_descriptions
+        return [[descs.index(desc)] +
+                desc.get_public_desc_row() for desc in descs]
+
+    def _generate_history_rows(self):
+        history_buffer = self.cur_func._history_buffer
+        return [[i] + history_buffer[i].get_history_row() for i in
+                range(len(history_buffer))]
 
     def _data_to_details(self, data):
         details = ""

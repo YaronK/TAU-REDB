@@ -4,20 +4,21 @@ import idaapi
 
 
 class Description:
-    def __init__(self, first_addr, func_num_of_insns, sug_desc=None):
+    def __init__(self, first_addr, func_num_of_insns, desc_data):
+        """"
+        The following fields are porvided by in data:
+        func_id, desc_num_of_insns, grade, updated_at, created_by, data
+        """
         self.first_addr = first_addr
         self.func_num_of_insns = func_num_of_insns
 
-        if sug_desc:
-            self.is_user_description = False
-            for key in sug_desc:
-                setattr(self, key, sug_desc[key])
+        for key in desc_data:
+            setattr(self, key, desc_data[key])
+        if 'desc_num_of_insns' in desc_data:
             self.can_be_embedded = (self.func_num_of_insns ==
                                     self.desc_num_of_insns)
         else:
-            self.is_user_description = True
             self.can_be_embedded = True
-            self.save_changes()
 
     def show(self):
         """
@@ -26,27 +27,15 @@ class Description:
         if self.can_be_embedded:
             DescriptionUtils.set_all(self.first_addr, self.data, append=None)
 
-    def merge_cur_func(self):
-        if self.can_be_embedded:
-            DescriptionUtils.set_all(self.first_addr, self.data, append=True)
-        return "Merged description."
+    def get_public_desc_row(self):
+        return [self.data["func_name"],
+                len(self.data["comments"]),
+                self.grade,
+                self.created_by,
+                self.updated_at]
 
-    def save_changes(self):
-        self.data = DescriptionUtils.get_all(self.first_addr)
-
-    def get_row(self):
-        if self.is_user_description:
-            return [self.data["func_name"],
-                    len(self.data["comments"]),
-                    1.0,
-                    "User",
-                    ""]
-        else:
-            return [self.data["func_name"],
-                    len(self.data["comments"]),
-                    self.grade,
-                    self.created_by,
-                    self.updated_at]
+    def get_history_row(self):
+        return [self.data["func_name"], len(self.data["comments"])]
 
 
 class DescriptionUtils:

@@ -37,6 +37,7 @@ def request_handler(data):
     """
     Handles a Request for descriptions.
     """
+
     request_action = actions.RequestAction(data)
     request_action.check_validity()
     request_action.process_attributes()

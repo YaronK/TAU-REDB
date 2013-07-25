@@ -28,12 +28,15 @@ class FunctionWrapper:
         for offset in range(len(self.itypes)):
             str_offset = str(offset)
             immediate = None
+            print self.immediates
             if str_offset in self.immediates:
                 immediate = self.immediates[str_offset]
             string = None
+            print self.strings
             if str_offset in self.strings:
                 string = StringWrapper(self.strings[str_offset]).save()
             lib_call = None
+            print self.library_calls
             if str_offset in self.library_calls:
                 lib_call = \
                     LibraryCallWrapper(self.library_calls[str_offset]).save()

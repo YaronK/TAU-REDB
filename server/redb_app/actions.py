@@ -112,44 +112,44 @@ class RequestAction:
         func_set = Function.objects
 
         insns_num = func_wrapper.num_of_insns
-        func_set.filter(num_of_insns__range=  # @IgnorePep8
+        func_set.filter(num_of_insns__range=# @IgnorePep8
                         (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
                          insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
 
         num_of_blocks = func_wrapper.num_of_blocks
-        func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
+        func_set.filter(graph__num_of_blocks__range=# @IgnorePep8
                             (num_of_blocks * (1 - MAX_NUM_BLOCKS_DEVIATION),
                              num_of_blocks * (1 + MAX_NUM_BLOCKS_DEVIATION)))
 
         num_of_edges = func_wrapper.num_of_edges
-        func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
+        func_set.filter(graph__num_of_edges__range=# @IgnorePep8
                             (num_of_edges * (1 - MAX_NUM_EDGES_DEVIATION),
                              num_of_edges * (1 + MAX_NUM_EDGES_DEVIATION)))
 
         num_of_strings = func_wrapper.num_of_strings
-        func_set.filter(num_of_strings__range=  # @IgnorePep8
+        func_set.filter(num_of_strings__range=# @IgnorePep8
                             (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
                             num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
 
         num_of_libcalls = func_wrapper.num_of_lib_calls
-        func_set.filter(num_of_lib_calls__range=  # @IgnorePep8
+        func_set.filter(num_of_lib_calls__range=# @IgnorePep8
                             (num_of_libcalls *
                              (1 - MAX_NUM_LIBCALLS_DEVIATION),
                              num_of_libcalls *
                              (1 + MAX_NUM_LIBCALLS_DEVIATION)))
 
         vars_size = func_wrapper.vars_size
-        func_set.filter(vars_size__range=  # @IgnorePep8
+        func_set.filter(vars_size__range=# @IgnorePep8
                             (vars_size * (1 - MAX_VARS_SIZE_DEVIATION),
                             vars_size * (1 + MAX_VARS_SIZE_DEVIATION)))
 
         args_size = func_wrapper.args_size
-        func_set.filter(args_size__range=  # @IgnorePep8
+        func_set.filter(args_size__range=# @IgnorePep8
                             (args_size * (1 - MAX_ARGS_SIZE_DEVIATION),
                             args_size * (1 + MAX_ARGS_SIZE_DEVIATION)))
 
         regs_size = func_wrapper.regs_size
-        func_set.filter(regs_size__range=  # @IgnorePep8
+        func_set.filter(regs_size__range=# @IgnorePep8
                             (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
                             regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
 
@@ -166,17 +166,16 @@ class RequestAction:
     def dictionaries_filtering(self):
         func_wrapper = self.temp_function_wrapper
         func_set = self.filtered_function_set
-
         temp_func_strings_dict = Counter(func_wrapper.strings.values())
         temp_func_libcalls_dict = Counter(func_wrapper.library_calls.values())
         temp_func_itypes_dict = Counter(func_wrapper.itypes)
 
         func_set = dict_filter(func_set, extract_itypes_list,
                                         temp_func_itypes_dict)
-
+        print len(func_set)
         func_set = dict_filter(func_set, extract_libcalls_list,
                                         temp_func_libcalls_dict)
-
+        print len(func_set)
         func_set = dict_filter(func_set, extract_strings_list,
                                         temp_func_strings_dict)
 
@@ -262,6 +261,7 @@ def extract_strings_list(function):
 
 @log
 def extract_libcalls_list(function):
+    print "lib calls"
     instruction_set = function.instruction_set.exclude(lib_call=None)
     return [instruction.lib_call.name for instruction in instruction_set]
 
@@ -277,6 +277,10 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
     filtered_functions = []
     for func in func_set:
         func_dict = Counter(list_extraction_function(func))
+        print "extracted dict"
+        print func_dict
+        print "ref dict"
+        print ref_dict
         grade = DictionarySimilarity(func_dict, ref_dict).ratio()
         if (grade >= FILTERING_THRESHOLD):
             filtered_functions.append(func)
