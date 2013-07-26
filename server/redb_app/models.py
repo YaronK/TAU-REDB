@@ -8,7 +8,7 @@ MAX_EXE_NAME_LENGTH = 255
 EXE_DIGEST_SIZE_IN_BYTES = 32
 FUNC_DIGEST_SIZE_IN_BYTES = 32
 PASSWORD_DIGEST_SIZE_IN_BYTES = 32
-MAX_LIB_CALL_NAME_LENGTH = 100
+MAX_CALL_NAME_LENGTH = 100
 MAX_USER_NAME_LENGTH = 25
 MAX_VAR_NAME_LENGTH = 25
 
@@ -21,7 +21,7 @@ class Function(models.Model):
     regs_size = models.PositiveIntegerField()
     frame_size = models.PositiveIntegerField()
     num_of_strings = models.PositiveSmallIntegerField()  # Counting duplicates
-    num_of_lib_calls = \
+    num_of_calls = \
         models.PositiveSmallIntegerField()  # Counting duplicates
     # num_of_imms = models.PositiveSmallIntegerField()
     num_of_insns = models.PositiveIntegerField()
@@ -39,8 +39,8 @@ class String(models.Model):
         return self.value
 
 
-class LibraryCall(models.Model):
-    name = models.CharField(max_length=MAX_LIB_CALL_NAME_LENGTH,
+class Call(models.Model):
+    name = models.CharField(max_length=MAX_CALL_NAME_LENGTH,
                             unique=True, primary_key=True)
 
     def __unicode__(self):
@@ -54,7 +54,7 @@ class Instruction(models.Model):
 
     immediate = models.PositiveIntegerField(blank=True, null=True)
     string = models.ForeignKey(to=String, blank=True, null=True)
-    lib_call = models.ForeignKey(to=LibraryCall, blank=True, null=True)
+    call = models.ForeignKey(to=Call, blank=True, null=True)
 
     def __unicode__(self):
         res = ("function: " + unicode(self.function) +
@@ -64,8 +64,8 @@ class Instruction(models.Model):
             res += ", immediate: " + str(self.immediate)
         if self.string is not None:
             res += ", string: " + unicode(self.string)
-        if self.lib_call is not None:
-            res += ", lib_call: " + unicode(self.lib_call)
+        if self.call is not None:
+            res += ", call: " + unicode(self.call)
         return res
 
 
@@ -75,6 +75,7 @@ class Executable(models.Model):
     functions = models.ManyToManyField(Function)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    names = models.TextField()
 
     def __unicode__(self):
         return "signature: " + self.signature

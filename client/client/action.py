@@ -85,17 +85,16 @@ class HotkeyActions(Actions):
 
     def action(self, arg):
         action_name = self._hotkeys[arg][0]
-
         if action_name == "Information":
             self._hotkey_information(self._hotkeys)
-        elif action_name == "Submit current":
+        elif action_name == "Submit Current":
             self._hotkey_submit_current()
-        elif action_name == "Request current":
+        elif action_name == "Request Current":
             self._hotkey_request_current()
-        elif action_name == "Next public description":
-            self._hotkey_next_public_desc()
-        elif action_name == "Previous public description":
-            self._hotkey_prev_public_desc()
+        elif action_name == "Show Public Description":
+            self._hotkey_show_public_desc()
+        elif action_name == "Show History":
+            self._hotkey_show_history_desc()
         elif action_name == "Settings":
             self._hotkey_settings()
 
@@ -115,15 +114,39 @@ class HotkeyActions(Actions):
     def _hotkey_request_current(self):
         print self._request_cur_func()
 
-    def _hotkey_next_public_desc(self):
-        if not self._set_cur_func():
-            print "Not pointing at a function."
-        #print self.cur_func.show_next_description()
+    def _get_desc_for_show_index(self, desc_container, prompt_msg):
+        num_of_desc = len(desc_container)
+        prompt = str(num_of_desc) + prompt_msg
 
-    def _hotkey_prev_public_desc(self):
+        if num_of_desc == 1:
+            defval = "0"
+        else:
+            defval = "0-" + str((num_of_desc - 1))
+
+        index = idc.AskStr(defval, prompt)
+        return int(index)
+
+    def _hotkey_show_public_desc(self):
         if not self._set_cur_func():
             print "Not pointing at a function."
-        #print self.cur_func.show_prev_description()
+        try:
+            index = \
+             self._get_desc_for_show_index(self.cur_func._public_descriptions,
+                               " public descriptions are available for show")
+            self._show_public_description(index)
+        except:
+            print "Error: illegal index value"
+
+    def _hotkey_show_history_desc(self):
+        if not self._set_cur_func():
+            print "Not pointing at a function."
+        try:
+            index = \
+             self._get_desc_for_show_index(self.cur_func._public_descriptions,
+                               " history items are available for show")
+            self._show_history_description(index)
+        except:
+            print "Error: illegal index value"
 
     def _hotkey_settings(self):
         for opt in utils.Configuration.OPTIONS.keys():
@@ -207,11 +230,6 @@ class GuiActions(HotkeyActions):
         history_rows = self._generate_history_rows()
         self.gui_menu.add_history(history_rows)
         self.gui_menu.set_status_bar(result)
-
-    def _on_item_cursor_changed(self, item_container, table):
-        index = self.gui_menu.get_selected_item_index(table)
-        description = self.cur_func.get_item_by_index(index, item_container)
-        self.gui_menu.set_details(self._data_to_details(description.data))
 
     def _on_DescriptionTable_cursor_changed(self, widget):
         index = self.gui_menu.get_selected_description_index()

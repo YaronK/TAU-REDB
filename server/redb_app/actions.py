@@ -10,7 +10,7 @@ MAX_NUM_INSNS_DEVIATION = 0.15
 MAX_NUM_BLOCKS_DEVIATION = 0.15
 MAX_NUM_EDGES_DEVIATION = 0.15
 MAX_NUM_STRINGS_DEVIATION = 0.15
-MAX_NUM_LIBCALLS_DEVIATION = 0.15
+MAX_NUM_CALLS_DEVIATION = 0.15
 MAX_VARS_SIZE_DEVIATION = 0.15
 MAX_ARGS_SIZE_DEVIATION = 0.50
 MAX_REGS_SIZE_DEVIATION = 0.50
@@ -21,8 +21,9 @@ ATTRIBUTES = ["func_signature",
               "itypes",
               "strings",
               "immediates",
-              "library_calls",
+              "calls",
               "exe_signature",
+              "exe_name",
               "graph"]
 
 QUERY_FIELDS = ["type",
@@ -131,12 +132,12 @@ class RequestAction:
                             (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
                             num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
 
-        num_of_libcalls = func_wrapper.num_of_lib_calls
-        func_set.filter(num_of_lib_calls__range=# @IgnorePep8
-                            (num_of_libcalls *
-                             (1 - MAX_NUM_LIBCALLS_DEVIATION),
-                             num_of_libcalls *
-                             (1 + MAX_NUM_LIBCALLS_DEVIATION)))
+        num_of_calls = func_wrapper.num_of_calls
+        func_set.filter(num_of_calls__range=# @IgnorePep8
+                            (num_of_calls *
+                             (1 - MAX_NUM_CALLS_DEVIATION),
+                             num_of_calls *
+                             (1 + MAX_NUM_CALLS_DEVIATION)))
 
         vars_size = func_wrapper.vars_size
         func_set.filter(vars_size__range=# @IgnorePep8
@@ -167,15 +168,15 @@ class RequestAction:
         func_wrapper = self.temp_function_wrapper
         func_set = self.filtered_function_set
         temp_func_strings_dict = Counter(func_wrapper.strings.values())
-        temp_func_libcalls_dict = Counter(func_wrapper.library_calls.values())
+        temp_func_calls_dict = Counter(func_wrapper.calls.values())
         temp_func_itypes_dict = Counter(func_wrapper.itypes)
 
         func_set = dict_filter(func_set, extract_itypes_list,
                                         temp_func_itypes_dict)
-        print len(func_set)
-        func_set = dict_filter(func_set, extract_libcalls_list,
-                                        temp_func_libcalls_dict)
-        print len(func_set)
+
+        func_set = dict_filter(func_set, extract_calls_list,
+                                        temp_func_calls_dict)
+
         func_set = dict_filter(func_set, extract_strings_list,
                                         temp_func_strings_dict)
 
@@ -199,7 +200,12 @@ class RequestAction:
     @log
     def get_descriptions(self):
         descriptions = []
+        exe_names = ""
+        print self.matching_funcs
         for (func, grade) in self.matching_funcs:
+            for exe in func.executable_set.all():
+                exe_names = exe.names + exe_names
+                print exe_names
             for desc in func.description_set.all():
                 print desc.data
                 try:
@@ -212,7 +218,8 @@ class RequestAction:
                                      "grade": grade,
                                      "updated_at": desc.updated_at.ctime(),
                                      "created_by": desc.user.user_name,
-                                     "data": desc_data})
+                                     "data": desc_data,
+                                     "exe_names": exe_names})
         return descriptions
 
 
@@ -223,10 +230,11 @@ def general_process_attributes(attributes):
     pro_attrs["func_signature"] = attributes["func_signature"]
     pro_attrs["itypes"] = attributes["itypes"]
     pro_attrs["strings"] = attributes["strings"]
-    pro_attrs["library_calls"] = attributes["library_calls"]
+    pro_attrs["calls"] = attributes["calls"]
     pro_attrs["immediates"] = attributes["immediates"]
     # pro_attrs["num_of_imms"] = len(pro_attrs["immediates"])
     pro_attrs["exe_signature"] = attributes["exe_signature"]
+    pro_attrs["exe_name"] = attributes["exe_name"]
     pro_attrs["num_of_insns"] = len(pro_attrs["itypes"])
 
     frame_attributes = attributes["frame_attributes"]
@@ -236,7 +244,7 @@ def general_process_attributes(attributes):
     pro_attrs["frame_size"] = frame_attributes["frame_size"]
 
     pro_attrs["num_of_strings"] = len(pro_attrs["strings"])
-    pro_attrs["num_of_lib_calls"] = len(pro_attrs["library_calls"])
+    pro_attrs["num_of_calls"] = len(pro_attrs["calls"])
 
     graph = attributes["graph"]
     block_bounds = graph["block_bounds"]
@@ -260,10 +268,9 @@ def extract_strings_list(function):
 
 
 @log
-def extract_libcalls_list(function):
-    print "lib calls"
-    instruction_set = function.instruction_set.exclude(lib_call=None)
-    return [instruction.lib_call.name for instruction in instruction_set]
+def extract_calls_list(function):
+    instruction_set = function.instruction_set.exclude(call=None)
+    return [instruction.call.name for instruction in instruction_set]
 
 
 @log
@@ -277,10 +284,6 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
     filtered_functions = []
     for func in func_set:
         func_dict = Counter(list_extraction_function(func))
-        print "extracted dict"
-        print func_dict
-        print "ref dict"
-        print ref_dict
         grade = DictionarySimilarity(func_dict, ref_dict).ratio()
         if (grade >= FILTERING_THRESHOLD):
             filtered_functions.append(func)

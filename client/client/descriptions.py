@@ -32,7 +32,8 @@ class Description:
                 len(self.data["comments"]),
                 self.grade,
                 self.created_by,
-                self.updated_at]
+                self.updated_at,
+                self.exe_names]
 
     def get_history_row(self):
         return [self.data["func_name"], len(self.data["comments"])]

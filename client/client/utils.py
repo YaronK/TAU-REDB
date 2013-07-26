@@ -367,7 +367,7 @@ class GuiMenu:
     GLADE_FILE_PATH = os.path.join(GLADE_DIR_PATH, 'redb_gui.glade')
 
     COLUMNS = ["Index", "Name", "Number of comments", "Grade", "User",
-               "Last Modified"]
+               "Last Modified", "Exe Names"]
 
     HISTORY_COLUMNS = ["Index", "Name", "Number of comments"]
 
@@ -467,7 +467,8 @@ class GuiMenu:
         self.status_bar = self.xml.get_object("StatusBar")
 
     def _init_description_table(self):
-        self.descriptions = self.gtk.ListStore(int, str, int, float, str, str)
+        self.descriptions = \
+         self.gtk.ListStore(int, str, int, float, str, str, str)
         self.description_table.set_model(self.descriptions)
         for column_title in GuiMenu.COLUMNS:
             self._add_column(column_title, GuiMenu.COLUMNS.index(column_title))

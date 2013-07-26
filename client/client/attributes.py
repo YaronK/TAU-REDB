@@ -16,13 +16,14 @@ import utils
 
 # Constants
 ATTRS_COLLECTED_ONCE = ["exe_signature",
+                        "exe_name",
                         "graph",
                         "frame_attributes"]
 
 ATTR_COLLECTED_ITER = ["func_signature",
                        "itypes",
                        "strings",
-                       "library_calls",
+                       "calls",
                        "immediates"]
 
 ATTRIBUTES = ATTRS_COLLECTED_ONCE + ATTR_COLLECTED_ITER
@@ -152,6 +153,22 @@ class exe_signature(Attribute):
         return self._exe_md5
 
 
+class exe_name(Attribute):
+    """
+    The executable's md5 signature.
+    """
+    def __init__(self, init_args):
+        Attribute.__init__(self, init_args)
+        self._exe_name = None
+
+    def _collect_data(self, collect_args):
+        Attribute._collect_data(self, collect_args)
+        self._exe_name = str(idc.GetInputFile())
+
+    def _extract(self):
+        return self._exe_name
+
+
 class frame_attributes(Attribute):
     def __init__(self, init_args):
         Attribute.__init__(self, init_args)
@@ -227,13 +244,13 @@ class strings(Attribute):
         return self._dict_of_strings
 
 
-class library_calls(Attribute):
+class calls(Attribute):
     """
-    A list containing the lib call names which occur in a function.
+    A list containing the call names which occur in a function.
     """
     def __init__(self, init_args):
         Attribute.__init__(self, init_args)
-        self._lib_calls_dict = {}
+        self._calls_dict = {}
 
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
@@ -267,10 +284,10 @@ class library_calls(Attribute):
 
                 # include in attribute
                 index = self._func_items.index(self._func_item)
-                self._lib_calls_dict[index] = called_function_name
+                self._calls_dict[index] = called_function_name
 
     def _extract(self):
-        return self._lib_calls_dict
+        return self._calls_dict
 
 
 class immediates(Attribute):

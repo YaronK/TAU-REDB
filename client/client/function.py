@@ -87,8 +87,8 @@ class Function:
         history = descriptions.Description(self._first_addr,
                                  self._num_of_func_items,
                                  desc_data)
-        self._history_buffer.append(history)
         self._public_descriptions[index].show()
+        self._history_buffer.insert(0, history)
         return "Showing description number " + str(index)
 
     def show_history_item_by_index(self, index):
@@ -96,8 +96,8 @@ class Function:
         history = descriptions.Description(self._first_addr,
                                  self._num_of_func_items,
                                  desc_data)
-        self._history_buffer.append(history)
         self._history_buffer[index].show()
+        self._history_buffer.insert(0, history)
         return "Showing description number " + str(index)
 
 #==============================================================================
