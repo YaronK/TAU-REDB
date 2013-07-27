@@ -1,9 +1,10 @@
 import model_wrappers
 from models import Function
-from utils import (log, generate_blocks_data, _decode_dict)
+from utils import (log, generate_blocks, _decode_dict)
 from collections import Counter
 from heuristics import DictionarySimilarity, GraphSimilarity
 import json
+import graph
 from redb_app.models import User
 
 MAX_NUM_INSNS_DEVIATION = 0.15
@@ -185,14 +186,19 @@ class RequestAction:
     @log
     def matching_grade_filtering(self):
         self.matching_funcs = []
+        temp_func_blocks = \
+            generate_temp_func_blocks(self.temp_function_wrapper)
+
+        temp_func_graph = graph.Graph(temp_func_blocks,
+                                      self.temp_function_wrapper.edges)
+
         for func in self.filtered_function_set:
             second_graph_edges = json.loads(func.graph.edges)
-            second_graph_data = json.loads(func.graph.blocks_data)
+            second_func_blocks = \
+                generate_db_func_blocks(func)
 
-            grade = GraphSimilarity(self.temp_function_wrapper.edges,
-                                    self.temp_function_wrapper.blocks_data,
-                                    second_graph_edges,
-                                    second_graph_data).ratio()
+            second_graph = graph.Graph(second_func_blocks, second_graph_edges)
+            grade = GraphSimilarity(temp_func_graph, second_graph).ratio()
 
             if (grade >= MATCHING_THRESHOLD):
                 self.matching_funcs.append((func, grade))
@@ -248,11 +254,11 @@ def general_process_attributes(attributes):
 
     graph = attributes["graph"]
     block_bounds = graph["block_bounds"]
+    pro_attrs["blocks_bounds"] = block_bounds
     pro_attrs["edges"] = graph["edges"]
     pro_attrs["num_of_blocks"] = len(block_bounds)
     pro_attrs["num_of_edges"] = len(pro_attrs["edges"])
-    pro_attrs["blocks_data"] = generate_blocks_data(block_bounds,
-                                                    pro_attrs["itypes"])
+
     return pro_attrs
 
 
@@ -288,3 +294,68 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
         if (grade >= FILTERING_THRESHOLD):
             filtered_functions.append(func)
     return filtered_functions
+
+
+@log
+def generate_temp_func_blocks(function_wrapper):
+    temp_func_itypes = function_wrapper.itypes
+    temp_func_strings = []
+    temp_func_calls = []
+    temp_func_imms = []
+
+    for offset in range(len(function_wrapper.itypes)):
+        str_offset = str(offset)
+        if str_offset in function_wrapper.strings:
+            temp_func_strings.append(function_wrapper.strings[str_offset])
+        else:
+            temp_func_strings.append(None)
+
+        if str_offset in function_wrapper.calls:
+            temp_func_calls.append(function_wrapper.calls[str_offset])
+        else:
+            temp_func_calls.append(None)
+
+        if str_offset in function_wrapper.immediates:
+            temp_func_imms.append(function_wrapper.immediates[str_offset])
+        else:
+            temp_func_imms.append(None)
+
+    return generate_blocks(function_wrapper.blocks_bounds,
+                           temp_func_itypes,
+                           temp_func_strings,
+                           temp_func_calls,
+                           temp_func_imms)
+
+
+@log
+def generate_db_func_blocks(function):
+    strings = {}
+    calls = {}
+    immediates = {}
+    itypes = {}
+    instruction_set = function.instruction_set.all()
+    blocks_bounds = json.loads(function.graph.blocks_bounds)
+
+    for instruction in instruction_set:
+        itypes[instruction.offset] = instruction.itype
+
+        if instruction.string == None:
+            strings[instruction.offset] = None
+        else:
+            strings[instruction.offset] = instruction.string.value
+
+        if instruction.call == None:
+            calls[instruction.offset] = None
+        else:
+            calls[instruction.offset] = instruction.call.name
+
+        if instruction.immediate == None:
+            immediates[instruction.offset] = None
+        else:
+            immediates[instruction.offset] = instruction.immediate
+
+    return generate_blocks(blocks_bounds,
+                           itypes.values(),
+                           strings.values(),
+                           calls.values(),
+                           immediates.values())

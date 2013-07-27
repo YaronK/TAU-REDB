@@ -4,6 +4,7 @@ Utilities for all the other modules.
 import traceback
 import os
 import functools
+import graph
 from ctypes import cdll
 
 
@@ -89,12 +90,22 @@ class CliquerGraph:
         self.lib.graph_free(self.g)
 
 
-def generate_blocks_data(block_bounds, itypes):
-    blocks_data = []
+def generate_blocks(block_bounds, itypes, strings, calls, immediates):
+    blocks = []
     for (start_index, end_index) in block_bounds:
-        temp_itypes = itypes[start_index: end_index + 1]
-        blocks_data.append(temp_itypes)
-    return blocks_data
+        string_list = \
+        filter(lambda x: x != None, strings[start_index: end_index + 1])
+        calls_list = \
+        filter(lambda x: x != None, calls[start_index: end_index + 1])
+        imms_list = \
+        filter(lambda x: x != None, immediates[start_index: end_index + 1])
+        block = graph.Block(itypes[start_index: end_index + 1],
+                            string_list,
+                            calls_list,
+                            imms_list)
+        blocks.append(block)
+
+    return blocks
 
 
 #==============================================================================

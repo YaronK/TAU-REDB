@@ -83,7 +83,7 @@ class Executable(models.Model):
 
 class Graph(models.Model):
     edges = models.TextField()
-    blocks_data = models.TextField()
+    blocks_bounds = models.TextField()
     num_of_blocks = models.PositiveIntegerField()
     num_of_edges = models.PositiveIntegerField()
     function = models.OneToOneField(Function)

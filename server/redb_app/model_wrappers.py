@@ -24,7 +24,7 @@ class FunctionWrapper:
             return function
 
         ExecutableWrapper(self.exe_signature, function, self.exe_name).save()
-        GraphWrapper(self.edges, self.blocks_data, self.num_of_blocks,
+        GraphWrapper(self.edges, self.blocks_bounds, self.num_of_blocks,
                      self.num_of_edges, function).save()
 
         instructions = []
@@ -75,17 +75,17 @@ class CallWrapper:
 
 
 class GraphWrapper:
-    def __init__(self, edges, blocks_data, num_of_blocks, num_of_edges,
+    def __init__(self, edges, blocks_bounds, num_of_blocks, num_of_edges,
                  function):
         self.edges = edges
-        self.blocks_data = blocks_data
+        self.blocks_bounds = blocks_bounds
         self.num_of_blocks = num_of_blocks
         self.num_of_edges = num_of_edges
         self.function = function
 
     def save(self):
         return Graph.objects.create(edges=self.edges,
-                                    blocks_data=self.blocks_data,
+                                    blocks_bounds=self.blocks_bounds,
                                     num_of_blocks=self.num_of_blocks,
                                     num_of_edges=self.num_of_edges,
                                     function=self.function)
