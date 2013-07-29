@@ -40,6 +40,7 @@ def log(f):
     return wrapped
 """
 
+
 #==============================================================================
 # Configuration
 #==============================================================================
@@ -155,68 +156,6 @@ def collect_operands_data(func_item):
                     idc.GetOperandValue(func_item, i))
             operands_list.append(pair)
     return operands_list
-
-
-#-----------------------------------------------------------------------------
-# Imports and their functions.
-#-----------------------------------------------------------------------------
-class ImportsAndFunctions:
-    def collect_imports_data(self):
-        """
-        Modules and their functions.
-        """
-        self._imported_modules = []
-        nimps = idaapi.get_import_module_qty()  # number of imports
-
-        for i in xrange(0, nimps):
-            name = idaapi.get_import_module_name(i)
-            if not name:
-                print ("REDB: Failed to get_current_from_ini_file import" +
-                       "module name for #%d" % i)
-                continue
-            module = _ImportModule(name)
-            self._imported_modules.append(module)
-            idaapi.enum_import_names(i, self._add_single_imported_function)
-        return self._imported_modules
-
-    def _add_single_imported_function(self, ea, name, ordinal):
-        if not name:
-            imported_function = _SingleImportedFunction(ea, ordinal)
-        else:
-            imported_function = _SingleImportedFunction(ea, ordinal, name)
-
-        self._imported_modules[-1].improted_functions.append(imported_function)
-
-        return True
-
-
-class _SingleImportedFunction():
-    """
-    Represents an imported function.
-    """
-    def __init__(self, addr, ordinal, name='NoName'):
-        self.ordinal = ordinal
-        self.name = name
-        self.addr = addr
-
-
-class _ImportModule():
-    """
-    Represents an imported module.
-    """
-    def __init__(self, name):
-        self.name = name
-        self.improted_functions = []
-        self._addresses = None
-
-    def get_addresses(self):
-        """
-        Returns addresses of functions imported from this module.
-        """
-        if self._addresses == None:
-            self._addresses = [imported_function.addr for imported_function in
-                               self.improted_functions]
-        return self._addresses
 
 
 #-----------------------------------------------------------------------------

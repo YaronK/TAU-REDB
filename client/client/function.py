@@ -12,7 +12,7 @@ import utils
 import idautils
 import idaapi
 import idc
-from descriptions import Description, DescriptionUtils
+from descriptions import DescriptionUtils
 
 MIN_INS_PER_HANDLED_FUNCTION = 5
 
@@ -21,18 +21,16 @@ class Function:
     """
     Represents a handled function.
     """
-    def __init__(self, first_addr, string_addresses, imported_modules):
+    def __init__(self, first_addr, string_addresses):
         self._first_addr = first_addr
         self._func_items = list(idautils.FuncItems(self._first_addr))
         self._num_of_func_items = len(self._func_items)
-        self._imported_modules = imported_modules
         self._string_addresses = string_addresses
         self._public_descriptions = []
         self._history_buffer = []
         self._attributes = attributes.FuncAttributes(self._first_addr,
                                                      self._func_items,
-                                                     self._string_addresses,
-                                                     self._imported_modules).\
+                                                     self._string_addresses).\
                                                      get_attributes()
 
     def request_descriptions(self):
@@ -63,11 +61,6 @@ class Function:
 
     def submit_description(self):
         idaapi.show_wait_box("Submitting...")
-
-        if self._is_lib_or_thunk(self._first_addr):
-            return "Lib and thunk functions are not admissible."
-        elif MIN_INS_PER_HANDLED_FUNCTION > self._num_of_func_items:
-            return "Short functions are not admisible."
 
         host = utils.Configuration.get_option('host')
         cur_desc = descriptions.DescriptionUtils.get_all(self._first_addr)

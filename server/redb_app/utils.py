@@ -6,6 +6,8 @@ import os
 import functools
 import graph
 from ctypes import cdll
+import time
+import logging
 
 
 #==============================================================================
@@ -126,3 +128,22 @@ def log(f):
                 print os.path.basename(frame[0]), str(frame[1])
             raise
     return wrapped
+
+
+def log_timing():
+    '''Decorator generator that logs the time it takes a function to execute'''
+    #Decorator generator
+    def decorator(func_to_decorate):
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            result = func_to_decorate(*args, **kwargs)
+            elapsed = (time.time() - start)
+
+            s = "[TIMING]:%s - %s" % (func_to_decorate.__name__,
+                                                elapsed)
+            open("log.txt", 'a').write(s)
+            return result
+        wrapper.__doc__ = func_to_decorate.__doc__
+        wrapper.__name__ = func_to_decorate.__name__
+        return wrapper
+    return decorator

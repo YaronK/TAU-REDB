@@ -43,16 +43,12 @@ class FuncAttributes:
     first_addr -- the functions' first address
     func_items -- the functions' list on instruction addresses
     string_addresses -- addresses of executables' strings
-    imported_modules - list of imported modules
     """
-    def __init__(self, first_addr, func_items, string_addresses,
-                 imported_modules):
-
+    def __init__(self, first_addr, func_items, string_addresses):
         # Data required for Attributes extraction
         self._first_addr = first_addr
         self._func_items = func_items
         self._string_addresses = string_addresses
-        self._imported_modules = imported_modules
 
         # At initalization, self._results is filled with all attributes
         # data.
@@ -67,8 +63,7 @@ class FuncAttributes:
         Initializes attribute classes.
         """
         init_args = {"_func_items": self._func_items,
-                     "_string_addresses": self._string_addresses,
-                     "_imported_modules": self._imported_modules}
+                     "_string_addresses": self._string_addresses}
         for one_attribute in ATTRIBUTES:
             one_class = globals()[one_attribute]
             setattr(self, one_attribute, one_class(init_args))
@@ -107,6 +102,7 @@ class FuncAttributes:
         for one_attribute in ATTRIBUTES:
             self._results[one_attribute] = getattr(self,
                                                    one_attribute)._extract()
+        print self._results["calls"]
 
     def _del_all_attr(self):
         """
@@ -202,6 +198,7 @@ class func_signature(Attribute):
 
     def _extract(self):
         self._hash_string = str(self._to_be_hashed.hexdigest())
+        print "func_signature" + str(self._hash_string)
         return self._hash_string
 
 
@@ -255,36 +252,15 @@ class calls(Attribute):
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
         func_item = self._func_item
-        code_refs_from_list = \
-            list(idautils.CodeRefsFrom(func_item, False))
+        refs = list(idautils.CodeRefsFrom(func_item, False))
 
-        for code_ref in code_refs_from_list:
-            is_loaded_dynamically = False
-            is_library_function = False
-            called_function_name = ""
-
-            if (idc.GetFunctionFlags(code_ref) == -1):
-                # Find code_ref in functions that are imported dynamically
-                for imported_module in self._imported_modules:
-                    if code_ref in imported_module.get_addresses():
-                        is_loaded_dynamically = True
-                        break
-            else:
-                # get_func(code_ref) != get_func(func_item) ->
-                # do not include coderefs to self.
-                if ((idc.GetFunctionFlags(code_ref) & idaapi.FUNC_LIB) != 0 and
-                    idaapi.get_func(code_ref) != idaapi.get_func(func_item)):
-                    # code_ref is imported statically
-                    is_library_function = True
-
-            # Data is gathered only for library functions or Imports.
-            if (is_library_function or is_loaded_dynamically):
-                # get name
-                called_function_name = idc.NameEx(func_item, code_ref)
-
-                # include in attribute
-                index = self._func_items.index(self._func_item)
-                self._calls_dict[index] = called_function_name
+        if refs:
+            dest = refs[0]
+            if dest in self._func_items:  # internal
+                if dest != self._first_addr:  # not recursive
+                    return
+            index = self._func_items.index(self._func_item)
+            self._calls_dict[index] = idc.GetTrueName(dest)
 
     def _extract(self):
         return self._calls_dict

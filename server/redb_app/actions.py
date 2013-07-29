@@ -1,6 +1,6 @@
 import model_wrappers
 from models import Function
-from utils import (log, generate_blocks, _decode_dict)
+import utils
 from collections import Counter
 from heuristics import DictionarySimilarity, GraphSimilarity
 import json
@@ -39,7 +39,7 @@ MATCHING_THRESHOLD = 0.9
 class Query:
     def __init__(self, http_post):
         self.query = json.loads(http_post.FILES['action'].read(),
-                          object_hook=_decode_dict)
+                          object_hook=utils._decode_dict)
 
     def check_validity(self):
         if not (set(self.query.keys()) == set(QUERY_FIELDS)):
@@ -55,7 +55,7 @@ class Query:
 
 
 class SubmitAction:
-    @log
+    @utils.log
     def __init__(self, data, username):
         self.attributes = data["attributes"]
         self.description_data = data["description"]
@@ -64,51 +64,52 @@ class SubmitAction:
         self.temp_description_wrapper = None
         self.filtered_function_set = None
 
-    @log
+    @utils.log
     def check_validity(self):
         if not (set(self.attributes.keys()) == set(ATTRIBUTES)):
             raise "Missing attribute(s) / Too many attributes."
 
-    @log
+    @utils.log
     def process_attributes(self):
         self.attributes = general_process_attributes(self.attributes)
 
-    @log
+    @utils.log
     def temp_function(self):
         self.temp_function_wrapper = general_temp_function(self.attributes)
 
-    @log
+    @utils.log
     def process_description(self):
         self.description_data = json.dumps(self.description_data,
                                               ensure_ascii=False)
 
-    @log
+    @utils.log
     def insert_description(self):
         model_wrappers.DescriptionWrapper(self.temp_function_wrapper,
                                           self.description_data,
                                           self.username).save()
+        # TODO: user, not username
 
 
 class RequestAction:
-    @log
+    @utils.log
     def __init__(self, data):
         self.attributes = data["attributes"]
         self.temp_function_wrapper = None
 
-    @log
+    @utils.log
     def check_validity(self):
         if not (set(self.attributes.keys()) == set(ATTRIBUTES)):
             raise "Missing attribute(s) / Too many attributes."
 
-    @log
+    @utils.log
     def process_attributes(self):
         self.attributes = general_process_attributes(self.attributes)
 
-    @log
+    @utils.log
     def temp_function(self):
         self.temp_function_wrapper = general_temp_function(self.attributes)
 
-    @log
+    @utils.log
     def db_filtering(self):
         func_wrapper = self.temp_function_wrapper
         func_set = Function.objects
@@ -164,26 +165,16 @@ class RequestAction:
 
         self.filtered_function_set = func_set.all()
 
-    @log
+    @utils.log
     def dictionaries_filtering(self):
         func_wrapper = self.temp_function_wrapper
         func_set = self.filtered_function_set
-        temp_func_strings_dict = Counter(func_wrapper.strings.values())
-        temp_func_calls_dict = Counter(func_wrapper.calls.values())
         temp_func_itypes_dict = Counter(func_wrapper.itypes)
-
         func_set = dict_filter(func_set, extract_itypes_list,
                                         temp_func_itypes_dict)
-
-        func_set = dict_filter(func_set, extract_calls_list,
-                                        temp_func_calls_dict)
-
-        func_set = dict_filter(func_set, extract_strings_list,
-                                        temp_func_strings_dict)
-
         self.filtered_function_set = func_set
 
-    @log
+    @utils.log
     def matching_grade_filtering(self):
         self.matching_funcs = []
         temp_func_blocks = \
@@ -199,11 +190,11 @@ class RequestAction:
 
             second_graph = graph.Graph(second_func_blocks, second_graph_edges)
             grade = GraphSimilarity(temp_func_graph, second_graph).ratio()
-
+            # print str(func) + ": " + str(grade)
             if (grade >= MATCHING_THRESHOLD):
                 self.matching_funcs.append((func, grade))
 
-    @log
+    @utils.log
     def get_descriptions(self):
         descriptions = []
         exe_names = ""
@@ -215,7 +206,8 @@ class RequestAction:
             for desc in func.description_set.all():
                 print desc.data
                 try:
-                    desc_data = json.loads(desc.data, object_hook=_decode_dict)
+                    desc_data = json.loads(desc.data,
+                                           object_hook=utils._decode_dict)
                 except Exception as e:
                     print e
 
@@ -229,7 +221,7 @@ class RequestAction:
         return descriptions
 
 
-@log
+@utils.log
 def general_process_attributes(attributes):
     pro_attrs = {}
 
@@ -262,30 +254,30 @@ def general_process_attributes(attributes):
     return pro_attrs
 
 
-@log
+@utils.log
 def general_temp_function(attributes):
     return model_wrappers.FunctionWrapper(attributes)
 
 
-@log
+@utils.log
 def extract_strings_list(function):
     instruction_set = function.instruction_set.exclude(string=None)
     return [instruction.string.value for instruction in instruction_set]
 
 
-@log
+@utils.log
 def extract_calls_list(function):
     instruction_set = function.instruction_set.exclude(call=None)
     return [instruction.call.name for instruction in instruction_set]
 
 
-@log
+@utils.log
 def extract_itypes_list(function):
     instruction_set = function.instruction_set.all()
     return [instruction.itype for instruction in instruction_set]
 
 
-@log
+@utils.log
 def dict_filter(func_set, list_extraction_function, ref_dict):
     filtered_functions = []
     for func in func_set:
@@ -296,7 +288,7 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
     return filtered_functions
 
 
-@log
+@utils.log
 def generate_temp_func_blocks(function_wrapper):
     temp_func_itypes = function_wrapper.itypes
     temp_func_strings = []
@@ -320,14 +312,13 @@ def generate_temp_func_blocks(function_wrapper):
         else:
             temp_func_imms.append(None)
 
-    return generate_blocks(function_wrapper.blocks_bounds,
+    return utils.generate_blocks(function_wrapper.blocks_bounds,
                            temp_func_itypes,
                            temp_func_strings,
                            temp_func_calls,
                            temp_func_imms)
 
 
-@log
 def generate_db_func_blocks(function):
     strings = {}
     calls = {}
@@ -354,7 +345,7 @@ def generate_db_func_blocks(function):
         else:
             immediates[instruction.offset] = instruction.immediate
 
-    return generate_blocks(blocks_bounds,
+    return utils.generate_blocks(blocks_bounds,
                            itypes.values(),
                            strings.values(),
                            calls.values(),

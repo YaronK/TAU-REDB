@@ -11,7 +11,6 @@ import idc
 import function
 import utils
 import hashlib
-import copy
 
 
 #==============================================================================
@@ -26,7 +25,6 @@ class Actions(object):
         utils._backup_idb_file()
         utils.Configuration.assert_config_file_validity()
         self._collect_string_addresses()
-        self._collect_imported_modules()
 
         print "*** REDB Plugin loaded. ***"
         idaapi.hide_wait_box()
@@ -49,6 +47,7 @@ class Actions(object):
         plugin, it is added the function list.
         Returns True iff currently pointing at a function.
         """
+        # TODO: add try/except, in case a function hasn't been chosen yet.
         func = idaapi.get_func(idc.ScreenEA())
         if isinstance(func, idaapi.func_t):
             if str(func.startEA) not in self.functions:
@@ -62,13 +61,8 @@ class Actions(object):
     def _collect_string_addresses(self):
         self.string_addresses = [string.ea for string in idautils.Strings()]
 
-    def _collect_imported_modules(self):
-        self.imported_modules = \
-            utils.ImportsAndFunctions().collect_imports_data()
-
     def _add_function(self, startEA):
-        func = function.Function(startEA, self.string_addresses,
-                                 self.imported_modules)
+        func = function.Function(startEA, self.string_addresses)
         self.functions[str(startEA)] = func
 
     def _show_public_description(self, index):
