@@ -18,6 +18,7 @@ MAX_REGS_SIZE_DEVIATION = 0.50
 # MAX_NUM_IMMS_DEVIATION = 0.15
 
 ATTRIBUTES = ["func_signature",
+              "func_name",
               "frame_attributes",
               "itypes",
               "strings",
@@ -202,7 +203,6 @@ class RequestAction:
         for (func, grade) in self.matching_funcs:
             for exe in func.executable_set.all():
                 exe_names = exe.names + exe_names
-                print exe_names
             for desc in func.description_set.all():
                 print desc.data
                 try:
@@ -224,8 +224,8 @@ class RequestAction:
 @utils.log
 def general_process_attributes(attributes):
     pro_attrs = {}
-
     pro_attrs["func_signature"] = attributes["func_signature"]
+    pro_attrs[ "func_name"] = attributes["func_name"]
     pro_attrs["itypes"] = attributes["itypes"]
     pro_attrs["strings"] = attributes["strings"]
     pro_attrs["calls"] = attributes["calls"]

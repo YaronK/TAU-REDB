@@ -27,13 +27,14 @@ class Function(models.Model):
     num_of_insns = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    name = models.TextField()
+    
     def __unicode__(self):
         return "signature: " + self.signature
 
 
 class String(models.Model):
-    value = models.TextField(unique=True, primary_key=True)
+    value = models.TextField(unique=True)
 
     def __unicode__(self):
         return self.value
@@ -41,7 +42,7 @@ class String(models.Model):
 
 class Call(models.Model):
     name = models.CharField(max_length=MAX_CALL_NAME_LENGTH,
-                            unique=True, primary_key=True)
+                            unique=True)
 
     def __unicode__(self):
         return self.name

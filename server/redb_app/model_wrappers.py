@@ -18,8 +18,12 @@ class FunctionWrapper:
                                     'frame_size': self.frame_size,
                                     'num_of_strings': self.num_of_strings,
                                     'num_of_calls': self.num_of_calls,
-                                    'num_of_insns': self.num_of_insns})
-
+                                    'num_of_insns': self.num_of_insns,
+                                    'name': self.func_name + ', ' + self.exe_name})
+        
+        """ if self.func_name not in function.names:
+            function.names += self.func_name + ", "
+        function.save()"""
         if not created:
             return function
 
@@ -35,6 +39,7 @@ class FunctionWrapper:
                 immediate = self.immediates[str_offset]
             string = None
             if str_offset in self.strings:
+                print self.strings[str_offset]
                 string = StringWrapper(self.strings[str_offset]).save()
             call = None
             if str_offset in self.calls:

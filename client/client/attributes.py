@@ -21,6 +21,7 @@ ATTRS_COLLECTED_ONCE = ["exe_signature",
                         "frame_attributes"]
 
 ATTR_COLLECTED_ITER = ["func_signature",
+                       "func_name",
                        "itypes",
                        "strings",
                        "calls",
@@ -198,8 +199,24 @@ class func_signature(Attribute):
 
     def _extract(self):
         self._hash_string = str(self._to_be_hashed.hexdigest())
-        print "func_signature" + str(self._hash_string)
+        print "func_signature " + str(self._hash_string)
         return self._hash_string
+    
+class func_name(Attribute):
+    """
+    The executable's md5 signature.
+    """
+    def __init__(self, init_args):
+        Attribute.__init__(self, init_args)
+        self._func_name = None
+
+    def _collect_data(self, collect_args):
+        Attribute._collect_data(self, collect_args)
+        first_addr = self._first_addr
+        self._func_name = str(idc.GetFunctionName(first_addr))
+
+    def _extract(self):
+        return self._func_name
 
 
 class itypes(Attribute):

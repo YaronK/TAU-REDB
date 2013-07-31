@@ -9,7 +9,7 @@ from utils import CliquerGraph
 from redb_app.utils import log_timing
 
 MAX_GRAPH_COMP_SIZE = 120
-MINIMUM_NODE_WEIGHT = 0.0
+MINIMUM_NODE_WEIGHT = 0.8
 
 ITYPES_WEIGHT = 0.6
 STRINGS_WEIGHT = 0.1
@@ -76,7 +76,6 @@ class BlockSimilarity(Heuristic):
 
     def ratio(self):
         #print (self.block_1.itypes, self.block_2.itypes)
-        print (self.itypes_similarity(),)
         #       self.strings_similarity(),
         #       self.call_similarity(),
         #       self.immediates_similarity())
@@ -147,13 +146,8 @@ class GraphSimilarity(Heuristic):
             if weight > MINIMUM_NODE_WEIGHT:
                 filtered_nodes.append(node)
                 filtered_weights.append(int(weight * 1000))
-
         num_of_filtered_nodes = len(filtered_nodes)
 
-        ratio = num_of_filtered_nodes / float(num_of_nodes)
-        print "before: %d, after: %d, ratio: %d" % (num_of_nodes,
-                                                     num_of_filtered_nodes,
-                                                     ratio)
         if num_of_filtered_nodes == 0:
             return 0.0
 

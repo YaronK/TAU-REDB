@@ -11,7 +11,7 @@ import httplib
 import mimetypes
 import mimetools
 import ConfigParser
-import simplejson as json
+import json
 
 # related third party imports
 import idc
