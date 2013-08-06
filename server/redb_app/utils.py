@@ -8,7 +8,7 @@ import graph
 from ctypes import cdll
 import time
 import logging
-
+import ctypes
 
 #==============================================================================
 # Changing from unicode for compatibility.
@@ -88,12 +88,45 @@ class CliquerGraph:
         self.lib.clique_options_free_redb(opts)
         return max_size
 
+    def clique_max_weight(self, reorder=0):
+        if reorder not in [0, "reorder_by_greedy_coloring",
+                           "reorder_by_degree"]:
+            return -1
+        if reorder:
+            reorder = getattr(self.lib, reorder)
+
+        opts = self.lib.clique_options_new_redb(reorder)
+        max_weight = self.lib.clique_max_weight(self.g, opts)
+        self.lib.clique_options_free_redb(opts)
+        return max_weight
+    
+    def get_max_clique(self, reorder=0):
+        """
+        reorder =
+            0(no reordering)/"reorder_by_greedy_coloring"/"reorder_by_degree"
+        returns: max_size on success, -1 on failure
+        """
+        if reorder not in [0, "reorder_by_greedy_coloring",
+                           "reorder_by_degree"]:
+            return -1
+        if reorder:
+            reorder = getattr(self.lib, reorder)
+
+        opts = self.lib.clique_options_new_redb(reorder)
+        clique = self.lib.get_max_clique(self.g, opts)
+        self.lib.clique_options_free_redb(opts)
+        c_s = ctypes.c_char_p(clique)
+        return c_s.value
+    
     def free(self):
         self.lib.graph_free(self.g)
+    
+    def string_free_redb(self, string):
+        self.lib.string_free_redb(string)
 
-
-def generate_blocks(block_bounds, itypes, strings, calls, immediates):
+def generate_blocks(block_bounds, itypes, strings, calls, immediates, dist_from_root):
     blocks = []
+    index = 0
     for (start_index, end_index) in block_bounds:
         string_list = \
         filter(lambda x: x != None, strings[start_index: end_index + 1])
@@ -104,7 +137,9 @@ def generate_blocks(block_bounds, itypes, strings, calls, immediates):
         block = graph.Block(itypes[start_index: end_index + 1],
                             string_list,
                             calls_list,
-                            imms_list)
+                            imms_list,
+                            dist_from_root[str(index)])
+        index += 1
         blocks.append(block)
 
     return blocks

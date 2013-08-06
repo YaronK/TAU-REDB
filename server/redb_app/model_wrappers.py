@@ -19,7 +19,8 @@ class FunctionWrapper:
                                     'num_of_strings': self.num_of_strings,
                                     'num_of_calls': self.num_of_calls,
                                     'num_of_insns': self.num_of_insns,
-                                    'name': self.func_name + ', ' + self.exe_name})
+                                    'name': self.func_name,
+                                    'exe_name': self.exe_name})
         
         """ if self.func_name not in function.names:
             function.names += self.func_name + ", "
@@ -28,7 +29,7 @@ class FunctionWrapper:
             return function
 
         ExecutableWrapper(self.exe_signature, function, self.exe_name).save()
-        GraphWrapper(self.edges, self.blocks_bounds, self.num_of_blocks,
+        GraphWrapper(self.edges, self.blocks_bounds, self.dist_from_root, self.num_of_blocks,
                      self.num_of_edges, function).save()
 
         instructions = []
@@ -39,7 +40,6 @@ class FunctionWrapper:
                 immediate = self.immediates[str_offset]
             string = None
             if str_offset in self.strings:
-                print self.strings[str_offset]
                 string = StringWrapper(self.strings[str_offset]).save()
             call = None
             if str_offset in self.calls:
@@ -80,10 +80,11 @@ class CallWrapper:
 
 
 class GraphWrapper:
-    def __init__(self, edges, blocks_bounds, num_of_blocks, num_of_edges,
+    def __init__(self, edges, blocks_bounds, dist_from_root, num_of_blocks, num_of_edges,
                  function):
         self.edges = edges
         self.blocks_bounds = blocks_bounds
+        self.dist_from_root = dist_from_root
         self.num_of_blocks = num_of_blocks
         self.num_of_edges = num_of_edges
         self.function = function
@@ -91,6 +92,7 @@ class GraphWrapper:
     def save(self):
         return Graph.objects.create(edges=self.edges,
                                     blocks_bounds=self.blocks_bounds,
+                                    dist_from_root = self.dist_from_root,
                                     num_of_blocks=self.num_of_blocks,
                                     num_of_edges=self.num_of_edges,
                                     function=self.function)

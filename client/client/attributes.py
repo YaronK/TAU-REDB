@@ -103,7 +103,6 @@ class FuncAttributes:
         for one_attribute in ATTRIBUTES:
             self._results[one_attribute] = getattr(self,
                                                    one_attribute)._extract()
-        print self._results["calls"]
 
     def _del_all_attr(self):
         """
@@ -199,7 +198,6 @@ class func_signature(Attribute):
 
     def _extract(self):
         self._hash_string = str(self._to_be_hashed.hexdigest())
-        print "func_signature " + str(self._hash_string)
         return self._hash_string
     
 class func_name(Attribute):
@@ -314,8 +312,8 @@ class graph(Attribute):
 
         self.block_bounds = []
         self.edges = []  # 2-tuples of numbers. edges.
-        self.signature = []  # control flow graph signature
-
+        self.dist_from_root = {} # 2-tuples of node and its distance from root
+    
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
 
@@ -333,7 +331,50 @@ class graph(Attribute):
 
             for basic_block_neighbour in basic_block.succs():
                 self.edges.append((basic_block.id, basic_block_neighbour.id))
+                
+            self.dist_from_root = self._breadth_first_search(self.func_flow_chart)
+    
+    def _breadth_first_search(self, flow_chart):
+        result = {}
+        result[0] = 0
+        nodes = []
+        marked = []
+        v = flow_chart[0]
+        marked.append(v.id)
+        i = 1
+        
+        # 'nodes' holds only accessible nodes from root
+        for node in flow_chart:
+            for n in node.succs():
+                nodes.append(n.id)
+        
+        nodes = list(set(nodes))
+       
+        while nodes:
+            for node in v.succs():
+                if node.id not in marked:
+                    result[node.id] = result[v.id] + 1
+                    marked.append(node.id)
+            try:
+                v = flow_chart[marked[i]]
+            except: # for all inaccessible nodes from root, define '0' distance  
+                for i in range(flow_chart.size):
+                    if i not in result:
+                        result[i] = 0    
+                return result                
+            if (v.id in nodes):
+                nodes.remove(v.id)
+                i += 1
+        # for all inaccessible nodes define '0' distance from root 
+        for i in range(flow_chart.size):
+            if i not in result:
+                result[i] = 0    
+        return result
 
     def _extract(self):
         return {"block_bounds": self.block_bounds,
-                "edges": self.edges}
+                "edges": self.edges,
+                "dist_from_root": self.dist_from_root}
+        
+
+

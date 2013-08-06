@@ -28,6 +28,7 @@ class Function(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     name = models.TextField()
+    exe_name = models.TextField()
     
     def __unicode__(self):
         return "signature: " + self.signature
@@ -85,6 +86,7 @@ class Executable(models.Model):
 class Graph(models.Model):
     edges = models.TextField()
     blocks_bounds = models.TextField()
+    dist_from_root = models.TextField()
     num_of_blocks = models.PositiveIntegerField()
     num_of_edges = models.PositiveIntegerField()
     function = models.OneToOneField(Function)

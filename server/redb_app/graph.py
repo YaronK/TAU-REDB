@@ -1,22 +1,24 @@
 
 
 class Block:
-    def __init__(self, itypes, strings, calls, immediates):
+    def __init__(self, itypes, strings, calls, immediates, dist_from_root):
         self.itypes = itypes
         self.strings = ""
         for string in strings:
-            self.strings += str(string)
+            self.strings += string
 
         self.calls = ""
         for call in calls:
             self.calls += str(call)
         self.immediates = immediates
+        self.dist_from_root = dist_from_root
 
     def __eq__(self, other):
         return ((self.itypes == other.itypes) and
                 (self.strings == other.strings) and
                 (self.calls == other.calls) and
-                (self.immediates == other.immediates))
+                (self.immediates == other.immediates) and
+                (self.dist_from_root == other.dist_from_root))
 
     def similar(self, other):
         pass

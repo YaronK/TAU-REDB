@@ -7,9 +7,11 @@ from itertools import product
 from difflib import SequenceMatcher
 from utils import CliquerGraph
 from redb_app.utils import log_timing
+import json
 
 MAX_GRAPH_COMP_SIZE = 120
 MINIMUM_NODE_WEIGHT = 0.8
+MAX_NODES_DIST = 4
 
 ITYPES_WEIGHT = 0.6
 STRINGS_WEIGHT = 0.1
@@ -75,10 +77,6 @@ class BlockSimilarity(Heuristic):
         self._ratio = None
 
     def ratio(self):
-        #print (self.block_1.itypes, self.block_2.itypes)
-        #       self.strings_similarity(),
-        #       self.call_similarity(),
-        #       self.immediates_similarity())
         if self.block_1 == self.block_2:
             return 1.0
         return (ITYPES_WEIGHT * self.itypes_similarity() + \
@@ -102,7 +100,7 @@ class BlockSimilarity(Heuristic):
     def immediates_similarity(self):
         return SequenceMatcher(a=self.block_1.immediates,
                                b=self.block_2.immediates).ratio()
-
+    
 
 class GraphSimilarity(Heuristic):
     def __init__(self, graph_1, graph_2):
@@ -112,7 +110,7 @@ class GraphSimilarity(Heuristic):
     def ratio(self):
         if self.graph_1 == self.graph_2:
             return 1.0
-        elif self.graph_1.edges == self.graph_2.edges:
+        elif self.graph_1.edges == self.graph_2.edges and len(self.graph_1.blocks) == len(self.graph_2.blocks):
             return self.blocks_similarity()
         else:
             return self.graph_similarity()
@@ -135,15 +133,28 @@ class GraphSimilarity(Heuristic):
     def graph_similarity(self):
         nodes = product(range(len(self.graph_1.blocks)),
                         range(len(self.graph_2.blocks)))
+        
+        if len(self.graph_1.blocks)*len(self.graph_2.blocks) >= 2500:
+            minimum_node_weight = 0.9
+        else:
+            minimum_node_weight = 0.75
         num_of_nodes = 0
         filtered_nodes = []
         filtered_weights = []
         for node in nodes:
             num_of_nodes += 1
+            min_dist = min(self.graph_1.blocks[node[0]].dist_from_root,
+                           self.graph_2.blocks[node[1]].dist_from_root)
+            max_dist = max(self.graph_1.blocks[node[0]].dist_from_root,
+                           self.graph_2.blocks[node[1]].dist_from_root)
+            
+            if (max_dist - min_dist) > MAX_NODES_DIST:
+                continue
+       
             weight = BlockSimilarity(self.graph_1.blocks[node[0]],
                                      self.graph_2.blocks[node[1]]).ratio()
-            #print weight
-            if weight > MINIMUM_NODE_WEIGHT:
+        
+            if weight > minimum_node_weight:
                 filtered_nodes.append(node)
                 filtered_weights.append(int(weight * 1000))
         num_of_filtered_nodes = len(filtered_nodes)
@@ -152,7 +163,6 @@ class GraphSimilarity(Heuristic):
             return 0.0
 
         graph = CliquerGraph(num_of_filtered_nodes)
-
         for node_num in range(num_of_filtered_nodes):
             graph.set_vertex_weight(node_num, filtered_weights[node_num])
 
@@ -167,8 +177,21 @@ class GraphSimilarity(Heuristic):
                          ((s, t) not in self.graph_2.edges))):
                         graph.add_edge(x, y)
         print "in"
-        size = float(graph.clique_max_size())
+        #size1 = graph.clique_max_size()
+        weight1 = graph.clique_max_weight()
+        """clique = json.loads(graph.get_max_clique())
+        print len(clique)
+        for node in clique:
+            graph.set_vertex_weight(node, 0)
+        weight2 = graph.clique_max_weight()
+        print weight2
+        clique2 = json.loads(graph.get_max_clique())
+        clique2_unique = list(set(clique2)-set(clique))
+        print clique2_unique
+        print [filtered_weights[node] for node in clique2_unique]"""
         print "out"
         graph.free()
-        return size / (len(self.graph_1.blocks) + \
-                        len(self.graph_2.blocks) - size)
+        """return size / (len(self.graph_1.blocks) + \
+                        len(self.graph_2.blocks) - size)"""
+        return weight1/float(1000*len(self.graph_1.blocks) +\
+                                        1000*len(self.graph_2.blocks) - weight1)

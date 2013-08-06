@@ -179,16 +179,21 @@ class RequestAction:
     def matching_grade_filtering(self):
         self.matching_funcs = []
         temp_func_blocks = \
-            generate_temp_func_blocks(self.temp_function_wrapper)
+            generate_temp_func_blocks(self.temp_function_wrapper,
+                                      self.temp_function_wrapper.dist_from_root)
 
         temp_func_graph = graph.Graph(temp_func_blocks,
                                       self.temp_function_wrapper.edges)
-
+        
         for func in self.filtered_function_set:
             second_graph_edges = json.loads(func.graph.edges)
+            try:
+                second_graph_dist_from_root = json.loads(func.graph.dist_from_root.replace("'", '"'), 
+                                                         object_hook=utils._decode_dict)
+            except Exception as e:
+                print e
             second_func_blocks = \
-                generate_db_func_blocks(func)
-
+                generate_db_func_blocks(func, second_graph_dist_from_root)
             second_graph = graph.Graph(second_func_blocks, second_graph_edges)
             grade = GraphSimilarity(temp_func_graph, second_graph).ratio()
             # print str(func) + ": " + str(grade)
@@ -204,7 +209,6 @@ class RequestAction:
             for exe in func.executable_set.all():
                 exe_names = exe.names + exe_names
             for desc in func.description_set.all():
-                print desc.data
                 try:
                     desc_data = json.loads(desc.data,
                                            object_hook=utils._decode_dict)
@@ -248,6 +252,7 @@ def general_process_attributes(attributes):
     block_bounds = graph["block_bounds"]
     pro_attrs["blocks_bounds"] = block_bounds
     pro_attrs["edges"] = graph["edges"]
+    pro_attrs["dist_from_root"] = graph["dist_from_root"]
     pro_attrs["num_of_blocks"] = len(block_bounds)
     pro_attrs["num_of_edges"] = len(pro_attrs["edges"])
 
@@ -289,7 +294,7 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
 
 
 @utils.log
-def generate_temp_func_blocks(function_wrapper):
+def generate_temp_func_blocks(function_wrapper, dist_from_root):
     temp_func_itypes = function_wrapper.itypes
     temp_func_strings = []
     temp_func_calls = []
@@ -316,10 +321,11 @@ def generate_temp_func_blocks(function_wrapper):
                            temp_func_itypes,
                            temp_func_strings,
                            temp_func_calls,
-                           temp_func_imms)
+                           temp_func_imms,
+                           dist_from_root)
 
 
-def generate_db_func_blocks(function):
+def generate_db_func_blocks(function, dist_from_root):
     strings = {}
     calls = {}
     immediates = {}
@@ -349,4 +355,5 @@ def generate_db_func_blocks(function):
                            itypes.values(),
                            strings.values(),
                            calls.values(),
-                           immediates.values())
+                           immediates.values(),
+                           dist_from_root)
