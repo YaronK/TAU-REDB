@@ -23,11 +23,12 @@ class Function(models.Model):
     num_of_strings = models.PositiveSmallIntegerField()  # Counting duplicates
     num_of_calls = \
         models.PositiveSmallIntegerField()  # Counting duplicates
+    # TODO: un-comment?
     # num_of_imms = models.PositiveSmallIntegerField()
     num_of_insns = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    name = models.TextField()
+    func_name = models.TextField()
     exe_name = models.TextField()
 
     def __unicode__(self):

@@ -17,9 +17,11 @@ class FunctionWrapper:
                                     'num_of_strings': self.num_of_strings,
                                     'num_of_calls': self.num_of_calls,
                                     'num_of_insns': self.num_of_insns,
-                                    'name': self.func_name,
+                                    'func_name': self.func_name,
                                     'exe_name': self.exe_name})
 
+        # TODO: add "alternative_names" as a field.
+        # TODO: un-comment
         """ if self.func_name not in function.names:
             function.names += self.func_name + ", "
         function.save()"""
