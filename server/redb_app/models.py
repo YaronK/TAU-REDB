@@ -29,7 +29,7 @@ class Function(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     name = models.TextField()
     exe_name = models.TextField()
-    
+
     def __unicode__(self):
         return "signature: " + self.signature
 

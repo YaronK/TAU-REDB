@@ -1,7 +1,5 @@
 from models import (Function, Description, String, Call,
                     Executable, Instruction, User, Graph)
-from django.db.models.base import Model
-from django.db.models.query import QuerySet
 
 
 class FunctionWrapper:
@@ -21,7 +19,7 @@ class FunctionWrapper:
                                     'num_of_insns': self.num_of_insns,
                                     'name': self.func_name,
                                     'exe_name': self.exe_name})
-        
+
         """ if self.func_name not in function.names:
             function.names += self.func_name + ", "
         function.save()"""
@@ -29,8 +27,8 @@ class FunctionWrapper:
             return function
 
         ExecutableWrapper(self.exe_signature, function, self.exe_name).save()
-        GraphWrapper(self.edges, self.blocks_bounds, self.dist_from_root, self.num_of_blocks,
-                     self.num_of_edges, function).save()
+        GraphWrapper(self.edges, self.blocks_bounds, self.dist_from_root,
+                     self.num_of_blocks, self.num_of_edges, function).save()
 
         instructions = []
         for offset in range(len(self.itypes)):
@@ -80,8 +78,8 @@ class CallWrapper:
 
 
 class GraphWrapper:
-    def __init__(self, edges, blocks_bounds, dist_from_root, num_of_blocks, num_of_edges,
-                 function):
+    def __init__(self, edges, blocks_bounds, dist_from_root, num_of_blocks,
+                 num_of_edges, function):
         self.edges = edges
         self.blocks_bounds = blocks_bounds
         self.dist_from_root = dist_from_root
@@ -92,7 +90,7 @@ class GraphWrapper:
     def save(self):
         return Graph.objects.create(edges=self.edges,
                                     blocks_bounds=self.blocks_bounds,
-                                    dist_from_root = self.dist_from_root,
+                                    dist_from_root=self.dist_from_root,
                                     num_of_blocks=self.num_of_blocks,
                                     num_of_edges=self.num_of_edges,
                                     function=self.function)

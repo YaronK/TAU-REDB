@@ -180,16 +180,17 @@ class RequestAction:
         self.matching_funcs = []
         temp_func_blocks = \
             generate_temp_func_blocks(self.temp_function_wrapper,
-                                      self.temp_function_wrapper.dist_from_root)
+                                    self.temp_function_wrapper.dist_from_root)
 
         temp_func_graph = graph.Graph(temp_func_blocks,
                                       self.temp_function_wrapper.edges)
-        
+
         for func in self.filtered_function_set:
             second_graph_edges = json.loads(func.graph.edges)
             try:
-                second_graph_dist_from_root = json.loads(func.graph.dist_from_root.replace("'", '"'), 
-                                                         object_hook=utils._decode_dict)
+                second_graph_dist_from_root =\
+                    json.loads(func.graph.dist_from_root.replace("'", '"'),
+                               object_hook=utils._decode_dict)
             except Exception as e:
                 print e
             second_func_blocks = \
@@ -229,7 +230,7 @@ class RequestAction:
 def general_process_attributes(attributes):
     pro_attrs = {}
     pro_attrs["func_signature"] = attributes["func_signature"]
-    pro_attrs[ "func_name"] = attributes["func_name"]
+    pro_attrs["func_name"] = attributes["func_name"]
     pro_attrs["itypes"] = attributes["itypes"]
     pro_attrs["strings"] = attributes["strings"]
     pro_attrs["calls"] = attributes["calls"]
