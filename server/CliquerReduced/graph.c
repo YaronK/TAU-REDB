@@ -27,7 +27,7 @@ int graph_add_edge_redb(graph_t * g, int i, int j)
 int graph_set_vertex_weight_redb(graph_t * g, int i, int w)
 {
 	int n = g->n;
-	if ((NULL!=g) && (i<n) && (0<w))
+	if ((NULL!=g) && (i<n) && (0<=w))
 	{
 		g->weights[i]=w;
 		return 0;

@@ -5,11 +5,12 @@ EXPORTS
 	graph_add_edge_redb
 	graph_set_vertex_weight_redb
 	graph_print
+	string_free_redb
 	
 	reorder_by_greedy_coloring
 	reorder_by_degree
 	clique_max_weight
 	clique_max_size
-	
+	get_max_clique
 	clique_options_new_redb
 	clique_options_free_redb

@@ -108,6 +108,10 @@ extern void set_free_redb(set_t s) {
 	set_free(s);
 }
 
+extern void string_free_redb(char* s){
+	free(s);
+}
+
 /***** Weighted clique searches *****/
 /*
  * Weighted clique searches can use the same recursive routine, because
@@ -632,6 +636,36 @@ int clique_max_size(graph_t *g,clique_options *opts) {
 	return size;
 }
 
+char* get_max_clique(graph_t *g,clique_options *opts){
+	set_t s;
+	int size;
+	char* clique;
+	int i;
+	ASSERT((sizeof(setelement)*8)==ELEMENTSIZE);
+	ASSERT(g!=NULL);
+
+	s=clique_find_single(g,0,0,FALSE,opts);
+	if (s==NULL) {
+		/* Search was aborted. */
+		return NULL;
+	}
+	size=set_size(s);
+	clique = (char*)calloc(300,sizeof(char));
+	if (size == 0){
+		sprintf(clique, "[]");
+	}else{
+		sprintf(clique, "[");
+		for (i=0; i<SET_MAX_SIZE(s); i++){
+			if (SET_CONTAINS(s,i)){
+				sprintf(clique+strlen(clique), "%d,", i);
+			}
+		}
+		sprintf(clique+strlen(clique)-1, "]");
+	}
+	set_free(s);
+	return clique;
+}
+
 /*
  * clique_find_single()
  *
@@ -756,3 +790,5 @@ set_t clique_find_single(graph_t *g,int min_weight,int max_weight,
 
 	return s;
 }
+
+
