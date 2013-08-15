@@ -50,17 +50,33 @@ class Call(models.Model):
         return self.name
 
 
+class Graph(models.Model):
+    edges = models.TextField()
+    blocks_bounds = models.TextField() 
+    num_of_blocks = models.PositiveIntegerField()
+    num_of_edges = models.PositiveIntegerField()
+    function = models.OneToOneField(Function)
+
+    def __unicode__(self):
+        return str(self.id)
+
+class Block(models.Model):
+    graph = models.ForeignKey(Graph)
+    dist_from_root = models.PositiveIntegerField()
+    
+    def __unicode__(self):
+        return str(self.id)
+
 class Instruction(models.Model):
-    function = models.ForeignKey(Function)
+    block = models.ForeignKey(Block)
     itype = models.PositiveSmallIntegerField()
     offset = models.PositiveIntegerField()
-
     immediate = models.PositiveIntegerField(blank=True, null=True)
     string = models.ForeignKey(to=String, blank=True, null=True)
     call = models.ForeignKey(to=Call, blank=True, null=True)
 
     def __unicode__(self):
-        res = ("function: " + unicode(self.function) +
+        res = ("block: " + unicode(self.block) +
                ", offset: " + str(self.offset) +
                ", itype: " + str(self.itype))
         if self.immediate is not None:
@@ -83,17 +99,6 @@ class Executable(models.Model):
     def __unicode__(self):
         return "signature: " + self.signature
 
-
-class Graph(models.Model):
-    edges = models.TextField()
-    blocks_bounds = models.TextField()
-    dist_from_root = models.TextField()
-    num_of_blocks = models.PositiveIntegerField()
-    num_of_edges = models.PositiveIntegerField()
-    function = models.OneToOneField(Function)
-
-    def __unicode__(self):
-        return str(self.id)
 
 
 class User(models.Model):

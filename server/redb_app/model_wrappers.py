@@ -1,5 +1,5 @@
 from models import (Function, Description, String, Call,
-                    Executable, Instruction, User, Graph)
+                    Executable, Instruction, User, Graph, Block)
 
 
 class FunctionWrapper:
@@ -29,34 +29,40 @@ class FunctionWrapper:
             return function
 
         ExecutableWrapper(self.exe_signature, function, self.exe_name).save()
-        GraphWrapper(self.edges, self.blocks_bounds, self.dist_from_root,
-                     self.num_of_blocks, self.num_of_edges, function).save()
+        
+        graph = GraphWrapper(self.edges, self.blocks_bounds, self.num_of_blocks, 
+                     self.num_of_edges, function).save()
 
-        instructions = []
-        for offset in range(len(self.itypes)):
-            str_offset = str(offset)
-            immediate = None
-            if str_offset in self.immediates:
-                immediate = self.immediates[str_offset]
-            string = None
-            if str_offset in self.strings:
-                string = StringWrapper(self.strings[str_offset]).save()
-            call = None
-            if str_offset in self.calls:
-                call = \
-                    CallWrapper(self.calls[str_offset]).save()
-            instructions.\
-                append(InstructionWrapper(self.itypes[offset],
-                                          offset, function,
-                                          immediate,
-                                          string,
-                                          call).instruction)
-
-        # SQLite limitation
-        chunks = [instructions[x:x + 100]
-                  for x in xrange(0, len(instructions), 100)]
-        for chunk in chunks:
-            Instruction.objects.bulk_create(chunk)
+        
+        for block_id in range(len(self.blocks_bounds)):
+            block = BlockWrapper(graph, self.dist_from_root[str(block_id)]).save()
+            instructions = []
+            start_offset = self.blocks_bounds[block_id][0]
+            end_offset = self.blocks_bounds[block_id][1] + 1
+            for offset in range(start_offset, end_offset):
+                str_offset = str(offset)
+                immediate = None
+                if str_offset in self.immediates:
+                    immediate = self.immediates[str_offset]
+                string = None
+                if str_offset in self.strings:
+                    string = StringWrapper(self.strings[str_offset]).save()
+                call = None
+                if str_offset in self.calls:
+                    call = \
+                        CallWrapper(self.calls[str_offset]).save()
+                instructions.\
+                    append(InstructionWrapper(self.itypes[offset],
+                                      offset, block,
+                                      immediate,
+                                      string,
+                                      call).instruction)
+                
+            # SQLite limitation
+            chunks = [instructions[x:x + 100]
+                      for x in xrange(0, len(instructions), 100)]
+            for chunk in chunks:
+                Instruction.objects.bulk_create(chunk)
 
         return function
 
@@ -80,11 +86,10 @@ class CallWrapper:
 
 
 class GraphWrapper:
-    def __init__(self, edges, blocks_bounds, dist_from_root, num_of_blocks,
+    def __init__(self, edges, blocks_bounds, num_of_blocks,
                  num_of_edges, function):
         self.edges = edges
         self.blocks_bounds = blocks_bounds
-        self.dist_from_root = dist_from_root
         self.num_of_blocks = num_of_blocks
         self.num_of_edges = num_of_edges
         self.function = function
@@ -92,11 +97,18 @@ class GraphWrapper:
     def save(self):
         return Graph.objects.create(edges=self.edges,
                                     blocks_bounds=self.blocks_bounds,
-                                    dist_from_root=self.dist_from_root,
                                     num_of_blocks=self.num_of_blocks,
                                     num_of_edges=self.num_of_edges,
                                     function=self.function)
 
+class BlockWrapper:
+    def __init__(self, graph, dist_from_root):
+        self.graph = graph
+        self.dist_from_root = dist_from_root
+
+    def save(self):
+        return Block.objects.create(graph=self.graph,
+                                    dist_from_root=self.dist_from_root)
 
 class ExecutableWrapper:
     def __init__(self, signature, function, exe_name):
@@ -115,15 +127,15 @@ class ExecutableWrapper:
 
 
 class InstructionWrapper:
-    def __init__(self, itype, offset, function,
+    def __init__(self, itype, offset, block,
                  immediate=None, string=None, call=None):
         self.itype = itype
         self.offset = offset
-        self.function = function
+        self.block = block
         self.immediate = immediate
         self.string = string
         self.call = call
-        self.instruction = Instruction(function=self.function,
+        self.instruction = Instruction(block=self.block,
                                        itype=self.itype,
                                        offset=self.offset,
                                        immediate=self.immediate,

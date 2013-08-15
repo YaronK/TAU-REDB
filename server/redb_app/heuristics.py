@@ -7,6 +7,8 @@ from itertools import product
 from difflib import SequenceMatcher
 from utils import CliquerGraph
 from redb_app.utils import log_timing
+import json
+import copy
 
 MAX_GRAPH_COMP_SIZE = 120
 MINIMUM_NODE_WEIGHT = 0.8
@@ -17,6 +19,9 @@ STRINGS_WEIGHT = 0.1
 CALLS_WEIGHT = 0.2
 IMMS_WEIGHT = 0.1
 
+MIN_BLOCK_WEIGHT_DELTA = 0.1
+INITIAL_MIN_BLOCK_WEIGHT = 0.9
+MIN_RATIO = 0.3
 
 class Heuristic:
     """ Represents a single attribute. """
@@ -78,6 +83,13 @@ class BlockSimilarity(Heuristic):
     def ratio(self):
         if self.block_1 == self.block_2:
             return 1.0
+
+        distance = abs(self.block_1.dist_from_root -
+                       self.block_2.dist_from_root)
+
+        if distance > MAX_NODES_DIST:
+            return 0.0 # nodes are too far apart
+
         return (ITYPES_WEIGHT * self.itypes_similarity() + \
                 STRINGS_WEIGHT * self.strings_similarity() + \
                 CALLS_WEIGHT * self.call_similarity() + \
@@ -109,9 +121,10 @@ class GraphSimilarity(Heuristic):
     def ratio(self):
         if self.graph_1 == self.graph_2:
             return 1.0
-        elif (self.graph_1.edges == self.graph_2.edges and
-              len(self.graph_1.blocks) == len(self.graph_2.blocks)):
-            return self.blocks_similarity()
+        # TODO: un-comment
+        #elif (self.graph_1.edges == self.graph_2.edges and
+        #      len(self.graph_1.blocks) == len(self.graph_2.blocks)):
+        #    return self.blocks_similarity()
         else:
             return self.graph_similarity()
 
@@ -131,67 +144,96 @@ class GraphSimilarity(Heuristic):
 
     @log_timing()
     def graph_similarity(self):
-        nodes = product(range(len(self.graph_1.blocks)),
-                        range(len(self.graph_2.blocks)))
+        def decrement_min_block_weight(weight):
+            return weight - MIN_BLOCK_WEIGHT_DELTA
 
-        if len(self.graph_1.blocks) * len(self.graph_2.blocks) >= 2500:
-            minimum_node_weight = 0.9
-        else:
-            minimum_node_weight = 0.75
-        num_of_nodes = 0
-        filtered_nodes = []
-        filtered_weights = []
-        for node in nodes:
-            num_of_nodes += 1
-            min_dist = min(self.graph_1.blocks[node[0]].dist_from_root,
-                           self.graph_2.blocks[node[1]].dist_from_root)
-            max_dist = max(self.graph_1.blocks[node[0]].dist_from_root,
-                           self.graph_2.blocks[node[1]].dist_from_root)
+        def heavy_enough_pairs():
+            heavy_enough_pairs = []
+            for (a, b, w) in block_pairs:
+                if w >= min_block_weight:
+                    heavy_enough_pairs.append((a, b, w))
+            return heavy_enough_pairs
 
-            if (max_dist - min_dist) > MAX_NODES_DIST:
-                continue
+        def get_association_graph(heavy_block_pairs):
+            num_of_block_pairs = len(heavy_block_pairs)
+            graph = CliquerGraph(num_of_block_pairs)
+            for block_num in range(num_of_block_pairs):
+                w = heavy_block_pairs[block_num][2]
+                graph.set_vertex_weight(block_num, int(w * 1000))
+    
+            for x in range(num_of_block_pairs):
+                for y in range(num_of_block_pairs):
+                    (i, s, _) = heavy_block_pairs[x]
+                    (j, t, _) = heavy_block_pairs[y]
+                    if s != t and i != j:
+                        if ((((i, j) in self.graph_1.edges) and
+                             ((s, t) in self.graph_2.edges)) or
+                            (((i, j) not in self.graph_1.edges) and
+                             ((s, t) not in self.graph_2.edges))):
+                            graph.add_edge(x, y)
+            return graph
 
-            weight = BlockSimilarity(self.graph_1.blocks[node[0]],
-                                     self.graph_2.blocks[node[1]]).ratio()
+        def get_clique_weight(clique, heavy_block_pairs):
+            weight = 0.0
+            for i in clique:
+                weight += heavy_block_pairs[i][2]
+            return weight
+        
+        def filter_out_clique(heavy_block_pairs, clique):  
+            temp_pairs = copy.deepcopy(block_pairs)            
+            for i in clique:
+                a, b, _ = heavy_block_pairs[i]
+                for x, y, w in block_pairs:
+                    if a == x or b == y:
+                        if (x,y,w) in temp_pairs:
+                            temp_pairs.remove(tuple((x, y, w)))
+           
+            return temp_pairs
+ 
+        min_block_weight = INITIAL_MIN_BLOCK_WEIGHT
 
-            if weight > minimum_node_weight:
-                filtered_nodes.append(node)
-                filtered_weights.append(int(weight * 1000))
-        num_of_filtered_nodes = len(filtered_nodes)
+        block_pairs = []
+        for i in range(len(self.graph_1.blocks)):
+            block_1 = self.graph_1.blocks[i]
+            for j in range(len(self.graph_2.blocks)):
+                block_2 = self.graph_2.blocks[j]
+                block_pairs.append((i, j, 
+                                        BlockSimilarity(block_1, block_2).ratio()))
 
-        if num_of_filtered_nodes == 0:
-            return 0.0
+        size_of_min_graph = min(len(self.graph_1.blocks), 
+                                len(self.graph_2.blocks))
+        clique_size = size_of_min_graph
+        total_weight = 0.0
+        
+        while (clique_size / float(size_of_min_graph) > MIN_RATIO):
+            
+            print "block_pairs: %d" % len(block_pairs)
+            heavy_block_pairs = heavy_enough_pairs()
+            print "heavy_block_pairs %d" % len(heavy_block_pairs)
 
-        graph = CliquerGraph(num_of_filtered_nodes)
-        for node_num in range(num_of_filtered_nodes):
-            graph.set_vertex_weight(node_num, filtered_weights[node_num])
+            if len(heavy_block_pairs) == 0:
+                print "bye"
+                break
+            
+            association_graph = get_association_graph(heavy_block_pairs)
+            print "in cliquer"
+            clique = association_graph.get_max_clique()
+            print "out cliquer"
+            association_graph.free()
 
-        for x in range(num_of_filtered_nodes):
-            for y in range(num_of_filtered_nodes):
-                (i, s) = filtered_nodes[x]
-                (j, t) = filtered_nodes[y]
-                if s != t and i != j:
-                    if ((((i, j) in self.graph_1.edges) and
-                         ((s, t) in self.graph_2.edges)) or
-                        (((i, j) not in self.graph_1.edges) and
-                         ((s, t) not in self.graph_2.edges))):
-                        graph.add_edge(x, y)
-        print "in"
-        #size1 = graph.clique_max_size()
-        weight1 = graph.clique_max_weight()
-        """clique = json.loads(graph.get_max_clique())
-        print len(clique)
-        for node in clique:
-            graph.set_vertex_weight(node, 0)
-        weight2 = graph.clique_max_weight()
-        print weight2
-        clique2 = json.loads(graph.get_max_clique())
-        clique2_unique = list(set(clique2)-set(clique))
-        print clique2_unique
-        print [filtered_weights[node] for node in clique2_unique]"""
-        print "out"
-        graph.free()
-        """return size / (len(self.graph_1.blocks) + \
-                        len(self.graph_2.blocks) - size)"""
-        return weight1 / float(1000 * len(self.graph_1.blocks) +\
-                                    1000 * len(self.graph_2.blocks) - weight1)
+            clique_weight = get_clique_weight(clique, heavy_block_pairs)
+            clique_size = len(clique)
+            total_weight += clique_weight
+            print "clique! size: %d, weight: %f. min_block_weight: %f" % (clique_size, clique_weight, min_block_weight)
+
+            block_pairs = filter_out_clique(heavy_block_pairs, clique)
+
+            #print len(block_pairs)
+            # TODO: free clique!
+
+            min_block_weight = decrement_min_block_weight(min_block_weight)
+#             print "clique_size:"  + str(clique_size)
+#             print "size_of_min_graph: " + str(size_of_min_graph)
+#             print "ratio: " + str(clique_size / float(size_of_min_graph))
+        res = total_weight / float(len(self.graph_1.blocks) + len(self.graph_2.blocks) - total_weight)
+        return res

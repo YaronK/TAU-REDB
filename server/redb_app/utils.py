@@ -8,6 +8,7 @@ import graph
 from ctypes import cdll
 import time
 import ctypes
+import json
 
 
 #==============================================================================
@@ -59,6 +60,13 @@ class CliquerGraph:
         returns: 0 on success, -1 on failure
         """
         return self.lib.graph_add_edge_redb(self.g, i, j)
+
+    def remove_edge(self, i, j):
+        """
+        i, j : vertices in [0..n-1]
+        returns: 0 on success, -1 on failure
+        """
+        return self.lib.graph_remove_edge_redb(self.g, i, j)
 
     def set_vertex_weight(self, i, w):
         """
@@ -116,7 +124,7 @@ class CliquerGraph:
         clique = self.lib.get_max_clique(self.g, opts)
         self.lib.clique_options_free_redb(opts)
         c_s = ctypes.c_char_p(clique)
-        return c_s.value
+        return json.loads(c_s.value)
 
     def free(self):
         self.lib.graph_free(self.g)

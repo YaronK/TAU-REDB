@@ -77,20 +77,28 @@ class Function:
 
     def show_description_by_index(self, index):
         desc_data = {'data': DescriptionUtils.get_all(self._first_addr)}
-        history = descriptions.Description(self._first_addr,
+        history_desc = descriptions.Description(self._first_addr,
                                  self._num_of_func_items,
                                  desc_data)
-        self._public_descriptions[index].show()
-        self._history_buffer.insert(0, history)
+        history_row = {}
+        history_row['desc'] = history_desc
+        selected_description = self._public_descriptions[index]
+        history_row['prev_desc_details'] = selected_description.created_by + '`s' + " description" 
+        self._history_buffer.append(history_row)
+        selected_description.show()
         return "Showing description number " + str(index)
 
     def show_history_item_by_index(self, index):
         desc_data = {'data': DescriptionUtils.get_all(self._first_addr)}
-        history = descriptions.Description(self._first_addr,
+        history_desc = descriptions.Description(self._first_addr,
                                  self._num_of_func_items,
                                  desc_data)
-        self._history_buffer[index].show()
-        self._history_buffer.insert(0, history)
+        history_row = {}
+        history_row['desc'] = history_desc
+        history_row['prev_desc_details'] = "local history item no." + str(index)
+        self._history_buffer.append(history_row)
+        selected_description = self._history_buffer[index]
+        selected_description['desc'].show()
         return "Showing description number " + str(index)
 
 #==============================================================================

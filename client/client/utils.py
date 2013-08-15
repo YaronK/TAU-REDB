@@ -306,7 +306,7 @@ class GuiMenu:
     COLUMNS = ["Index", "Name", "Number of comments", "Grade", "User",
                "Last Modified", "Exe Names"]
 
-    HISTORY_COLUMNS = ["Index", "Name", "Number of comments"]
+    HISTORY_COLUMNS = ["Index", "Name", "Number of comments", "Before Embedding"]
 
     def __init__(self, callbacks, gtk_module):
         self.gtk = gtk_module
@@ -322,7 +322,7 @@ class GuiMenu:
 
     def add_history(self, history_list):
         """
-        Each description is a list. See GuiMenu.COLUMNS.
+        Each description is a list. See GuiMenu.HISTORY_COLUMNS.
         """
         for description in history_list:
             self.history_buffer.append(description)
@@ -403,20 +403,21 @@ class GuiMenu:
         # status bar
         self.status_bar = self.xml.get_object("StatusBar")
 
-    def _init_description_table(self):
+    def _init_description_table(self):    
         self.descriptions = \
-         self.gtk.ListStore(int, str, int, float, str, str, str)
+        self.gtk.ListStore(int, str, int, float, str, str, str)
         self.description_table.set_model(self.descriptions)
         for column_title in GuiMenu.COLUMNS:
             self._add_column(column_title, GuiMenu.COLUMNS.index(column_title))
 
     def _init_history_table(self):
         self.history_buffer = \
-            self.gtk.ListStore(int, str, int)
+            self.gtk.ListStore(int, str, int, str)
         self.history_table.set_model(self.history_buffer)
         for column_title in GuiMenu.HISTORY_COLUMNS:
+            print column_title
             self._add_column_history(column_title,
-                                     GuiMenu.COLUMNS.index(column_title))
+                                     GuiMenu.HISTORY_COLUMNS.index(column_title))
 
     def _add_column(self, title, columnId):
         column = self.gtk.TreeViewColumn(title,
@@ -431,6 +432,7 @@ class GuiMenu:
         column = self.gtk.TreeViewColumn(title,
                                          self.gtk.CellRendererText(),
                                          text=columnId)
+   
         column.set_sizing(self.gtk.TREE_VIEW_COLUMN_AUTOSIZE)
         column.set_resizable(True)
         column.set_sort_column_id(columnId)

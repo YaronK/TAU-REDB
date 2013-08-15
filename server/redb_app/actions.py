@@ -29,9 +29,9 @@ ATTRIBUTES = ["func_signature",
               "graph"]
 
 QUERY_FIELDS = ["type",
-                    "username",
-                    "password",
-                    "data"]
+                "username",
+                "password",
+                "data"]
 
 FILTERING_THRESHOLD = 0.8
 MATCHING_THRESHOLD = 0.9
@@ -187,14 +187,7 @@ class RequestAction:
 
         for func in self.filtered_function_set:
             second_graph_edges = json.loads(func.graph.edges)
-            try:
-                second_graph_dist_from_root =\
-                    json.loads(func.graph.dist_from_root.replace("'", '"'),
-                               object_hook=utils._decode_dict)
-            except Exception as e:
-                print e
-            second_func_blocks = \
-                generate_db_func_blocks(func, second_graph_dist_from_root)
+            second_func_blocks = generate_db_func_blocks(func)
             second_graph = graph.Graph(second_func_blocks, second_graph_edges)
             grade = GraphSimilarity(temp_func_graph, second_graph).ratio()
             # print str(func) + ": " + str(grade)
@@ -253,7 +246,7 @@ def general_process_attributes(attributes):
     block_bounds = graph["block_bounds"]
     pro_attrs["blocks_bounds"] = block_bounds
     pro_attrs["edges"] = graph["edges"]
-    pro_attrs["dist_from_root"] = graph["dist_from_root"]
+    pro_attrs["dist_from_root"] = graph["dist_from_root"]                                     
     pro_attrs["num_of_blocks"] = len(block_bounds)
     pro_attrs["num_of_edges"] = len(pro_attrs["edges"])
 
@@ -267,20 +260,28 @@ def general_temp_function(attributes):
 
 @utils.log
 def extract_strings_list(function):
-    instruction_set = function.instruction_set.exclude(string=None)
-    return [instruction.string.value for instruction in instruction_set]
-
+    block_set = function.graph.block_set.all()
+    strings = []
+    for block in block_set:
+        strings.append(instruction.string.value for instruction in block.instruction_set.exclude(string=None)) 
+    return strings
 
 @utils.log
 def extract_calls_list(function):
-    instruction_set = function.instruction_set.exclude(call=None)
-    return [instruction.call.name for instruction in instruction_set]
-
+    block_set = function.graph.block_set.all()
+    calls = []
+    for block in block_set:
+        calls.append(instruction.call.name for instruction in block.instruction_set.exclude(call=None)) 
+    return calls
 
 @utils.log
 def extract_itypes_list(function):
-    instruction_set = function.instruction_set.all()
-    return [instruction.itype for instruction in instruction_set]
+    block_set = function.graph.block_set.all()
+    itypes = []
+    for block in block_set:
+        for instruction in block.instruction_set.all():
+            itypes.append(instruction.itype)
+    return itypes
 
 
 @utils.log
@@ -317,7 +318,6 @@ def generate_temp_func_blocks(function_wrapper, dist_from_root):
             temp_func_imms.append(function_wrapper.immediates[str_offset])
         else:
             temp_func_imms.append(None)
-
     return utils.generate_blocks(function_wrapper.blocks_bounds,
                            temp_func_itypes,
                            temp_func_strings,
@@ -325,36 +325,17 @@ def generate_temp_func_blocks(function_wrapper, dist_from_root):
                            temp_func_imms,
                            dist_from_root)
 
+@utils.log
+def generate_db_func_blocks(function):
 
-def generate_db_func_blocks(function, dist_from_root):
-    strings = {}
-    calls = {}
-    immediates = {}
-    itypes = {}
-    instruction_set = function.instruction_set.all()
-    blocks_bounds = json.loads(function.graph.blocks_bounds)
+    block_set = function.graph.block_set.all()
+    blocks = []
 
-    for instruction in instruction_set:
-        itypes[instruction.offset] = instruction.itype
-
-        if instruction.string == None:
-            strings[instruction.offset] = None
-        else:
-            strings[instruction.offset] = instruction.string.value
-
-        if instruction.call == None:
-            calls[instruction.offset] = None
-        else:
-            calls[instruction.offset] = instruction.call.name
-
-        if instruction.immediate == None:
-            immediates[instruction.offset] = None
-        else:
-            immediates[instruction.offset] = instruction.immediate
-
-    return utils.generate_blocks(blocks_bounds,
-                           itypes.values(),
-                           strings.values(),
-                           calls.values(),
-                           immediates.values(),
-                           dist_from_root)
+    for block in block_set:
+        itypes = [instruction.itype for instruction in block.instruction_set.all()]
+        strings = [instruction.string.value for instruction in block.instruction_set.exclude(string=None)]
+        calls = [instruction.call.name for instruction in block.instruction_set.exclude(call=None)]   
+        imms =  [instruction.immediate for instruction in block.instruction_set.exclude(immediate=None)]  
+        blocks.append(graph.Block(itypes, strings, calls, imms, block.dist_from_root))
+    
+    return blocks

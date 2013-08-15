@@ -331,10 +331,9 @@ class graph(Attribute):
 
             for basic_block_neighbour in basic_block.succs():
                 self.edges.append((basic_block.id, basic_block_neighbour.id))
-            # TODO: un-tabify? should not be called for each basic_block,
-            # should be called once.
-            self.dist_from_root =\
-                self._breadth_first_search(self.func_flow_chart)
+           
+        self.dist_from_root =\
+            self._breadth_first_search(self.func_flow_chart)
 
     def _breadth_first_search(self, flow_chart):
         # TODO: assign more indicative names:
@@ -344,7 +343,7 @@ class graph(Attribute):
         # TODO: inaccessible nodes should have distance != 0 (root is 0)
         result = {}
         result[0] = 0
-        nodes = []
+        accessible_nodes = []
         marked = []
         v = flow_chart[0]
         marked.append(v.id)
@@ -353,29 +352,29 @@ class graph(Attribute):
         # 'nodes' holds only accessible nodes from root
         for node in flow_chart:
             for n in node.succs():
-                nodes.append(n.id)
+                accessible_nodes.append(n.id)
 
-        nodes = list(set(nodes))
+        accessible_nodes = list(set(accessible_nodes))
 
-        while nodes:
+        while accessible_nodes:
             for node in v.succs():
                 if node.id not in marked:
                     result[node.id] = result[v.id] + 1
                     marked.append(node.id)
             try:
                 v = flow_chart[marked[i]]
-            except:  # for all inaccessible nodes from root, define '0' distance
+            except:  # for all inaccessible nodes from root, define '-1' distance
                 for i in range(flow_chart.size):
                     if i not in result:
-                        result[i] = 0
+                        result[i] = -1
                 return result
-            if (v.id in nodes):
-                nodes.remove(v.id)
+            if (v.id in accessible_nodes):
+                accessible_nodes.remove(v.id)
                 i += 1
-        # for all inaccessible nodes define '0' distance from root
+        # for all inaccessible nodes define '-1' distance from root
         for i in range(flow_chart.size):
             if i not in result:
-                result[i] = 0
+                result[i] = -1
         return result
 
     def _extract(self):

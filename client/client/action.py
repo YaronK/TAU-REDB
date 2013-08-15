@@ -164,6 +164,7 @@ class GuiActions(HotkeyActions):
                      "on_Settings": self._on_Settings,
                      "on_Embed": self._on_Embed,
                      "on_Embed_history": self._on_Embed_history,
+                     "on_Undo": self._on_Undo,
                      "on_DescriptionTable_cursor_changed":
                         self._on_DescriptionTable_cursor_changed,
                      "on_HistoryTable_cursor_changed":
@@ -184,7 +185,7 @@ class GuiActions(HotkeyActions):
             self.gui_menu.add_descriptions(desc_rows)
             history_rows = self._generate_history_rows()
             self.gui_menu.add_history(history_rows)
-
+            self.last_history_item_index = -1
         self.gui_menu.show()
 
     def _on_mainWindow_destroy(self, widget):
@@ -208,6 +209,19 @@ class GuiActions(HotkeyActions):
         self.gui_menu.show()
         self.gui_menu.set_status_bar("Settings saved.")
 
+    def _on_Undo(self, widget):
+        try:
+            selected_description = self.cur_func._history_buffer[self.last_history_item_index]
+            selected_description['desc'].show()
+            self.last_history_item_index -= 1
+            self.gui_menu.history_buffer.clear()
+            history_rows = self._generate_history_rows()
+            self.gui_menu.add_history(history_rows)
+            result = "Undo"
+        except:
+            result = "Can't Undo"
+        self.gui_menu.set_status_bar(result)
+
     def _on_Embed(self, widget, arg2=None, arg3=None):
         # TODO: check we haven't changed function
         index = self.gui_menu.get_selected_description_index()
@@ -215,6 +229,7 @@ class GuiActions(HotkeyActions):
         self.gui_menu.history_buffer.clear()
         history_rows = self._generate_history_rows()
         self.gui_menu.add_history(history_rows)
+        self.last_history_item_index = len(self.cur_func._history_buffer) - 1
         self.gui_menu.set_status_bar(result)
 
     def _on_Embed_history(self, widget, arg2=None, arg3=None):
@@ -223,6 +238,7 @@ class GuiActions(HotkeyActions):
         self.gui_menu.history_buffer.clear()
         history_rows = self._generate_history_rows()
         self.gui_menu.add_history(history_rows)
+        self.last_history_item_index = len(self.cur_func._history_buffer) - 1
         self.gui_menu.set_status_bar(result)
 
     def _on_DescriptionTable_cursor_changed(self, widget):
@@ -232,7 +248,7 @@ class GuiActions(HotkeyActions):
 
     def _on_HistoryTable_cursor_changed(self, widget):
         index = self.gui_menu.get_selected_history_index()
-        description = self.cur_func._history_buffer[index]
+        description = self.cur_func._history_buffer[index]['desc']
         self.gui_menu.set_details(self._data_to_details(description.data))
 
     def _destroy_main_window(self):
@@ -245,7 +261,8 @@ class GuiActions(HotkeyActions):
 
     def _generate_history_rows(self):
         history_buffer = self.cur_func._history_buffer
-        return [[i] + history_buffer[i].get_history_row() for i in
+        return [[i] + history_buffer[i]['desc'].get_history_row() +\
+                 [history_buffer[i]['prev_desc_details']] for i in
                 range(len(history_buffer))]
 
     def _data_to_details(self, data):
