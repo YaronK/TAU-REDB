@@ -5,7 +5,7 @@ from collections import Counter
 from heuristics import DictionarySimilarity, GraphSimilarity
 import json
 import graph
-from redb_app.models import User
+from redb_app.utils import _decode_dict
 
 MAX_NUM_INSNS_DEVIATION = 0.15
 MAX_NUM_BLOCKS_DEVIATION = 0.15
@@ -59,9 +59,9 @@ class SubmitAction:
             raise Exception("submit is missing description.")
 
         self.attributes = json.loads(query_dict["attributes"],
-                                     object_hook=_decode_dict)
+                                     object_hook=utils._decode_dict)
         self.description = json.loads(query_dict["description"],
-                                     object_hook=_decode_dict)
+                                     object_hook=utils._decode_dict)
         self.user = request.user
 
     def process_attributes(self):
@@ -102,44 +102,44 @@ class RequestAction:
         func_set = Function.objects
 
         insns_num = func_wrapper.num_of_insns
-        func_set.filter(num_of_insns__range=  # @IgnorePep8
+        func_set.filter(num_of_insns__range=# @IgnorePep8
                         (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
                          insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
 
         num_of_blocks = func_wrapper.num_of_blocks
-        func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
+        func_set.filter(graph__num_of_blocks__range=# @IgnorePep8
                             (num_of_blocks * (1 - MAX_NUM_BLOCKS_DEVIATION),
                              num_of_blocks * (1 + MAX_NUM_BLOCKS_DEVIATION)))
 
         num_of_edges = func_wrapper.num_of_edges
-        func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
+        func_set.filter(graph__num_of_edges__range=# @IgnorePep8
                             (num_of_edges * (1 - MAX_NUM_EDGES_DEVIATION),
                              num_of_edges * (1 + MAX_NUM_EDGES_DEVIATION)))
 
         num_of_strings = func_wrapper.num_of_strings
-        func_set.filter(num_of_strings__range=  # @IgnorePep8
+        func_set.filter(num_of_strings__range=# @IgnorePep8
                             (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
                             num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
 
         num_of_libcalls = func_wrapper.num_of_lib_calls
-        func_set.filter(num_of_lib_calls__range=  # @IgnorePep8
+        func_set.filter(num_of_lib_calls__range=# @IgnorePep8
                             (num_of_libcalls *
-                             (1 - MAX_NUM_LIBCALLS_DEVIATION),
+                             (1 - MAX_NUM_CALLS_DEVIATION),
                              num_of_libcalls *
-                             (1 + MAX_NUM_LIBCALLS_DEVIATION)))
+                             (1 + MAX_NUM_CALLS_DEVIATION)))
 
         vars_size = func_wrapper.vars_size
-        func_set.filter(vars_size__range=  # @IgnorePep8
+        func_set.filter(vars_size__range=# @IgnorePep8
                             (vars_size * (1 - MAX_VARS_SIZE_DEVIATION),
                             vars_size * (1 + MAX_VARS_SIZE_DEVIATION)))
 
         args_size = func_wrapper.args_size
-        func_set.filter(args_size__range=  # @IgnorePep8
+        func_set.filter(args_size__range=# @IgnorePep8
                             (args_size * (1 - MAX_ARGS_SIZE_DEVIATION),
                             args_size * (1 + MAX_ARGS_SIZE_DEVIATION)))
 
         regs_size = func_wrapper.regs_size
-        func_set.filter(regs_size__range=  # @IgnorePep8
+        func_set.filter(regs_size__range=# @IgnorePep8
                             (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
                             regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
 
@@ -227,7 +227,7 @@ def general_process_attributes(attributes):
     block_bounds = graph["block_bounds"]
     pro_attrs["blocks_bounds"] = block_bounds
     pro_attrs["edges"] = graph["edges"]
-    pro_attrs["dist_from_root"] = graph["dist_from_root"]                                     
+    pro_attrs["dist_from_root"] = graph["dist_from_root"]
     pro_attrs["num_of_blocks"] = len(block_bounds)
     pro_attrs["num_of_edges"] = len(pro_attrs["edges"])
 
@@ -242,16 +242,19 @@ def extract_strings_list(function):
     block_set = function.graph.block_set.all()
     strings = []
     for block in block_set:
-        strings.append(instruction.string.value for instruction in block.instruction_set.exclude(string=None)) 
+        strings.append(instruction.string.value for instruction in
+                       block.instruction_set.exclude(string=None))
     return strings
 
-@utils.log
+
 def extract_calls_list(function):
     block_set = function.graph.block_set.all()
     calls = []
     for block in block_set:
-        calls.append(instruction.call.name for instruction in block.instruction_set.exclude(call=None)) 
+        calls.append(instruction.call.name for instruction in
+                     block.instruction_set.exclude(call=None))
     return calls
+
 
 def extract_itypes_list(function):
     block_set = function.graph.block_set.all()
@@ -272,7 +275,6 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
     return filtered_functions
 
 
-@utils.log
 def generate_temp_func_blocks(function_wrapper, dist_from_root):
     temp_func_itypes = function_wrapper.itypes
     temp_func_strings = []
@@ -302,17 +304,22 @@ def generate_temp_func_blocks(function_wrapper, dist_from_root):
                            temp_func_imms,
                            dist_from_root)
 
-@utils.log
+
 def generate_db_func_blocks(function):
 
     block_set = function.graph.block_set.all()
     blocks = []
 
     for block in block_set:
-        itypes = [instruction.itype for instruction in block.instruction_set.all()]
-        strings = [instruction.string.value for instruction in block.instruction_set.exclude(string=None)]
-        calls = [instruction.call.name for instruction in block.instruction_set.exclude(call=None)]   
-        imms =  [instruction.immediate for instruction in block.instruction_set.exclude(immediate=None)]  
-        blocks.append(graph.Block(itypes, strings, calls, imms, block.dist_from_root))
-    
+        itypes = [instruction.itype for instruction in
+                  block.instruction_set.all()]
+        strings = [instruction.string.value for instruction
+                   in block.instruction_set.exclude(string=None)]
+        calls = [instruction.call.name for instruction in
+                 block.instruction_set.exclude(call=None)]
+        imms = [instruction.immediate for instruction in
+                block.instruction_set.exclude(immediate=None)]
+        blocks.append(graph.Block(itypes, strings, calls, imms,
+                                  block.dist_from_root))
+
     return blocks
