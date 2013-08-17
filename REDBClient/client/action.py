@@ -211,7 +211,7 @@ class GuiActions(HotkeyActions):
         self.gui_menu.set_status_bar("Settings saved.")
 
     def _on_Undo(self, widget):
-        try:
+        if self.last_history_item_index != -1:
             selected_description = \
                 self.cur_func._history_buffer[self.last_history_item_index]
             selected_description['desc'].show()
@@ -220,7 +220,7 @@ class GuiActions(HotkeyActions):
             history_rows = self._generate_history_rows()
             self.gui_menu.add_history(history_rows)
             result = "Undo"
-        except:
+        else:
             result = "Can't Undo"
         self.gui_menu.set_status_bar(result)
 
