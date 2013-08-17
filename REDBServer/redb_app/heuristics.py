@@ -3,11 +3,9 @@ Heuristics for comparing attribute instances.
 """
 
 # standard library imports
-from itertools import product
 from difflib import SequenceMatcher
 from utils import CliquerGraph
 from redb_app.utils import log_timing
-import json
 import copy
 
 MAX_GRAPH_COMP_SIZE = 120
@@ -22,6 +20,7 @@ IMMS_WEIGHT = 0.1
 MIN_BLOCK_WEIGHT_DELTA = 0.1
 INITIAL_MIN_BLOCK_WEIGHT = 0.9
 MIN_RATIO = 0.3
+
 
 class Heuristic:
     """ Represents a single attribute. """
@@ -88,7 +87,8 @@ class BlockSimilarity(Heuristic):
                        self.block_2.dist_from_root)
 
         if distance > MAX_NODES_DIST:
-            return 0.0 # nodes are too far apart
+            # nodes are too far apart
+            return 0.0
 
         return (ITYPES_WEIGHT * self.itypes_similarity() + \
                 STRINGS_WEIGHT * self.strings_similarity() + \
@@ -160,7 +160,7 @@ class GraphSimilarity(Heuristic):
             for block_num in range(num_of_block_pairs):
                 w = heavy_block_pairs[block_num][2]
                 graph.set_vertex_weight(block_num, int(w * 1000))
-    
+
             for x in range(num_of_block_pairs):
                 for y in range(num_of_block_pairs):
                     (i, s, _) = heavy_block_pairs[x]
@@ -178,18 +178,18 @@ class GraphSimilarity(Heuristic):
             for i in clique:
                 weight += heavy_block_pairs[i][2]
             return weight
-        
-        def filter_out_clique(heavy_block_pairs, clique):  
-            temp_pairs = copy.deepcopy(block_pairs)            
+
+        def filter_out_clique(heavy_block_pairs, clique):
+            temp_pairs = copy.deepcopy(block_pairs)
             for i in clique:
                 a, b, _ = heavy_block_pairs[i]
                 for x, y, w in block_pairs:
                     if a == x or b == y:
-                        if (x,y,w) in temp_pairs:
+                        if (x, y, w) in temp_pairs:
                             temp_pairs.remove(tuple((x, y, w)))
-           
+
             return temp_pairs
- 
+
         min_block_weight = INITIAL_MIN_BLOCK_WEIGHT
 
         block_pairs = []
@@ -197,16 +197,16 @@ class GraphSimilarity(Heuristic):
             block_1 = self.graph_1.blocks[i]
             for j in range(len(self.graph_2.blocks)):
                 block_2 = self.graph_2.blocks[j]
-                block_pairs.append((i, j, 
-                                        BlockSimilarity(block_1, block_2).ratio()))
+                block_pairs.append((i, j,
+                                    BlockSimilarity(block_1, block_2).ratio()))
 
-        size_of_min_graph = min(len(self.graph_1.blocks), 
+        size_of_min_graph = min(len(self.graph_1.blocks),
                                 len(self.graph_2.blocks))
         clique_size = size_of_min_graph
         total_weight = 0.0
-        
+
         while (clique_size / float(size_of_min_graph) > MIN_RATIO):
-            
+
             print "block_pairs: %d" % len(block_pairs)
             heavy_block_pairs = heavy_enough_pairs()
             print "heavy_block_pairs %d" % len(heavy_block_pairs)
@@ -214,7 +214,7 @@ class GraphSimilarity(Heuristic):
             if len(heavy_block_pairs) == 0:
                 print "bye"
                 break
-            
+
             association_graph = get_association_graph(heavy_block_pairs)
             print "in cliquer"
             clique = association_graph.get_max_clique()
@@ -224,7 +224,8 @@ class GraphSimilarity(Heuristic):
             clique_weight = get_clique_weight(clique, heavy_block_pairs)
             clique_size = len(clique)
             total_weight += clique_weight
-            print "clique! size: %d, weight: %f. min_block_weight: %f" % (clique_size, clique_weight, min_block_weight)
+            print ("clique! size: %d, weight: %f. min_block_weight: %f" %
+                   (clique_size, clique_weight, min_block_weight))
 
             block_pairs = filter_out_clique(heavy_block_pairs, clique)
 
@@ -235,5 +236,7 @@ class GraphSimilarity(Heuristic):
 #             print "clique_size:"  + str(clique_size)
 #             print "size_of_min_graph: " + str(size_of_min_graph)
 #             print "ratio: " + str(clique_size / float(size_of_min_graph))
-        res = total_weight / float(len(self.graph_1.blocks) + len(self.graph_2.blocks) - total_weight)
+        res = total_weight / float(len(self.graph_1.blocks) +
+                                   len(self.graph_2.blocks) -
+                                   total_weight)
         return res

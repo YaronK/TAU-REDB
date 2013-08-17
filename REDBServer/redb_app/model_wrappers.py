@@ -1,5 +1,5 @@
 from models import (Function, Description, String, Call,
-                    Executable, Instruction, User, Graph, Block)
+                    Executable, Instruction, Graph, Block)
 
 
 class FunctionWrapper:
@@ -29,13 +29,14 @@ class FunctionWrapper:
             return function
 
         ExecutableWrapper(self.exe_signature, function, self.exe_name).save()
-        
-        graph = GraphWrapper(self.edges, self.blocks_bounds, self.num_of_blocks, 
-                     self.num_of_edges, function).save()
 
-        
+        graph = GraphWrapper(self.edges, self.blocks_bounds,
+                             self.num_of_blocks, self.num_of_edges,
+                             function).save()
+
         for block_id in range(len(self.blocks_bounds)):
-            block = BlockWrapper(graph, self.dist_from_root[str(block_id)]).save()
+            block = BlockWrapper(graph,
+                                 self.dist_from_root[str(block_id)]).save()
             instructions = []
             start_offset = self.blocks_bounds[block_id][0]
             end_offset = self.blocks_bounds[block_id][1] + 1
@@ -57,7 +58,7 @@ class FunctionWrapper:
                                       immediate,
                                       string,
                                       call).instruction)
-                
+
             # SQLite limitation
             chunks = [instructions[x:x + 100]
                       for x in xrange(0, len(instructions), 100)]
@@ -101,6 +102,7 @@ class GraphWrapper:
                                     num_of_edges=self.num_of_edges,
                                     function=self.function)
 
+
 class BlockWrapper:
     def __init__(self, graph, dist_from_root):
         self.graph = graph
@@ -109,6 +111,7 @@ class BlockWrapper:
     def save(self):
         return Block.objects.create(graph=self.graph,
                                     dist_from_root=self.dist_from_root)
+
 
 class ExecutableWrapper:
     def __init__(self, signature, function, exe_name):

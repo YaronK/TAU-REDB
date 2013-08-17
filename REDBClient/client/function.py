@@ -58,7 +58,7 @@ class Function:
         post.add_data('description', self._cur_description().data)
         idaapi.show_wait_box("Submitting...")
         result = post.send()
-		idaapi.hide_wait_box()
+        idaapi.hide_wait_box()
         if isinstance(result, str):
             return result
         else:
@@ -72,7 +72,8 @@ class Function:
         history_row = {}
         history_row['desc'] = history_desc
         selected_description = self._public_descriptions[index]
-        history_row['prev_desc_details'] = selected_description.created_by + '`s' + " description" 
+        history_row['prev_desc_details'] = (selected_description.created_by +
+                                            '`s' + " description")
         self._history_buffer.append(history_row)
         selected_description.show()
         return "Showing description number " + str(index)
@@ -84,7 +85,8 @@ class Function:
                                  desc_data)
         history_row = {}
         history_row['desc'] = history_desc
-        history_row['prev_desc_details'] = "local history item no." + str(index)
+        history_row['prev_desc_details'] = ("local history item no." +
+                                            str(index))
         self._history_buffer.append(history_row)
         selected_description = self._history_buffer[index]
         selected_description['desc'].show()

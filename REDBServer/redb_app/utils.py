@@ -9,6 +9,8 @@ from ctypes import cdll
 import time
 import ctypes
 import json
+from django.http import HttpResponse
+from django.contrib.auth import authenticate, login
 
 
 #==============================================================================
@@ -176,9 +178,6 @@ def log(f):
 
 import base64
 
-from django.http import HttpResponse
-from django.contrib.auth import authenticate, login
-
 
 ##############################################################################
 def view_or_basicauth(view, request, test_func, realm="", *args, **kwargs):
@@ -257,6 +256,7 @@ def logged_in_or_basicauth(realm=""):
         return wrapper
     return view_decorator
 
+
 ##############################################################################
 def has_perm_or_basicauth(perm, realm=""):
     """
@@ -278,6 +278,7 @@ def has_perm_or_basicauth(perm, realm=""):
                                      realm, *args, **kwargs)
         return wrapper
     return view_decorator
+
 
 def log_timing():
     '''Decorator generator that logs the time it takes a function to execute'''

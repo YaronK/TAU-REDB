@@ -52,7 +52,7 @@ class Call(models.Model):
 
 class Graph(models.Model):
     edges = models.TextField()
-    blocks_bounds = models.TextField() 
+    blocks_bounds = models.TextField()
     num_of_blocks = models.PositiveIntegerField()
     num_of_edges = models.PositiveIntegerField()
     function = models.OneToOneField(Function)
@@ -60,12 +60,14 @@ class Graph(models.Model):
     def __unicode__(self):
         return str(self.id)
 
+
 class Block(models.Model):
     graph = models.ForeignKey(Graph)
     dist_from_root = models.PositiveIntegerField()
-    
+
     def __unicode__(self):
         return str(self.id)
+
 
 class Instruction(models.Model):
     block = models.ForeignKey(Block)
@@ -98,6 +100,7 @@ class Executable(models.Model):
 
     def __unicode__(self):
         return "signature: " + self.signature
+
 
 class Description(models.Model):
     function = models.ForeignKey(Function)

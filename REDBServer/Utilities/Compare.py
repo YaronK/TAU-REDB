@@ -6,6 +6,7 @@ from redb_app.heuristics import GraphSimilarity
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def generate_matching_grade(a_id, b_id):
     a_graph = create_graph(a_id)
     b_graph = create_graph(b_id)
@@ -39,14 +40,12 @@ def compare_exes_extract_to_excel(path, exe_name1, exe_name2):
     for excluded in EXCLUDED_ON_EXE_COMPARISON:
         compared_func_names = filter(lambda n: excluded not in n,
                                      compared_func_names)
-    
+
     for n in compared_func_names:
         exe1_compared_funcs.append(exe1_funcs.get(func_name=n))
         exe2_compared_funcs.append(exe2_funcs.get(func_name=n))
 
     i = 1
-    exe1_compared_funcs = exe1_compared_funcs[:20]
-    exe2_compared_funcs = exe2_compared_funcs[:20]
     for func1 in exe1_compared_funcs:
         j = 1
         sheet1.write(0, i, func1.func_name)
@@ -60,16 +59,16 @@ def compare_exes_extract_to_excel(path, exe_name1, exe_name2):
         i += 1
         res_arr.append(arr_row)
         arr_row = []
-    
+
     data = np.array(res_arr)
     fig, ax = plt.subplots()
-    heatmap = ax.pcolor(data, cmap=plt.cm.Blues)
-    ax.set_xticks(np.arange(data.shape[0])+0.5, minor=False)
-    ax.set_yticks(np.arange(data.shape[1])+0.5, minor=False)
+    heatmap = ax.pcolor(data, cmap=plt.cm.Blues)  # @UndefinedVariable
+    ax.set_xticks(np.arange(data.shape[0]) + 0.5, minor=False)
+    ax.set_yticks(np.arange(data.shape[1]) + 0.5, minor=False)
     ax.invert_yaxis()
     ax.xaxis.tick_top()
-    ax.set_xticklabels(compared_func_names[:20], minor=False)
-    ax.set_yticklabels(compared_func_names[:20], minor=False)
+    ax.set_xticklabels(compared_func_names, minor=False)
+    ax.set_yticklabels(compared_func_names, minor=False)
 
     plt.xticks(rotation=90)
     plt.rcParams.update({'font.size': 4})

@@ -212,7 +212,8 @@ class GuiActions(HotkeyActions):
 
     def _on_Undo(self, widget):
         try:
-            selected_description = self.cur_func._history_buffer[self.last_history_item_index]
+            selected_description = \
+                self.cur_func._history_buffer[self.last_history_item_index]
             selected_description['desc'].show()
             self.last_history_item_index -= 1
             self.gui_menu.history_buffer.clear()
@@ -262,7 +263,7 @@ class GuiActions(HotkeyActions):
 
     def _generate_history_rows(self):
         history_buffer = self.cur_func._history_buffer
-        return [[i] + history_buffer[i]['desc'].get_history_row() +\
+        return [[i] + history_buffer[i]['desc'].get_history_row() + \
                  [history_buffer[i]['prev_desc_details']] for i in
                 range(len(history_buffer))]
 

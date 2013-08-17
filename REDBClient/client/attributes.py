@@ -331,8 +331,8 @@ class graph(Attribute):
 
             for basic_block_neighbour in basic_block.succs():
                 self.edges.append((basic_block.id, basic_block_neighbour.id))
-           
-        self.dist_from_root =\
+
+        self.dist_from_root = \
             self._breadth_first_search(self.func_flow_chart)
 
     def _breadth_first_search(self, flow_chart):
@@ -363,7 +363,8 @@ class graph(Attribute):
                     marked.append(node.id)
             try:
                 v = flow_chart[marked[i]]
-            except:  # for all inaccessible nodes from root, define '-1' distance
+            except:
+                # for all inaccessible nodes from root, define '-1' distance
                 for i in range(flow_chart.size):
                     if i not in result:
                         result[i] = -1
