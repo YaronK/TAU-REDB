@@ -41,12 +41,15 @@ class FunctionWrapper:
             end_offset = self.blocks_bounds[block_id][1] + 1
             for offset in range(start_offset, end_offset):
                 str_offset = str(offset)
+                
                 immediate = None
                 if str_offset in self.immediates:
                     immediate = self.immediates[str_offset]
+                
                 string = None
                 if str_offset in self.strings:
                     string = StringWrapper(self.strings[str_offset]).save()
+                
                 call = None
                 if str_offset in self.calls:
                     call = \

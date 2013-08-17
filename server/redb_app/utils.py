@@ -133,28 +133,6 @@ class CliquerGraph:
         self.lib.string_free_redb(string)
 
 
-def generate_blocks(block_bounds, itypes, strings, calls, immediates,
-                    dist_from_root):
-    blocks = []
-    index = 0
-    for (start_index, end_index) in block_bounds:
-        string_list = \
-        filter(lambda x: x != None, strings[start_index: end_index + 1])
-        calls_list = \
-        filter(lambda x: x != None, calls[start_index: end_index + 1])
-        imms_list = \
-        filter(lambda x: x != None, immediates[start_index: end_index + 1])
-        block = graph.Block(itypes[start_index: end_index + 1],
-                            string_list,
-                            calls_list,
-                            imms_list,
-                            dist_from_root[str(index)])
-        index += 1
-        blocks.append(block)
-
-    return blocks
-
-
 #==============================================================================
 # Decorators
 #==============================================================================

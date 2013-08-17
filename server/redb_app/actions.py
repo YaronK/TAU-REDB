@@ -297,33 +297,37 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
 
 @utils.log
 def generate_temp_func_blocks(function_wrapper, dist_from_root):
-    temp_func_itypes = function_wrapper.itypes
-    temp_func_strings = []
-    temp_func_calls = []
-    temp_func_imms = []
+    
+    imms = []
+    strings = []
+    calls = []
+    blocks = []
+    
+    for block_id in range(len(function_wrapper.blocks_bounds)): 
+        start_offset = function_wrapper.blocks_bounds[block_id][0]
+        end_offset = function_wrapper.blocks_bounds[block_id][1] + 1
+      
+        for offset in range(start_offset, end_offset):
+            str_offset = str(offset)
+            if str_offset in function_wrapper.immediates:
+                imms.append(function_wrapper.immediates[str_offset])
+  
+            if str_offset in function_wrapper.strings:
+                strings.append(function_wrapper.strings[str_offset])
 
-    for offset in range(len(function_wrapper.itypes)):
-        str_offset = str(offset)
-        if str_offset in function_wrapper.strings:
-            temp_func_strings.append(function_wrapper.strings[str_offset])
-        else:
-            temp_func_strings.append(None)
-
-        if str_offset in function_wrapper.calls:
-            temp_func_calls.append(function_wrapper.calls[str_offset])
-        else:
-            temp_func_calls.append(None)
-
-        if str_offset in function_wrapper.immediates:
-            temp_func_imms.append(function_wrapper.immediates[str_offset])
-        else:
-            temp_func_imms.append(None)
-    return utils.generate_blocks(function_wrapper.blocks_bounds,
-                           temp_func_itypes,
-                           temp_func_strings,
-                           temp_func_calls,
-                           temp_func_imms,
-                           dist_from_root)
+            if str_offset in function_wrapper.calls:
+                calls.append(function_wrapper.calls[str_offset])
+        
+        itypes = function_wrapper.itypes[start_offset: end_offset]
+        
+        blocks.append(graph.Block(itypes, strings, calls, imms, 
+                                  function_wrapper.dist_from_root[str(block_id)]))
+        imms = []
+        strings = []
+        calls = []
+    
+    return blocks
+    
 
 @utils.log
 def generate_db_func_blocks(function):
