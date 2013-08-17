@@ -28,132 +28,118 @@ ATTRIBUTES = ["func_signature",
               "exe_name",
               "graph"]
 
-QUERY_FIELDS = ["type",
-                "username",
-                "password",
-                "data"]
-
 FILTERING_THRESHOLD = 0.8
 MATCHING_THRESHOLD = 0.9
 
 
 class Query:
-    def __init__(self, http_post):
-        self.query = json.loads(http_post.FILES['action'].read(),
-                          object_hook=utils._decode_dict)
+    def __init__(self, request):
+        self.request = request
 
     def check_validity(self):
-        if not (set(self.query.keys()) == set(QUERY_FIELDS)):
-            raise "Missing query field(s) / Too many query fields."
+        query_dict = self.request.POST
 
-    def process(self):
-        for attr in self.query:
-            setattr(self, attr, self.query[attr])
+        if not 'type' in query_dict:
+            raise Exception("Missing query type.")
 
-    def authenticate_user(self):
-        User.objects.get(user_name=self.username,
-                         password_hash=self.password)
+        query_type = json.loads(query_dict['type'])
+
+        if not query_type in ["request", "submit"]:
+            raise Exception("Unknown query type.")
+
+        return query_type
 
 
 class SubmitAction:
-    @utils.log
-    def __init__(self, data, username):
-        self.attributes = data["attributes"]
-        self.description_data = data["description"]
-        self.username = username
-        self.temp_function_wrapper = None
-        self.temp_description_wrapper = None
-        self.filtered_function_set = None
+    def __init__(self, request):
+        query_dict = request.POST
+        if not 'attributes' in query_dict:
+            raise Exception("submit is missing attributes.")
+        if not 'description' in query_dict:
+            raise Exception("submit is missing description.")
 
-    @utils.log
-    def check_validity(self):
-        if not (set(self.attributes.keys()) == set(ATTRIBUTES)):
-            raise "Missing attribute(s) / Too many attributes."
+        self.attributes = json.loads(query_dict["attributes"],
+                                     object_hook=_decode_dict)
+        self.description = json.loads(query_dict["description"],
+                                     object_hook=_decode_dict)
+        self.user = request.user
 
-    @utils.log
     def process_attributes(self):
         self.attributes = general_process_attributes(self.attributes)
 
-    @utils.log
     def temp_function(self):
         self.temp_function_wrapper = general_temp_function(self.attributes)
 
-    @utils.log
     def process_description(self):
-        self.description_data = json.dumps(self.description_data,
-                                              ensure_ascii=False)
+        self.description = json.dumps(self.description, ensure_ascii=False)
 
-    @utils.log
     def insert_description(self):
         model_wrappers.DescriptionWrapper(self.temp_function_wrapper,
-                                          self.description_data,
-                                          self.username).save()
-        # TODO: user, not username
+                                          self.description,
+                                          self.user).save()
 
 
 class RequestAction:
-    @utils.log
-    def __init__(self, data):
-        self.attributes = data["attributes"]
-        self.temp_function_wrapper = None
+    def __init__(self, request):
+        query_dict = request.POST
+        if not 'attributes' in query_dict:
+            raise Exception("request is missing attributes.")
 
-    @utils.log
-    def check_validity(self):
+        self.attributes = json.loads(query_dict["attributes"],
+                                     object_hook=_decode_dict)
+
         if not (set(self.attributes.keys()) == set(ATTRIBUTES)):
-            raise "Missing attribute(s) / Too many attributes."
+            raise Exception("Missing attribute(s) / Too many attributes.")
 
-    @utils.log
     def process_attributes(self):
         self.attributes = general_process_attributes(self.attributes)
 
-    @utils.log
     def temp_function(self):
         self.temp_function_wrapper = general_temp_function(self.attributes)
 
-    @utils.log
     def db_filtering(self):
         func_wrapper = self.temp_function_wrapper
         func_set = Function.objects
 
         insns_num = func_wrapper.num_of_insns
-        func_set.filter(num_of_insns__range=# @IgnorePep8
+        func_set.filter(num_of_insns__range=  # @IgnorePep8
                         (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
                          insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
 
         num_of_blocks = func_wrapper.num_of_blocks
-        func_set.filter(graph__num_of_blocks__range=# @IgnorePep8
+        func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
                             (num_of_blocks * (1 - MAX_NUM_BLOCKS_DEVIATION),
                              num_of_blocks * (1 + MAX_NUM_BLOCKS_DEVIATION)))
 
         num_of_edges = func_wrapper.num_of_edges
-        func_set.filter(graph__num_of_edges__range=# @IgnorePep8
+        func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
                             (num_of_edges * (1 - MAX_NUM_EDGES_DEVIATION),
                              num_of_edges * (1 + MAX_NUM_EDGES_DEVIATION)))
 
         num_of_strings = func_wrapper.num_of_strings
-        func_set.filter(num_of_strings__range=# @IgnorePep8
+        func_set.filter(num_of_strings__range=  # @IgnorePep8
                             (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
                             num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
 
-        num_of_calls = func_wrapper.num_of_calls
-        func_set.filter(num_of_calls__range=# @IgnorePep8
-                            (num_of_calls *
-                             (1 - MAX_NUM_CALLS_DEVIATION),
-                             num_of_calls *
-                             (1 + MAX_NUM_CALLS_DEVIATION)))
+        num_of_libcalls = func_wrapper.num_of_lib_calls
+        func_set.filter(num_of_lib_calls__range=  # @IgnorePep8
+                            (num_of_libcalls *
+                             (1 - MAX_NUM_LIBCALLS_DEVIATION),
+                             num_of_libcalls *
+                             (1 + MAX_NUM_LIBCALLS_DEVIATION)))
 
         vars_size = func_wrapper.vars_size
-        func_set.filter(vars_size__range=# @IgnorePep8
+        func_set.filter(vars_size__range=  # @IgnorePep8
                             (vars_size * (1 - MAX_VARS_SIZE_DEVIATION),
                             vars_size * (1 + MAX_VARS_SIZE_DEVIATION)))
 
         args_size = func_wrapper.args_size
-        func_set.filter(args_size__range=# @IgnorePep8
+        func_set.filter(args_size__range=  # @IgnorePep8
                             (args_size * (1 - MAX_ARGS_SIZE_DEVIATION),
                             args_size * (1 + MAX_ARGS_SIZE_DEVIATION)))
 
         regs_size = func_wrapper.regs_size
-        func_set.filter(regs_size__range=# @IgnorePep8
+        func_set.filter(regs_size__range=  # @IgnorePep8
                             (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
                             regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
 
@@ -166,7 +152,6 @@ class RequestAction:
 
         self.filtered_function_set = func_set.all()
 
-    @utils.log
     def dictionaries_filtering(self):
         func_wrapper = self.temp_function_wrapper
         func_set = self.filtered_function_set
@@ -175,7 +160,6 @@ class RequestAction:
                                         temp_func_itypes_dict)
         self.filtered_function_set = func_set
 
-    @utils.log
     def matching_grade_filtering(self):
         self.matching_funcs = []
         temp_func_blocks = \
@@ -190,11 +174,9 @@ class RequestAction:
             second_func_blocks = generate_db_func_blocks(func)
             second_graph = graph.Graph(second_func_blocks, second_graph_edges)
             grade = GraphSimilarity(temp_func_graph, second_graph).ratio()
-            # print str(func) + ": " + str(grade)
             if (grade >= MATCHING_THRESHOLD):
                 self.matching_funcs.append((func, grade))
 
-    @utils.log
     def get_descriptions(self):
         descriptions = []
         exe_names = ""
@@ -219,7 +201,6 @@ class RequestAction:
         return descriptions
 
 
-@utils.log
 def general_process_attributes(attributes):
     pro_attrs = {}
     pro_attrs["func_signature"] = attributes["func_signature"]
@@ -253,12 +234,10 @@ def general_process_attributes(attributes):
     return pro_attrs
 
 
-@utils.log
 def general_temp_function(attributes):
     return model_wrappers.FunctionWrapper(attributes)
 
 
-@utils.log
 def extract_strings_list(function):
     block_set = function.graph.block_set.all()
     strings = []
@@ -274,7 +253,6 @@ def extract_calls_list(function):
         calls.append(instruction.call.name for instruction in block.instruction_set.exclude(call=None)) 
     return calls
 
-@utils.log
 def extract_itypes_list(function):
     block_set = function.graph.block_set.all()
     itypes = []
@@ -284,7 +262,6 @@ def extract_itypes_list(function):
     return itypes
 
 
-@utils.log
 def dict_filter(func_set, list_extraction_function, ref_dict):
     filtered_functions = []
     for func in func_set:

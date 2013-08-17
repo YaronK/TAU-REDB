@@ -3,7 +3,7 @@ Django models representing functions and descriptions.
 """
 # related third party imports
 from django.db import models
-
+from django.contrib.auth.models import User
 MAX_EXE_NAME_LENGTH = 255
 EXE_DIGEST_SIZE_IN_BYTES = 32
 FUNC_DIGEST_SIZE_IN_BYTES = 32
@@ -98,16 +98,6 @@ class Executable(models.Model):
 
     def __unicode__(self):
         return "signature: " + self.signature
-
-
-
-class User(models.Model):
-    user_name = models.CharField(max_length=MAX_USER_NAME_LENGTH)
-    password_hash = models.CharField(max_length=PASSWORD_DIGEST_SIZE_IN_BYTES)
-
-    def __unicode__(self):
-        return self.user_name
-
 
 class Description(models.Model):
     function = models.ForeignKey(Function)

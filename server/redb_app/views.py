@@ -6,40 +6,52 @@ This module contains the server's Request, Submit and Compare handlers.
 import json
 
 # related third party imports
+from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
 
 # local application/library specific imports
 import actions
-from utils import log
+from redb_app.utils import logged_in_or_basicauth, log
+from django.http.response import HttpResponseBadRequest
 
 
 #==============================================================================
 # Handlers
 #==============================================================================
 @csrf_exempt
-def general_handler(http_post):
+@logged_in_or_basicauth()
+def test_handler(request):
+    return HttpResponse(request.POST.values())
+
+
+@csrf_exempt
+@require_POST
+@logged_in_or_basicauth()
+@log
+def general_handler(request):
     try:
-        query = actions.Query(http_post)
-        query.check_validity()
-        query.process()
-        query.authenticate_user()
-        if query.type == 'request':
-            return request_handler(query.data)
-        elif query.type == 'submit':
-            return submit_handler(query.data, query.username)
-    except:
-        return HttpResponse("ERROR")
+        query = actions.Query(request)
+        query_type = query.check_validity()
+
+        if not request.user.is_authenticated():
+            raise(Exception("Unknown user."))
+        if query_type == "request":
+            return request_handler(request)
+        elif query_type == "submit":
+            return submit_handler(request)
+
+    except Exception as e:
+        print e
+        return HttpResponseBadRequest()
 
 
 @log
-def request_handler(data):
+def request_handler(request):
     """
     Handles a Request for descriptions.
     """
-
-    request_action = actions.RequestAction(data)
-    request_action.check_validity()
+    request_action = actions.RequestAction(request)
     request_action.process_attributes()
     request_action.temp_function()
     request_action.db_filtering()
@@ -50,12 +62,11 @@ def request_handler(data):
 
 
 @log
-def submit_handler(data, username):
+def submit_handler(request):
     """
     Handles a Submitted descriptions.
     """
-    submit_action = actions.SubmitAction(data, username)
-    submit_action.check_validity()
+    submit_action = actions.SubmitAction(request)
     submit_action.process_attributes()
     submit_action.temp_function()
     submit_action.process_description()

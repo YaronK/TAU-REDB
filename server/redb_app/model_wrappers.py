@@ -144,24 +144,23 @@ class InstructionWrapper:
 
 
 class DescriptionWrapper:
-    def __init__(self, function_wrapper, description_data, user_name):
+    def __init__(self, function_wrapper, description_data, user):
         self.function_wrapper = function_wrapper
         self.data = description_data
-        self.user_name = user_name
+        self.user = user
 
     def save(self):
-        user = User.objects.get(user_name=self.user_name)
         func = self.function_wrapper.save()
 
         try:
             desc = func.description_set.get(data=self.data)
         except Description.DoesNotExist:
             try:
-                desc = func.description_set.get(user=user)
+                desc = func.description_set.get(user=self.user)
                 desc.data = self.data
                 desc.save()
             except Description.DoesNotExist:
                 desc = Description.objects.create(data=self.data,
                                                   function=func,
-                                                  user=user)
+                                                  user=self.user)
         return desc

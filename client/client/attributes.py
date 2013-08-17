@@ -258,7 +258,7 @@ class strings(Attribute):
 
 class calls(Attribute):
     """
-    A list containing the call names which occur in a function.
+    A list containing names of functions called within our function.
     """
     def __init__(self, init_args):
         Attribute.__init__(self, init_args)

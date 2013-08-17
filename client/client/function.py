@@ -34,46 +34,35 @@ class Function:
                                                      get_attributes()
 
     def request_descriptions(self):
-        idaapi.show_wait_box("Requesting...")
-
         self._public_descriptions = []
-
-        host = utils.Configuration.get_option('host')
-        data = {"attributes": self._attributes}
-        query = utils.ServerQuery(query_type="request",
-                    username=utils.Configuration.get_option('username'),
-                    password=utils.Configuration.get_option('password'),
-                    data_dict=data).to_dict()
-
-        response = utils.post_non_serialized_data(query, host)
-        if not response:
-            result = "No reply or an error occurred!"
-        else:
-            if isinstance(response, str):
-                result = response
-            else:
-                for description in response:
-                    self._add_description(description)
-                result = "Received " + str(len(response)) + " descriptions."
-
+        post = utils.Post()
+        post.add_data('type', 'request')
+        post.add_data('attributes', self._attributes)
+        idaapi.show_wait_box("Requesting...")
+        result = post.send()
         idaapi.hide_wait_box()
-        return result
+        if isinstance(result, str):
+            return result
+        elif isinstance(result, list):
+            for description in result:
+                self._add_description(description)
+            return "Received " + str(len(result)) + " descriptions."
+        else:
+            return "Illegal response!"
 
     def submit_description(self):
-        idaapi.show_wait_box("Submitting...")
-
-        host = utils.Configuration.get_option('host')
-        cur_desc = descriptions.DescriptionUtils.get_all(self._first_addr)
-        data = {"attributes": self._attributes, "description": cur_desc}
-        query = utils.ServerQuery(query_type="submit",
-                    username=utils.Configuration.get_option('username'),
-                    password=utils.Configuration.get_option('password'),
-                    data_dict=data).to_dict()
-
-        result = utils.post_non_serialized_data(query, host)
-
+        post = utils.Post()
         idaapi.hide_wait_box()
-        return result
+        post.add_data('type', 'submit')
+        post.add_data('attributes', self._attributes)
+        post.add_data('description', self._cur_description().data)
+        idaapi.show_wait_box("Submitting...")
+        result = post.send()
+		idaapi.hide_wait_box()
+        if isinstance(result, str):
+            return result
+        else:
+            return "Illegal response!"
 
     def show_description_by_index(self, index):
         desc_data = {'data': DescriptionUtils.get_all(self._first_addr)}

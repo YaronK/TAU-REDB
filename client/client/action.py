@@ -152,6 +152,7 @@ class HotkeyActions(Actions):
             utils.Configuration.set_option(opt, value)
 
     def term(self):
+        # TODO: term neccessary?
         pass
 
 

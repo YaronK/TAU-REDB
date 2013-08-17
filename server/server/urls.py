@@ -1,14 +1,20 @@
 from django.conf.urls import patterns, include, url
+import redb_app.urls
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
 admin.autodiscover()
 
 urlpatterns = patterns('',
-    url(r'^redb/', 'redb_app.views.general_handler'),
-    # Uncomment the admin/doc line below to enable admin documentation:
-    url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
+    # Examples:
+    # url(r'^$', 'REDBServer.views.home', name='home'),
+    # url(r'^REDBServer/', include('REDBServer.foo.urls')),
 
-    # Next line to enables the admin:
+    # Uncomment the admin/doc line below to enable admin documentation:
+    # url(r'^admin/doc/', include('django.contrib.admindocs.urls')),
+
+    # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
+
+    url(r'^$', include(redb_app.urls)),
 )

@@ -17,6 +17,7 @@ import json
 import idc
 import idautils
 import idaapi
+import requests
 
 
 #==============================================================================
@@ -37,6 +38,45 @@ def log(f):
                 print os.path.basename(frame[0]), str(frame[1])
             raise
     return wrapped
+
+
+class Post:
+    def __init__(self, https=False, verify_cert=False, basic_auth=True,
+                 url_suffix='/'):
+        """
+        if https: try sending over https
+        if basic_auth: authenticate using http basic authentication
+        if session: use session_token (if one exists), keep session token
+        """
+        self.data = {}
+
+        if https:
+            url_prefix = "https://"
+        else:
+            url_prefix = "http://"
+
+        self.verify = verify_cert
+
+        host = Configuration.get_option('host')
+        self.url = url_prefix + host + url_suffix
+
+        if basic_auth:
+            username = Configuration.get_option('username')
+            password = Configuration.get_option('password')
+            self.auth = (username, password)
+
+        # TODO: handle sessions
+
+    def send(self):
+        res = requests.post(self.url, self.data, auth=self.auth,
+                            verify=self.verify)
+        if res.status_code == 200:
+            return res.json(object_hook=_decode_dict)
+        else:
+            return "Error sending: " + str(res.status_code)
+
+    def add_data(self, key, deserialized_value):
+        self.data[key] = json.dumps(deserialized_value)
 
 
 #==============================================================================
