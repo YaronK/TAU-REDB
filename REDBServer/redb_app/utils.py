@@ -4,7 +4,6 @@ Utilities for all the other modules.
 import traceback
 import os
 import functools
-import graph
 from ctypes import cdll
 import time
 import ctypes

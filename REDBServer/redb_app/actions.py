@@ -81,6 +81,8 @@ class SubmitAction:
 
 class RequestAction:
     def __init__(self, request):
+        self.user = request.user
+
         query_dict = request.POST
         if not 'attributes' in query_dict:
             raise Exception("request is missing attributes.")
@@ -121,11 +123,11 @@ class RequestAction:
                             (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
                             num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
 
-        num_of_libcalls = func_wrapper.num_of_lib_calls
-        func_set.filter(num_of_lib_calls__range=# @IgnorePep8
-                            (num_of_libcalls *
+        num_of_calls = func_wrapper.num_of_calls
+        func_set.filter(num_of_calls__range=# @IgnorePep8
+                            (num_of_calls *
                              (1 - MAX_NUM_CALLS_DEVIATION),
-                             num_of_libcalls *
+                             num_of_calls *
                              (1 + MAX_NUM_CALLS_DEVIATION)))
 
         vars_size = func_wrapper.vars_size
@@ -195,7 +197,7 @@ class RequestAction:
                                      "desc_num_of_insns": func.num_of_insns,
                                      "grade": grade,
                                      "updated_at": desc.updated_at.ctime(),
-                                     "created_by": desc.user.user_name,
+                                     "created_by": desc.user.username,
                                      "data": desc_data,
                                      "exe_names": exe_names})
         return descriptions
@@ -276,37 +278,35 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
 
 
 def generate_temp_func_blocks(function_wrapper, dist_from_root):
-    
     imms = []
     strings = []
     calls = []
     blocks = []
-    
-    for block_id in range(len(function_wrapper.blocks_bounds)): 
+
+    for block_id in range(len(function_wrapper.blocks_bounds)):
         start_offset = function_wrapper.blocks_bounds[block_id][0]
         end_offset = function_wrapper.blocks_bounds[block_id][1] + 1
-      
+
         for offset in range(start_offset, end_offset):
             str_offset = str(offset)
             if str_offset in function_wrapper.immediates:
                 imms.append(function_wrapper.immediates[str_offset])
-  
+
             if str_offset in function_wrapper.strings:
                 strings.append(function_wrapper.strings[str_offset])
 
             if str_offset in function_wrapper.calls:
                 calls.append(function_wrapper.calls[str_offset])
-        
+
         itypes = function_wrapper.itypes[start_offset: end_offset]
-        
-        blocks.append(graph.Block(itypes, strings, calls, imms, 
+
+        blocks.append(graph.Block(itypes, strings, calls, imms,
                                   function_wrapper.dist_from_root[str(block_id)]))
         imms = []
         strings = []
         calls = []
-    
+
     return blocks
-    
 
 
 def generate_db_func_blocks(function):

@@ -145,6 +145,8 @@ class HotkeyActions(Actions):
     def _hotkey_settings(self):
         for opt in utils.Configuration.OPTIONS.keys():
             value = utils.Configuration.get_opt_from_user(opt)
+            # User's password isn't saved as-is. It is hashed.
+            # The hash is sent to the server, and not the password itself.
             if opt == "password":
                 m = hashlib.md5()
                 m.update(value)
@@ -189,14 +191,14 @@ class GuiActions(HotkeyActions):
             self.last_history_item_index = -1
         self.gui_menu.show()
 
-    def _on_mainWindow_destroy(self, widget):
+    def _on_mainWindow_destroy(self, _):
         self._destroy_main_window()
 
-    def _on_Submit(self, widget):
+    def _on_Submit(self, _):
         result = self._submit_cur_func()
         self.gui_menu.set_status_bar(result)
 
-    def _on_Request(self, widget):
+    def _on_Request(self, _):
         result = self._request_cur_func()
         self.gui_menu.set_status_bar(result)
 
@@ -205,12 +207,12 @@ class GuiActions(HotkeyActions):
         desc_rows = self._generate_description_rows()
         self.gui_menu.add_descriptions(desc_rows)
 
-    def _on_Settings(self, widget):
+    def _on_Settings(self, _):
         HotkeyActions._hotkey_settings(self)
         self.gui_menu.show()
         self.gui_menu.set_status_bar("Settings saved.")
 
-    def _on_Undo(self, widget):
+    def _on_Undo(self, _):
         if self.last_history_item_index != -1:
             selected_description = \
                 self.cur_func._history_buffer[self.last_history_item_index]
@@ -224,7 +226,7 @@ class GuiActions(HotkeyActions):
             result = "Can't Undo"
         self.gui_menu.set_status_bar(result)
 
-    def _on_Embed(self, widget, arg2=None, arg3=None):
+    def _on_Embed(self, _):
         # TODO: check we haven't changed function
         index = self.gui_menu.get_selected_description_index()
         result = self._show_public_description(index)
@@ -234,7 +236,7 @@ class GuiActions(HotkeyActions):
         self.last_history_item_index = len(self.cur_func._history_buffer) - 1
         self.gui_menu.set_status_bar(result)
 
-    def _on_Embed_history(self, widget, arg2=None, arg3=None):
+    def _on_Embed_history(self, _):
         index = self.gui_menu.get_selected_history_index()
         result = self._show_history_description(index)
         self.gui_menu.history_buffer.clear()
@@ -243,12 +245,12 @@ class GuiActions(HotkeyActions):
         self.last_history_item_index = len(self.cur_func._history_buffer) - 1
         self.gui_menu.set_status_bar(result)
 
-    def _on_DescriptionTable_cursor_changed(self, widget):
+    def _on_DescriptionTable_cursor_changed(self, _):
         index = self.gui_menu.get_selected_description_index()
         description = self.cur_func._public_descriptions[index]
         self.gui_menu.set_details(self._data_to_details(description.data))
 
-    def _on_HistoryTable_cursor_changed(self, widget):
+    def _on_HistoryTable_cursor_changed(self, _):
         index = self.gui_menu.get_selected_history_index()
         description = self.cur_func._history_buffer[index]['desc']
         self.gui_menu.set_details(self._data_to_details(description.data))

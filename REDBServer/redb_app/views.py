@@ -20,12 +20,6 @@ from django.http.response import HttpResponseBadRequest
 # Handlers
 #==============================================================================
 @csrf_exempt
-@logged_in_or_basicauth()
-def test_handler(request):
-    return HttpResponse(request.POST.values())
-
-
-@csrf_exempt
 @require_POST
 @logged_in_or_basicauth()
 @log
@@ -40,7 +34,6 @@ def general_handler(request):
             return request_handler(request)
         elif query_type == "submit":
             return submit_handler(request)
-
     except Exception as e:
         print e
         return HttpResponseBadRequest()
@@ -71,4 +64,4 @@ def submit_handler(request):
     submit_action.temp_function()
     submit_action.process_description()
     submit_action.insert_description()
-    return HttpResponse("SUCCESS")
+    return HttpResponse(json.dumps("SUCCESS"))

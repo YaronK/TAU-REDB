@@ -12,12 +12,13 @@ import mimetypes
 import mimetools
 import ConfigParser
 import json
+import warnings
+import requests
 
 # related third party imports
 import idc
 import idautils
 import idaapi
-import requests
 
 
 #==============================================================================
@@ -68,12 +69,41 @@ class Post:
         # TODO: handle sessions
 
     def send(self):
-        res = requests.post(self.url, self.data, auth=self.auth,
-                            verify=self.verify)
-        if res.status_code == 200:
-            return res.json(object_hook=_decode_dict)
-        else:
-            return "Error sending: " + str(res.status_code)
+        try:
+            # suppressing a cookielib bug warning.
+            with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    response = requests.post(self.url, self.data,
+                                             auth=self.auth,
+                                             verify=self.verify)
+        except AttributeError as e:
+            if e.message == "'NoneType' object has no attribute 'Lock'":
+                print ("Exception caught: " + e.message + '\n' +
+                       "Known issue in connectionpool.py\n" +
+                       "See https://github.com/shazow/urllib3/issues/229\n" +
+                       "Duct tape fix:\n" +
+                       "in connectionpool.py, for python 2.7,\n" +
+                       "after 'from Queue import LifoQueue, Empty, Full',\n" +
+                       "add 'import Queue'")
+                return "Error sending. See Console."
+        except requests.exceptions.ConnectionError as e:
+            msg = e.message
+            if isinstance(msg, Exception):
+                return msg.message
+            else:
+                return str(msg)
+
+        # Handling response
+        if response.status_code == 200:  # Success
+            try:
+                res_data = response.json(object_hook=_decode_dict)
+            except:
+                return "Error: response data is in invalid format."
+            if isinstance(res_data, unicode):
+                res_data = str(res_data)
+            return res_data
+        else:  # HTTP Failure
+            return "HTTP Error: " + str(response.status_code)
 
     def add_data(self, key, deserialized_value):
         self.data[key] = json.dumps(deserialized_value)
@@ -456,7 +486,6 @@ class GuiMenu:
             self.gtk.ListStore(int, str, int, str)
         self.history_table.set_model(self.history_buffer)
         for column_title in GuiMenu.HISTORY_COLUMNS:
-            print column_title
             self._add_column_history(column_title,
                                 GuiMenu.HISTORY_COLUMNS.index(column_title))
 

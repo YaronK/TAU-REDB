@@ -19,7 +19,6 @@ class FunctionWrapper:
                                     'num_of_insns': self.num_of_insns,
                                     'func_name': self.func_name,
                                     'exe_name': self.exe_name})
-
         # TODO: add "alternative_names" as a field.
         # TODO: un-comment
         """ if self.func_name not in function.names:
@@ -27,7 +26,6 @@ class FunctionWrapper:
         function.save()"""
         if not created:
             return function
-
         ExecutableWrapper(self.exe_signature, function, self.exe_name).save()
 
         graph = GraphWrapper(self.edges, self.blocks_bounds,
@@ -42,15 +40,15 @@ class FunctionWrapper:
             end_offset = self.blocks_bounds[block_id][1] + 1
             for offset in range(start_offset, end_offset):
                 str_offset = str(offset)
-                
+
                 immediate = None
                 if str_offset in self.immediates:
                     immediate = self.immediates[str_offset]
-                
+
                 string = None
                 if str_offset in self.strings:
                     string = StringWrapper(self.strings[str_offset]).save()
-                
+
                 call = None
                 if str_offset in self.calls:
                     call = \
@@ -157,7 +155,6 @@ class DescriptionWrapper:
 
     def save(self):
         func = self.function_wrapper.save()
-
         try:
             desc = func.description_set.get(data=self.data)
         except Description.DoesNotExist:

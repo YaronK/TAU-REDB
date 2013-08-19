@@ -34,35 +34,47 @@ class Function:
                                                      get_attributes()
 
     def request_descriptions(self):
+        # Making room for new descriptions
         self._public_descriptions = []
+
+        # Preparing Post
         post = utils.Post()
         post.add_data('type', 'request')
         post.add_data('attributes', self._attributes)
+
+        # Requesting
         idaapi.show_wait_box("Requesting...")
-        result = post.send()
+        res_data = post.send()
         idaapi.hide_wait_box()
-        if isinstance(result, str):
-            return result
-        elif isinstance(result, list):
-            for description in result:
+
+        # Handling response
+        if isinstance(res_data, str):  # a message from the server
+            return res_data
+        elif isinstance(res_data, list):
+            for description in res_data:
                 self._add_description(description)
-            return "Received " + str(len(result)) + " descriptions."
+            return "Received " + str(len(res_data)) + " descriptions."
         else:
-            return "Illegal response!"
+            return "Error: Illegal response format."
 
     def submit_description(self):
+        # Preparing Post
         post = utils.Post()
-        idaapi.hide_wait_box()
         post.add_data('type', 'submit')
         post.add_data('attributes', self._attributes)
-        post.add_data('description', self._cur_description().data)
+        cur_desc = descriptions.DescriptionUtils.get_all(self._first_addr)
+        post.add_data('description', cur_desc)
+
+        # Submitting
         idaapi.show_wait_box("Submitting...")
-        result = post.send()
+        res_data = post.send()
         idaapi.hide_wait_box()
-        if isinstance(result, str):
-            return result
+
+        # Handling response
+        if isinstance(res_data, str):  # a message from the server
+            return res_data
         else:
-            return "Illegal response!"
+            return "Error: Illegal response format."
 
     def show_description_by_index(self, index):
         desc_data = {'data': DescriptionUtils.get_all(self._first_addr)}
