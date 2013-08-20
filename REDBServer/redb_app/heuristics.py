@@ -8,9 +8,9 @@ from utils import CliquerGraph
 from redb_app.utils import log_timing
 import copy
 
+MIN_HEIGHT_RATIO = 0.2
 MAX_GRAPH_COMP_SIZE = 120
 MINIMUM_NODE_WEIGHT = 0.8
-MAX_NODES_DIST = 4
 
 ITYPES_WEIGHT = 0.6
 STRINGS_WEIGHT = 0.1
@@ -74,19 +74,24 @@ class DictionarySimilarity(Heuristic):
 
 
 class BlockSimilarity(Heuristic):
-    def __init__(self, block_1, block_2):
-        self.block_1 = block_1
-        self.block_2 = block_2
+    def __init__(self, block_data_1, block_data_2,
+                 graph_height_1, graph_height_2):
+        self.block_data_1 = block_data_1
+        self.block_data_2 = block_data_2
+        self.graph_height_1 = graph_height_1
+        self.graph_height_2 = graph_height_2
         self._ratio = None
 
-    def ratio(self):
-        if self.block_1 == self.block_2:
+    def ratio(self,):
+        if self.block_data_1 == self.block_data_2:
             return 1.0
 
-        distance = abs(self.block_1.dist_from_root -
-                       self.block_2.dist_from_root)
+        distance = abs(self.block_data_1["dist_from_root"] -
+                       self.block_data_2["dist_from_root"])
+        max_height = max(self.graph_height_1, self.graph_height_2)
+        height_ratio = distance / float(max_height)
 
-        if distance > MAX_NODES_DIST:
+        if height_ratio > MIN_HEIGHT_RATIO:
             # nodes are too far apart
             return 0.0
 
@@ -96,47 +101,52 @@ class BlockSimilarity(Heuristic):
                 IMMS_WEIGHT * self.immediates_similarity())
 
     def itypes_similarity(self):
-        return SequenceMatcher(a=self.block_1.itypes,
-                               b=self.block_2.itypes,
+        return SequenceMatcher(a=self.block_data_1["itypes"],
+                               b=self.block_data_2["itypes"],
                                autojunk=False).ratio()
 
     def strings_similarity(self):
-        return SequenceMatcher(a=self.block_1.strings,
-                               b=self.block_2.strings).ratio()
+        return SequenceMatcher(a=self.block_data_1["strings"],
+                               b=self.block_data_2["strings"]).ratio()
 
     def call_similarity(self):
-        return SequenceMatcher(a=self.block_1.calls,
-                               b=self.block_2.calls).ratio()
+        return SequenceMatcher(a=self.block_data_1["calls"],
+                               b=self.block_data_2["calls"]).ratio()
 
     def immediates_similarity(self):
-        return SequenceMatcher(a=self.block_1.immediates,
-                               b=self.block_2.immediates).ratio()
+        return SequenceMatcher(a=self.block_data_1["imms"],
+                               b=self.block_data_2["imms"]).ratio()
 
 
 class GraphSimilarity(Heuristic):
     def __init__(self, graph_1, graph_2):
-        self.graph_1 = graph_1
-        self.graph_2 = graph_2
+        self.db_graph_1 = graph_1
+        self.db_graph_2 = graph_2
+
+        self.blocks_data_1 = [block.data() for block in
+                              self.db_graph_1.block_set.all()]
+        self.blocks_data_2 = [block.data() for block in
+                              self.db_graph_2.block_set.all()]
+        self.nx_graph_1 = graph_1.get_nx_graph()
+        self.nx_graph_2 = graph_2.get_nx_graph()
 
     def ratio(self):
-        if self.graph_1 == self.graph_2:
-            return 1.0
-        # TODO: un-comment
-        #elif (self.graph_1.edges == self.graph_2.edges and
-        #      len(self.graph_1.blocks) == len(self.graph_2.blocks)):
-        #    return self.blocks_similarity()
-        else:
-            return self.graph_similarity()
+        if self.db_graph_1.edges == self.db_graph_2.edges:
+            if self.blocks_data_1 == self.blocks_data_2:
+                return 1.0
+            elif len(self.blocks_data_1) == len(self.blocks_data_2):
+                return self.avg_block_sim_given_equal_edges()
+        return self.graph_similarity()
 
-    def blocks_similarity(self):
+    def avg_block_sim_given_equal_edges(self):
         f_sum = 0
         d_sum = 0
-        for block_num in range(len(self.graph_1.blocks)):
-            block_1 = self.graph_1.blocks[block_num]
-            block_2 = self.graph_2.blocks[block_num]
+        for block_num in range(len(self.blocks_data_1)):
+            block_1 = self.blocks_data_1[block_num].data()
+            block_2 = self.blocks_data_2[block_num].data()
             ratio = BlockSimilarity(block_1, block_2).ratio()
-            len_1 = float(len(block_1.itypes))
-            len_2 = float(len(block_2.itypes))
+            len_1 = float(len(block_1["itypes"]))
+            len_2 = float(len(block_2["itypes"]))
 
             f_sum += (len_1 + len_2)
             d_sum += (len_1 + len_2) * ratio
@@ -166,10 +176,10 @@ class GraphSimilarity(Heuristic):
                     (i, s, _) = heavy_block_pairs[x]
                     (j, t, _) = heavy_block_pairs[y]
                     if s != t and i != j:
-                        if ((((i, j) in self.graph_1.edges) and
-                             ((s, t) in self.graph_2.edges)) or
-                            (((i, j) not in self.graph_1.edges) and
-                             ((s, t) not in self.graph_2.edges))):
+                        if ((((i, j) in self.db_graph_1.edges) and
+                             ((s, t) in self.db_graph_2.edges)) or
+                            (((i, j) not in self.db_graph_1.edges) and
+                             ((s, t) not in self.db_graph_2.edges))):
                             graph.add_edge(x, y)
             return graph
 
@@ -193,15 +203,15 @@ class GraphSimilarity(Heuristic):
         min_block_weight = INITIAL_MIN_BLOCK_WEIGHT
 
         block_pairs = []
-        for i in range(len(self.graph_1.blocks)):
-            block_1 = self.graph_1.blocks[i]
-            for j in range(len(self.graph_2.blocks)):
-                block_2 = self.graph_2.blocks[j]
+        for i in range(len(self.db_graph_1.blocks)):
+            block_1 = self.db_graph_1.blocks[i]
+            for j in range(len(self.db_graph_2.blocks)):
+                block_2 = self.db_graph_2.blocks[j]
                 block_pairs.append((i, j,
                                     BlockSimilarity(block_1, block_2).ratio()))
 
-        size_of_min_graph = min(len(self.graph_1.blocks),
-                                len(self.graph_2.blocks))
+        size_of_min_graph = min(len(self.db_graph_1.blocks),
+                                len(self.db_graph_2.blocks))
         clique_size = size_of_min_graph
         total_weight = 0.0
 
@@ -236,7 +246,7 @@ class GraphSimilarity(Heuristic):
 #             print "clique_size:"  + str(clique_size)
 #             print "size_of_min_graph: " + str(size_of_min_graph)
 #             print "ratio: " + str(clique_size / float(size_of_min_graph))
-        res = total_weight / float(len(self.graph_1.blocks) +
-                                   len(self.graph_2.blocks) -
+        res = total_weight / float(len(self.db_graph_1.blocks) +
+                                   len(self.db_graph_2.blocks) -
                                    total_weight)
         return res

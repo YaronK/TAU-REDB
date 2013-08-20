@@ -15,7 +15,7 @@ MAX_NUM_CALLS_DEVIATION = 0.15
 MAX_VARS_SIZE_DEVIATION = 0.15
 MAX_ARGS_SIZE_DEVIATION = 0.50
 MAX_REGS_SIZE_DEVIATION = 0.50
-# MAX_NUM_IMMS_DEVIATION = 0.15
+MAX_NUM_IMMS_DEVIATION = 0.15
 
 ATTRIBUTES = ["func_signature",
               "func_name",
@@ -145,12 +145,10 @@ class RequestAction:
                             (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
                             regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
 
-        """
         num_of_imms = func_wrapper.num_of_imms
-        func_set.filter(num_of_imms__range=  # @IgnorePep8
+        func_set.filter(num_of_imms__range=# @IgnorePep8
                             (num_of_imms * (1 - MAX_NUM_IMMS_DEVIATION),
                             num_of_imms * (1 + MAX_NUM_IMMS_DEVIATION)))
-        """
 
         self.filtered_function_set = func_set.all()
 
@@ -159,23 +157,17 @@ class RequestAction:
         func_set = self.filtered_function_set
         temp_func_itypes_dict = Counter(func_wrapper.itypes)
         func_set = dict_filter(func_set, extract_itypes_list,
-                                        temp_func_itypes_dict)
+                               temp_func_itypes_dict)
         self.filtered_function_set = func_set
 
     def matching_grade_filtering(self):
         self.matching_funcs = []
-        temp_func_blocks = \
-            generate_temp_func_blocks(self.temp_function_wrapper,
-                                    self.temp_function_wrapper.dist_from_root)
-
-        temp_func_graph = graph.Graph(temp_func_blocks,
-                                      self.temp_function_wrapper.edges)
+        temp_graph = \
+            self.temp_function_wrapper.graph_wrapper.graph
 
         for func in self.filtered_function_set:
-            second_graph_edges = json.loads(func.graph.edges)
-            second_func_blocks = generate_db_func_blocks(func)
-            second_graph = graph.Graph(second_func_blocks, second_graph_edges)
-            grade = GraphSimilarity(temp_func_graph, second_graph).ratio()
+            second_graph = func.graph
+            grade = GraphSimilarity(temp_graph, second_graph).ratio()
             if (grade >= MATCHING_THRESHOLD):
                 self.matching_funcs.append((func, grade))
 
@@ -211,7 +203,7 @@ def general_process_attributes(attributes):
     pro_attrs["strings"] = attributes["strings"]
     pro_attrs["calls"] = attributes["calls"]
     pro_attrs["immediates"] = attributes["immediates"]
-    # pro_attrs["num_of_imms"] = len(pro_attrs["immediates"])
+    pro_attrs["num_of_imms"] = len(pro_attrs["immediates"])
     pro_attrs["exe_signature"] = attributes["exe_signature"]
     pro_attrs["exe_name"] = attributes["exe_name"]
     pro_attrs["num_of_insns"] = len(pro_attrs["itypes"])
@@ -226,12 +218,8 @@ def general_process_attributes(attributes):
     pro_attrs["num_of_calls"] = len(pro_attrs["calls"])
 
     graph = attributes["graph"]
-    block_bounds = graph["block_bounds"]
-    pro_attrs["blocks_bounds"] = block_bounds
+    pro_attrs["block_bounds"] = graph["block_bounds"]
     pro_attrs["edges"] = graph["edges"]
-    pro_attrs["dist_from_root"] = graph["dist_from_root"]
-    pro_attrs["num_of_blocks"] = len(block_bounds)
-    pro_attrs["num_of_edges"] = len(pro_attrs["edges"])
 
     return pro_attrs
 
@@ -275,55 +263,3 @@ def dict_filter(func_set, list_extraction_function, ref_dict):
         if (grade >= FILTERING_THRESHOLD):
             filtered_functions.append(func)
     return filtered_functions
-
-
-def generate_temp_func_blocks(function_wrapper, dist_from_root):
-    imms = []
-    strings = []
-    calls = []
-    blocks = []
-
-    for block_id in range(len(function_wrapper.blocks_bounds)):
-        start_offset = function_wrapper.blocks_bounds[block_id][0]
-        end_offset = function_wrapper.blocks_bounds[block_id][1] + 1
-
-        for offset in range(start_offset, end_offset):
-            str_offset = str(offset)
-            if str_offset in function_wrapper.immediates:
-                imms.append(function_wrapper.immediates[str_offset])
-
-            if str_offset in function_wrapper.strings:
-                strings.append(function_wrapper.strings[str_offset])
-
-            if str_offset in function_wrapper.calls:
-                calls.append(function_wrapper.calls[str_offset])
-
-        itypes = function_wrapper.itypes[start_offset: end_offset]
-
-        blocks.append(graph.Block(itypes, strings, calls, imms,
-                                  function_wrapper.dist_from_root[str(block_id)]))
-        imms = []
-        strings = []
-        calls = []
-
-    return blocks
-
-
-def generate_db_func_blocks(function):
-
-    block_set = function.graph.block_set.all()
-    blocks = []
-
-    for block in block_set:
-        itypes = [instruction.itype for instruction in
-                  block.instruction_set.all()]
-        strings = [instruction.string.value for instruction
-                   in block.instruction_set.exclude(string=None)]
-        calls = [instruction.call.name for instruction in
-                 block.instruction_set.exclude(call=None)]
-        imms = [instruction.immediate for instruction in
-                block.instruction_set.exclude(immediate=None)]
-        blocks.append(graph.Block(itypes, strings, calls, imms,
-                                  block.dist_from_root))
-
-    return blocks

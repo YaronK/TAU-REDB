@@ -6,67 +6,35 @@ class FunctionWrapper:
     def __init__(self, attributes):
         for attr_name in attributes:
             setattr(self, attr_name, attributes[attr_name])
+        self.function = Function(signature=self.func_signature,
+                                 args_size=self.args_size,
+                                 vars_size=self.vars_size,
+                                 regs_size=self.regs_size,
+                                 frame_size=self.frame_size,
+                                 num_of_strings=self.num_of_strings,
+                                 num_of_calls=self.num_of_calls,
+                                 num_of_insns=self.num_of_insns,
+                                 func_name=self.func_name,
+                                 exe_name=self.exe_name)
+        self.executable_wrapper = ExecutableWrapper(self.exe_signature,
+                                                    self.function,
+                                                    self.exe_name)
+        self.graph_wrapper = GraphWrapper(self.edges, self.blocks_bounds,
+                                          self.num_of_blocks,
+                                          self.num_of_edges,
+                                          self.function)
 
     def save(self):
-        function, created = Function.objects.\
-            get_or_create(signature=self.func_signature,
-                          defaults={'args_size': self.args_size,
-                                    'vars_size': self.vars_size,
-                                    'regs_size': self.regs_size,
-                                    'frame_size': self.frame_size,
-                                    'num_of_strings': self.num_of_strings,
-                                    'num_of_calls': self.num_of_calls,
-                                    'num_of_insns': self.num_of_insns,
-                                    'func_name': self.func_name,
-                                    'exe_name': self.exe_name})
-        # TODO: add "alternative_names" as a field.
-        # TODO: un-comment
-        """ if self.func_name not in function.names:
-            function.names += self.func_name + ", "
-        function.save()"""
-        if not created:
-            return function
-        ExecutableWrapper(self.exe_signature, function, self.exe_name).save()
+        try:
+            Function.objects.get(signature=self.func_signature)
+        except Function.DoesNotExist:
+            self.function.save()
 
-        graph = GraphWrapper(self.edges, self.blocks_bounds,
-                             self.num_of_blocks, self.num_of_edges,
-                             function).save()
+        self.executable_wrapper.save()
 
-        for block_id in range(len(self.blocks_bounds)):
-            block = BlockWrapper(graph,
-                                 self.dist_from_root[str(block_id)]).save()
-            instructions = []
-            start_offset = self.blocks_bounds[block_id][0]
-            end_offset = self.blocks_bounds[block_id][1] + 1
-            for offset in range(start_offset, end_offset):
-                str_offset = str(offset)
+        self.graph_wrapper.save()
 
-                immediate = None
-                if str_offset in self.immediates:
-                    immediate = self.immediates[str_offset]
-
-                string = None
-                if str_offset in self.strings:
-                    string = StringWrapper(self.strings[str_offset]).save()
-
-                call = None
-                if str_offset in self.calls:
-                    call = \
-                        CallWrapper(self.calls[str_offset]).save()
-                instructions.\
-                    append(InstructionWrapper(self.itypes[offset],
-                                      offset, block,
-                                      immediate,
-                                      string,
-                                      call).instruction)
-
-            # SQLite limitation
-            chunks = [instructions[x:x + 100]
-                      for x in xrange(0, len(instructions), 100)]
-            for chunk in chunks:
-                Instruction.objects.bulk_create(chunk)
-
-        return function
+        return self.function
 
 
 class StringWrapper:
@@ -88,30 +56,82 @@ class CallWrapper:
 
 
 class GraphWrapper:
-    def __init__(self, edges, blocks_bounds, num_of_blocks,
-                 num_of_edges, function):
-        self.edges = edges
-        self.blocks_bounds = blocks_bounds
-        self.num_of_blocks = num_of_blocks
-        self.num_of_edges = num_of_edges
-        self.function = function
+    def __init__(self, immediates, strings, itypes, calls, blocks_bounds,
+                 edges, function):
+
+        num_of_blocks = len(blocks_bounds)
+        num_of_edges = len(edges)
+        self.graph = Graph(edges=edges, num_of_blocks=num_of_blocks,
+                           num_of_edges=num_of_edges, function=function)
+        distances = self.graph.get_distances()
+        self.blocks_wrappers = []
+
+        for block_id in num_of_blocks:
+            bounds = blocks_bounds[block_id]
+            if block_id in distances:  # reachable from root
+                distance = distances[block_id]
+            else:
+                distance = -1
+            self.blocks_wrappers.append(BlockWrapper(immediates, strings,
+                                                    itypes, calls, bounds,
+                                                    distance, self.graph))
 
     def save(self):
-        return Graph.objects.create(edges=self.edges,
-                                    blocks_bounds=self.blocks_bounds,
-                                    num_of_blocks=self.num_of_blocks,
-                                    num_of_edges=self.num_of_edges,
-                                    function=self.function)
+        self.graph.save()
+        for block_wrapper in self.blocks_wrappers:
+            block_wrapper.save()
+
+        return self.graph
 
 
 class BlockWrapper:
-    def __init__(self, graph, dist_from_root):
-        self.graph = graph
-        self.dist_from_root = dist_from_root
+    def __init__(self, immediates, strings, itypes, calls, bounds, distance,
+                 graph):
+        self.block = Block(graph=graph, dist_from_root=distance)
+        start_offset = bounds[0]
+        end_offset = bounds[1] + 1
+
+        self.instructions = []
+        self.strings_wrappers = []
+        self.calls_wrappers = []
+
+        for offset in range(start_offset, end_offset):
+            str_offset = str(offset)
+
+            immediate = None
+            if str_offset in immediates:
+                immediate = immediates[str_offset]
+
+            string = None
+            if str_offset in strings:
+                self.strings_wrappers.\
+                append(StringWrapper(strings[str_offset]))
+
+            call = None
+            if str_offset in self.calls:
+                self.calls_wrappers.append(CallWrapper(calls[str_offset]))
+
+            self.instructions.append(InstructionWrapper(itypes[offset],
+                                                        offset, self.block,
+                                                        immediate, string,
+                                                        call).instruction)
 
     def save(self):
-        return Block.objects.create(graph=self.graph,
-                                    dist_from_root=self.dist_from_root)
+        self.block.save()
+
+        for string_wrapper in self.strings_wrappers:
+            string_wrapper.save()
+
+        for call_wrapper in self.calls_wrappers:
+            call_wrapper.save()
+
+        # SQLite limitation
+        chunks = [self.instructions[x:x + 100]
+                  for x in xrange(0, len(self.instructions), 100)]
+        for chunk in chunks:
+            Instruction.objects.bulk_create(chunk)
+
+        return self.block
 
 
 class ExecutableWrapper:
