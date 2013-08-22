@@ -168,6 +168,7 @@ class GuiActions(HotkeyActions):
                      "on_Embed": self._on_Embed,
                      "on_Embed_history": self._on_Embed_history,
                      "on_Undo": self._on_Undo,
+                     "on_Redo": self._on_Redo,
                      "on_DescriptionTable_cursor_changed":
                         self._on_DescriptionTable_cursor_changed,
                      "on_HistoryTable_cursor_changed":
@@ -188,7 +189,8 @@ class GuiActions(HotkeyActions):
             self.gui_menu.add_descriptions(desc_rows)
             history_rows = self._generate_history_rows()
             self.gui_menu.add_history(history_rows)
-            self.last_history_item_index = -1
+            self.cur_history_item_index = 0
+            self.first_undo = 1
         self.gui_menu.show()
 
     def _on_mainWindow_destroy(self, _):
@@ -213,36 +215,53 @@ class GuiActions(HotkeyActions):
         self.gui_menu.set_status_bar("Settings saved.")
 
     def _on_Undo(self, _):
-        if self.last_history_item_index != -1:
-            selected_description = \
-                self.cur_func._history_buffer[self.last_history_item_index]
-            selected_description['desc'].show()
-            self.last_history_item_index -= 1
-            self.gui_menu.history_buffer.clear()
-            history_rows = self._generate_history_rows()
-            self.gui_menu.add_history(history_rows)
-            result = "Undo"
+        self.cur_history_item_index -= 1
+        if self.first_undo == 1:
+            self._show_history_description(self.cur_history_item_index)
+            self.first_undo = 0
         else:
-            result = "Can't Undo"
-        self.gui_menu.set_status_bar(result)
+            selected_description = \
+                self.cur_func._history_buffer[self.cur_history_item_index]
+            selected_description['desc'].show()
+        self.gui_menu.history_buffer.clear()
+        history_rows = self._generate_history_rows()
+        self.gui_menu.add_history(history_rows)
+        self.gui_menu.set_status_bar("Undo")
+        if self.cur_history_item_index == 0:
+            self.gui_menu.undo_button.set_sensitive(False)  # gray out 'undo' button
+        if self.gui_menu.redo_button.get_sensitive() == False:
+            self.gui_menu.redo_button.set_sensitive(True)
+
+    def _on_Redo(self, _):
+        self.cur_history_item_index += 1
+        selected_description = \
+             self.cur_func._history_buffer[self.cur_history_item_index]
+        selected_description['desc'].show()
+        self.gui_menu.history_buffer.clear()
+        history_rows = self._generate_history_rows()
+        self.gui_menu.add_history(history_rows)
+        self.gui_menu.set_status_bar("Redo")
+        last_history_item_index = len(self.cur_func._history_buffer) - 1
+        if self.cur_history_item_index == last_history_item_index:
+            self.gui_menu.redo_button.set_sensitive(False)  # gray out 'Redo' button
+        if self.gui_menu.undo_button.get_sensitive() == False:
+            self.gui_menu.undo_button.set_sensitive(True)
 
     def _on_Embed(self, _):
         # TODO: check we haven't changed function
+        self._handle_undo_redo_buttons()
         index = self.gui_menu.get_selected_description_index()
         result = self._show_public_description(index)
-        self.gui_menu.history_buffer.clear()
-        history_rows = self._generate_history_rows()
-        self.gui_menu.add_history(history_rows)
-        self.last_history_item_index = len(self.cur_func._history_buffer) - 1
+        self._handle_history_window()
+        self.cur_history_item_index = len(self.cur_func._history_buffer)
         self.gui_menu.set_status_bar(result)
 
     def _on_Embed_history(self, _):
+        self._handle_undo_redo_buttons()
         index = self.gui_menu.get_selected_history_index()
         result = self._show_history_description(index)
-        self.gui_menu.history_buffer.clear()
-        history_rows = self._generate_history_rows()
-        self.gui_menu.add_history(history_rows)
-        self.last_history_item_index = len(self.cur_func._history_buffer) - 1
+        self._handle_history_window()
+        self.cur_history_item_index = len(self.cur_func._history_buffer)
         self.gui_menu.set_status_bar(result)
 
     def _on_DescriptionTable_cursor_changed(self, _):
@@ -254,6 +273,20 @@ class GuiActions(HotkeyActions):
         index = self.gui_menu.get_selected_history_index()
         description = self.cur_func._history_buffer[index]['desc']
         self.gui_menu.set_details(self._data_to_details(description.data))
+
+    def _handle_undo_redo_buttons(self):
+        if self.gui_menu.undo_button.get_sensitive() == False:
+            self.gui_menu.undo_button.set_sensitive(True)
+        if self.gui_menu.redo_button.get_sensitive() == True:
+            self.gui_menu.redo_button.set_sensitive(False)
+        if self.first_undo == 0:
+            self.first_undo = 1
+            self.cur_func._history_buffer.pop()
+
+    def _handle_history_window(self):
+        self.gui_menu.history_buffer.clear()
+        history_rows = self._generate_history_rows()
+        self.gui_menu.add_history(history_rows)
 
     def _destroy_main_window(self):
         self.gui_menu.hide()

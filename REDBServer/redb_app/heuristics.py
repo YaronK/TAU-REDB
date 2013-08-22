@@ -7,6 +7,8 @@ from difflib import SequenceMatcher
 from utils import CliquerGraph
 from redb_app.utils import log_timing
 import copy
+import networkx as nx
+import networkx.algorithms as graph_alg
 
 MIN_HEIGHT_RATIO = 0.2
 MAX_GRAPH_COMP_SIZE = 120
@@ -18,7 +20,7 @@ CALLS_WEIGHT = 0.2
 IMMS_WEIGHT = 0.1
 
 MIN_BLOCK_WEIGHT_DELTA = 0.1
-INITIAL_MIN_BLOCK_WEIGHT = 0.9
+INITIAL_MIN_BLOCK_WEIGHT = 0.8
 MIN_RATIO = 0.3
 
 
@@ -119,16 +121,13 @@ class BlockSimilarity(Heuristic):
 
 
 class GraphSimilarity(Heuristic):
-    def __init__(self, graph_1, graph_2):
-        self.db_graph_1 = graph_1
-        self.db_graph_2 = graph_2
-
-        self.blocks_data_1 = [block.data() for block in
-                              self.db_graph_1.block_set.all()]
-        self.blocks_data_2 = [block.data() for block in
-                              self.db_graph_2.block_set.all()]
-        self.nx_graph_1 = graph_1.get_nx_graph()
-        self.nx_graph_2 = graph_2.get_nx_graph()
+    def __init__(self, graph_1, blocks_data_1, graph_2, blocks_data_2):
+        print "a"
+        self.graph_1 = graph_1
+        self.graph_2 = graph_2
+        self.blocks_data_1 = blocks_data_1
+        self.blocks_data_2 = blocks_data_2
+        print "b"
 
     def ratio(self):
         if self.db_graph_1.edges == self.db_graph_2.edges:
@@ -142,11 +141,11 @@ class GraphSimilarity(Heuristic):
         f_sum = 0
         d_sum = 0
         for block_num in range(len(self.blocks_data_1)):
-            block_1 = self.blocks_data_1[block_num].data()
-            block_2 = self.blocks_data_2[block_num].data()
-            ratio = BlockSimilarity(block_1, block_2).ratio()
-            len_1 = float(len(block_1["itypes"]))
-            len_2 = float(len(block_2["itypes"]))
+            block_data_1 = self.blocks_data_1[block_num].data()
+            block_data_2 = self.blocks_data_2[block_num].data()
+            ratio = BlockSimilarity(block_data_1, block_data_2).ratio()
+            len_1 = float(len(block_data_1["itypes"]))
+            len_2 = float(len(block_data_2["itypes"]))
 
             f_sum += (len_1 + len_2)
             d_sum += (len_1 + len_2) * ratio
@@ -157,7 +156,7 @@ class GraphSimilarity(Heuristic):
         def decrement_min_block_weight(weight):
             return weight - MIN_BLOCK_WEIGHT_DELTA
 
-        def heavy_enough_pairs():
+        def get_heavy_enough_pairs():
             heavy_enough_pairs = []
             for (a, b, w) in block_pairs:
                 if w >= min_block_weight:
@@ -166,10 +165,10 @@ class GraphSimilarity(Heuristic):
 
         def get_association_graph(heavy_block_pairs):
             num_of_block_pairs = len(heavy_block_pairs)
-            graph = CliquerGraph(num_of_block_pairs)
+            graph = nx.Graph()
             for block_num in range(num_of_block_pairs):
                 w = heavy_block_pairs[block_num][2]
-                graph.set_vertex_weight(block_num, int(w * 1000))
+                graph.add_node(block_num, {'weight': int(w * 1000)})
 
             for x in range(num_of_block_pairs):
                 for y in range(num_of_block_pairs):
@@ -183,70 +182,71 @@ class GraphSimilarity(Heuristic):
                             graph.add_edge(x, y)
             return graph
 
+        def get_max_clique(graph):
+            cliques = list(graph_alg.find_cliques(graph))
+            max_clique = max(cliques, key=lambda c: len(c))
+            return max_clique
+
         def get_clique_weight(clique, heavy_block_pairs):
             weight = 0.0
             for i in clique:
                 weight += heavy_block_pairs[i][2]
             return weight
 
-        def filter_out_clique(heavy_block_pairs, clique):
-            temp_pairs = copy.deepcopy(block_pairs)
+        def filter_out_clique(heavy_block_pairs, clique, graph):
             for i in clique:
                 a, b, _ = heavy_block_pairs[i]
-                for x, y, w in block_pairs:
+                for x, y, _ in block_pairs:
                     if a == x or b == y:
-                        if (x, y, w) in temp_pairs:
-                            temp_pairs.remove(tuple((x, y, w)))
-
-            return temp_pairs
+                        if graph.__contains__(i):
+                            graph.remove_node(i)
 
         min_block_weight = INITIAL_MIN_BLOCK_WEIGHT
 
         block_pairs = []
-        for i in range(len(self.db_graph_1.blocks)):
-            block_1 = self.db_graph_1.blocks[i]
-            for j in range(len(self.db_graph_2.blocks)):
-                block_2 = self.db_graph_2.blocks[j]
-                block_pairs.append((i, j,
-                                    BlockSimilarity(block_1, block_2).ratio()))
+        for i in range(len(self.blocks_data_1)):
+            block_data_1 = self.blocks_data_1[i]
+            for j in range(len(self.blocks_data_2)):
+                block_data_2 = self.self.blocks_data_2[j]
+                block_pairs.\
+                    append((i, j, BlockSimilarity(block_data_1,
+                                                  block_data_2).ratio()))
 
-        size_of_min_graph = min(len(self.db_graph_1.blocks),
-                                len(self.db_graph_2.blocks))
+        size_of_min_graph = min(len(self.self.blocks_data_1),
+                                len(self.self.blocks_data_2))
         clique_size = size_of_min_graph
         total_weight = 0.0
+        heavy_block_pairs = get_heavy_enough_pairs()
+
+        if len(heavy_block_pairs) == 0:
+            print "bye"
+            return 0.0
+
+        association_graph = get_association_graph(heavy_block_pairs)
+        if association_graph.size() == 0:
+            return 0.0
 
         while (clique_size / float(size_of_min_graph) > MIN_RATIO):
 
-            print "block_pairs: %d" % len(block_pairs)
-            heavy_block_pairs = heavy_enough_pairs()
-            print "heavy_block_pairs %d" % len(heavy_block_pairs)
-
-            if len(heavy_block_pairs) == 0:
-                print "bye"
-                break
-
-            association_graph = get_association_graph(heavy_block_pairs)
             print "in cliquer"
             clique = association_graph.get_max_clique()
             print "out cliquer"
-            association_graph.free()
-
             clique_weight = get_clique_weight(clique, heavy_block_pairs)
             clique_size = len(clique)
             total_weight += clique_weight
-            print ("clique! size: %d, weight: %f. min_block_weight: %f" %
-                   (clique_size, clique_weight, min_block_weight))
+            print ("clique! size: %d, weight: %f." %
+                   (clique_size, clique_weight))
 
-            block_pairs = filter_out_clique(heavy_block_pairs, clique)
+            filter_out_clique(heavy_block_pairs, clique, association_graph)
 
-            #print len(block_pairs)
+            # print len(block_pairs)
             # TODO: free clique!
 
-            min_block_weight = decrement_min_block_weight(min_block_weight)
+            # min_block_weight = decrement_min_block_weight(min_block_weight)
 #             print "clique_size:"  + str(clique_size)
 #             print "size_of_min_graph: " + str(size_of_min_graph)
 #             print "ratio: " + str(clique_size / float(size_of_min_graph))
-        res = total_weight / float(len(self.db_graph_1.blocks) +
-                                   len(self.db_graph_2.blocks) -
+        res = total_weight / float(len(self.blocks_data_1) +
+                                   len(self.blocks_data_2) -
                                    total_weight)
         return res

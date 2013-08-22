@@ -466,13 +466,17 @@ class GuiMenu:
         self.description_details = \
             self.xml.get_object("DescriptionDetails")
 
-        #saved history
+        # saved history
         self.history_scrolled_window = \
              self.xml.get_object("HistoryScrolledWindow")
         self.history_table = self.xml.get_object("HistoryTable")
 
         # status bar
         self.status_bar = self.xml.get_object("StatusBar")
+
+        # buttons
+        self.undo_button = self.xml.get_object("tbUndo")
+        self.redo_button = self.xml.get_object("tbRedo")
 
     def _init_description_table(self):
         self.descriptions = \

@@ -1,4 +1,4 @@
-from redb_app import graph, actions, utils
+from redb_app import actions, utils
 from redb_app.models import Function
 import json
 import xlwt
@@ -15,10 +15,7 @@ def generate_matching_grade(a_id, b_id):
 
 def create_graph(g_id):
     g_func = Function.objects.get(id=g_id)
-    g_edges = json.loads(g_func.graph.edges)
-    g_blocks = actions.generate_db_func_blocks(g_func)
-    return graph.Graph(g_blocks, g_edges)
-
+    return g_func.graph
 
 EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
 
@@ -72,7 +69,7 @@ def compare_exes_extract_to_excel(path, exe_name1, exe_name2):
 
     plt.xticks(rotation=90)
     plt.rcParams.update({'font.size': 4})
-    #fig.tight_layout()
-    #plt.savefig("C:\\Users\\user\\Desktop\\test.pdf", bbox_inches='tight',dpi=100)
+    # fig.tight_layout()
+    # plt.savefig("C:\\Users\\user\\Desktop\\test.pdf", bbox_inches='tight',dpi=100)
     plt.show()
     book.save(path)
