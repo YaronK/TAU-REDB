@@ -1,10 +1,8 @@
-import model_wrappers
-from models import Function
+from models import Function, Description
 import utils
 from collections import Counter
 from heuristics import DictionarySimilarity, GraphSimilarity
 import json
-import graph
 from redb_app.utils import _decode_dict
 
 MAX_NUM_INSNS_DEVIATION = 0.15
@@ -68,15 +66,22 @@ class SubmitAction:
         self.attributes = general_process_attributes(self.attributes)
 
     def temp_function(self):
-        self.temp_function_wrapper = general_temp_function(self.attributes)
+        self.function = generate_function(self.attributes)
 
     def process_description(self):
-        self.description = json.dumps(self.description, ensure_ascii=False)
+        self.description_data = json.dumps(self.description,
+                                           ensure_ascii=False)
 
     def insert_description(self):
-        model_wrappers.DescriptionWrapper(self.temp_function_wrapper,
-                                          self.description,
-                                          self.user).save()
+        try:
+            self.function = Function.objects.\
+                get(signature=self.attributes["func_signature"])
+        except Function.DoesNotExist:
+            self.function.save()
+        description = Description()
+        description.initialize(self.function, self.description_data,
+                                self.user)
+        description.save()
 
 
 class RequestAction:
@@ -97,84 +102,82 @@ class RequestAction:
         self.attributes = general_process_attributes(self.attributes)
 
     def temp_function(self):
-        self.temp_function_wrapper = general_temp_function(self.attributes)
+        self.function = generate_function(self.attributes)
 
     def db_filtering(self):
-        func_wrapper = self.temp_function_wrapper
+        func = self.function
         func_set = Function.objects
 
-        insns_num = func_wrapper.num_of_insns
-        func_set.filter(num_of_insns__range=# @IgnorePep8
+        insns_num = func.num_of_insns
+        func_set.filter(num_of_insns__range=  # @IgnorePep8
                         (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
                          insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
 
-        num_of_blocks = func_wrapper.num_of_blocks
-        func_set.filter(graph__num_of_blocks__range=# @IgnorePep8
+        num_of_blocks = func.graph.num_of_blocks
+        func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
                             (num_of_blocks * (1 - MAX_NUM_BLOCKS_DEVIATION),
                              num_of_blocks * (1 + MAX_NUM_BLOCKS_DEVIATION)))
 
-        num_of_edges = func_wrapper.num_of_edges
-        func_set.filter(graph__num_of_edges__range=# @IgnorePep8
+        num_of_edges = func.graph.num_of_edges
+        func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
                             (num_of_edges * (1 - MAX_NUM_EDGES_DEVIATION),
                              num_of_edges * (1 + MAX_NUM_EDGES_DEVIATION)))
 
-        num_of_strings = func_wrapper.num_of_strings
-        func_set.filter(num_of_strings__range=# @IgnorePep8
+        num_of_strings = func.num_of_strings
+        func_set.filter(num_of_strings__range=  # @IgnorePep8
                             (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
                             num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
 
-        num_of_calls = func_wrapper.num_of_calls
-        func_set.filter(num_of_calls__range=# @IgnorePep8
+        num_of_calls = func.num_of_calls
+        func_set.filter(num_of_calls__range=  # @IgnorePep8
                             (num_of_calls *
                              (1 - MAX_NUM_CALLS_DEVIATION),
                              num_of_calls *
                              (1 + MAX_NUM_CALLS_DEVIATION)))
 
-        vars_size = func_wrapper.vars_size
-        func_set.filter(vars_size__range=# @IgnorePep8
+        vars_size = func.vars_size
+        func_set.filter(vars_size__range=  # @IgnorePep8
                             (vars_size * (1 - MAX_VARS_SIZE_DEVIATION),
                             vars_size * (1 + MAX_VARS_SIZE_DEVIATION)))
 
-        args_size = func_wrapper.args_size
-        func_set.filter(args_size__range=# @IgnorePep8
+        args_size = func.args_size
+        func_set.filter(args_size__range=  # @IgnorePep8
                             (args_size * (1 - MAX_ARGS_SIZE_DEVIATION),
                             args_size * (1 + MAX_ARGS_SIZE_DEVIATION)))
 
-        regs_size = func_wrapper.regs_size
-        func_set.filter(regs_size__range=# @IgnorePep8
+        regs_size = func.regs_size
+        func_set.filter(regs_size__range=  # @IgnorePep8
                             (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
                             regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
 
-        num_of_imms = func_wrapper.num_of_imms
-        func_set.filter(num_of_imms__range=# @IgnorePep8
+        num_of_imms = func.num_of_imms
+        func_set.filter(num_of_imms__range=  # @IgnorePep8
                             (num_of_imms * (1 - MAX_NUM_IMMS_DEVIATION),
                             num_of_imms * (1 + MAX_NUM_IMMS_DEVIATION)))
 
         self.filtered_function_set = func_set.all()
 
     def dictionaries_filtering(self):
-        func_wrapper = self.temp_function_wrapper
         func_set = self.filtered_function_set
-        temp_func_itypes_dict = Counter(func_wrapper.itypes)
+        temp_func_itypes_dict = Counter(self.attributes["itypes"])
         func_set = dict_filter(func_set, extract_itypes_list,
                                temp_func_itypes_dict)
         self.filtered_function_set = func_set
 
     def matching_grade_filtering(self):
         self.matching_funcs = []
-        temp_graph = \
-            self.temp_function_wrapper.graph_wrapper.graph
+        temp_graph_nx = \
+            self.function.graph.get_data()
 
         for func in self.filtered_function_set:
-            second_graph = func.graph
-            grade = GraphSimilarity(temp_graph, second_graph).ratio()
+            second_graph_nx = func.graph_set.all()[0].get_data()
+            grade = GraphSimilarity(temp_graph_nx, second_graph_nx).ratio()
             if (grade >= MATCHING_THRESHOLD):
                 self.matching_funcs.append((func, grade))
 
     def get_descriptions(self):
         descriptions = []
         exe_names = ""
-        print self.matching_funcs
         for (func, grade) in self.matching_funcs:
             for exe in func.executable_set.all():
                 exe_names = exe.names + exe_names
@@ -224,12 +227,31 @@ def general_process_attributes(attributes):
     return pro_attrs
 
 
-def general_temp_function(attributes):
-    return model_wrappers.FunctionWrapper(attributes)
+def generate_function(attributes):
+    function = Function()
+    function.initialize(attributes["func_signature"],
+                        attributes["exe_signature"],
+                        attributes["args_size"],
+                        attributes["vars_size"],
+                        attributes["regs_size"],
+                        attributes["frame_size"],
+                        attributes["num_of_strings"],
+                        attributes["num_of_calls"],
+                        attributes["num_of_imms"],
+                        attributes["num_of_insns"],
+                        attributes["func_name"],
+                        attributes["exe_name"],
+                        attributes["immediates"],
+                        attributes["strings"],
+                        attributes["itypes"],
+                        attributes["calls"],
+                        attributes["block_bounds"],
+                        attributes["edges"])
+    return function
 
 
 def extract_strings_list(function):
-    block_set = function.graph.block_set.all()
+    block_set = function.graph_set.all()[0].block_set.all()
     strings = []
     for block in block_set:
         strings.append(instruction.string.value for instruction in
@@ -238,7 +260,7 @@ def extract_strings_list(function):
 
 
 def extract_calls_list(function):
-    block_set = function.graph.block_set.all()
+    block_set = function.graph_set.all()[0].block_set.all()
     calls = []
     for block in block_set:
         calls.append(instruction.call.name for instruction in
@@ -247,7 +269,7 @@ def extract_calls_list(function):
 
 
 def extract_itypes_list(function):
-    block_set = function.graph.block_set.all()
+    block_set = function.graph_set.all()[0].block_set.all()
     itypes = []
     for block in block_set:
         for instruction in block.instruction_set.all():

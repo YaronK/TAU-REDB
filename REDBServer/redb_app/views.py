@@ -12,7 +12,7 @@ from django.http import HttpResponse
 
 # local application/library specific imports
 import actions
-from redb_app.utils import logged_in_or_basicauth, log
+from redb_app.utils import logged_in_or_basicauth
 from django.http.response import HttpResponseBadRequest
 
 
@@ -22,7 +22,6 @@ from django.http.response import HttpResponseBadRequest
 @csrf_exempt
 @require_POST
 @logged_in_or_basicauth()
-@log
 def general_handler(request):
     try:
         query = actions.Query(request)
@@ -39,7 +38,6 @@ def general_handler(request):
         return HttpResponseBadRequest()
 
 
-@log
 def request_handler(request):
     """
     Handles a Request for descriptions.
@@ -54,7 +52,6 @@ def request_handler(request):
     return HttpResponse(json.dumps(descriptions))
 
 
-@log
 def submit_handler(request):
     """
     Handles a Submitted descriptions.

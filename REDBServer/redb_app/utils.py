@@ -1,15 +1,14 @@
 """
 Utilities for all the other modules.
 """
-import traceback
 import os
-import functools
 from ctypes import cdll
 import time
 import ctypes
 import json
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
+import base64
 
 
 #==============================================================================
@@ -134,28 +133,6 @@ class CliquerGraph:
         self.lib.string_free_redb(string)
 
 
-#==============================================================================
-# Decorators
-#==============================================================================
-def log(f):
-    @functools.wraps(f)
-    def wrapped(*args, **kwargs):
-        print "enter: " + str(f.__name__)
-        try:
-            retval = f(*args, **kwargs)
-            print "exit: " + str(f.__name__)
-            return retval
-        except Exception, e:
-            # get traceback info to print out later
-            print type(e).__name__
-            for frame in traceback.extract_stack():
-                print os.path.basename(frame[0]), str(frame[1])
-            raise
-    return wrapped
-
-import base64
-
-
 ##############################################################################
 def view_or_basicauth(view, request, test_func, realm="", *args, **kwargs):
     """
@@ -259,7 +236,7 @@ def has_perm_or_basicauth(perm, realm=""):
 
 def log_timing():
     '''Decorator generator that logs the time it takes a function to execute'''
-    #Decorator generator
+    # Decorator generator
     def decorator(func_to_decorate):
         def wrapper(*args, **kwargs):
             start = time.time()

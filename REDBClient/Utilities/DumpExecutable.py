@@ -1,8 +1,10 @@
+# @PydevCodeAnalysisIgnore
 import attributes
-import utils
+
 import idautils
 import os
 import json
+import utils
 import descriptions
 
 
@@ -31,7 +33,7 @@ def dump_executable():
 
         desc_file_path = file_path + ".desc"
         desc = descriptions.DescriptionUtils.get_all(first_addr)
-        json.dump(attrs, open(attrs_file_path, 'w'), encoding = 'ISO-8859-1' )
+        json.dump(attrs, open(attrs_file_path, 'w'), encoding='ISO-8859-1')
         json.dump(desc, open(desc_file_path, 'w'), ensure_ascii=False)
 
         if (i % 10 == 0):

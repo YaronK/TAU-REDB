@@ -8,14 +8,10 @@ import matplotlib.pyplot as plt
 
 
 def generate_matching_grade(a_id, b_id):
-    a_graph = create_graph(a_id)
-    b_graph = create_graph(b_id)
+    a_graph = Function.objects.get(id=a_id).graph_set.all()[0].get_data()
+    b_graph = Function.objects.get(id=b_id).graph_set.all()[0].get_data()
     return GraphSimilarity(a_graph, b_graph).ratio()
 
-
-def create_graph(g_id):
-    g_func = Function.objects.get(id=g_id)
-    return g_func.graph
 
 EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
 
