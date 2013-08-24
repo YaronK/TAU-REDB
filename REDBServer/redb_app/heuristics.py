@@ -193,15 +193,17 @@ class GraphSimilarity(Heuristic):
             w = nodes[node_index][2]
             graph.add_node(node_index, {'weight': w})
 
+        graph_1_edges = self.graph_1.edges()
+        graph_2_edges = self.graph_2.edges()
         for x in range(num_of_nodes):
             (i, s, _) = nodes[x]
             for y in range(num_of_nodes):
                 (j, t, _) = nodes[y]
                 if s != t and i != j:
-                    if ((((i, j) in self.graph_1.edges()) and
-                         ((s, t) in self.graph_2.edges())) or
-                        (((i, j) not in self.graph_1.edges()) and
-                         ((s, t) not in self.graph_2.edges()))):
+                    if ((((i, j) in graph_1_edges) and
+                         ((s, t) in graph_2_edges)) or
+                        (((i, j) not in graph_1_edges) and
+                         ((s, t) not in graph_2_edges))):
                         graph.add_edge(x, y)
         self.association_graph = graph
 

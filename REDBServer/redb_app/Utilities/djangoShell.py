@@ -12,13 +12,11 @@ def django_shell():
     import sys
     sys.path.append(SERVER_DIR)
 
-
-
     from django.core import management;
     import server.settings as settings;
     management.setup_environ(settings)
     from redb_app.models import Function, String, Call, Block, Instruction, Executable, Graph, Description
-    import readline
+    #import readline
     import code
     vars = globals().copy()
     vars.update(locals())

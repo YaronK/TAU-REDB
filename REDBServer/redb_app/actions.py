@@ -93,6 +93,7 @@ class RequestAction:
             raise Exception("request is missing attributes.")
 
         self.attributes = json.loads(query_dict["attributes"],
+                                     encoding='ISO-8859-1',
                                      object_hook=_decode_dict)
 
         if not (set(self.attributes.keys()) == set(ATTRIBUTES)):

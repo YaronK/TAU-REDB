@@ -23,19 +23,19 @@ from django.http.response import HttpResponseBadRequest
 @require_POST
 @logged_in_or_basicauth()
 def general_handler(request):
-    try:
-        query = actions.Query(request)
-        query_type = query.check_validity()
+    #try:
+    query = actions.Query(request)
+    query_type = query.check_validity()
 
-        if not request.user.is_authenticated():
-            raise(Exception("Unknown user."))
-        if query_type == "request":
-            return request_handler(request)
-        elif query_type == "submit":
-            return submit_handler(request)
-    except Exception as e:
-        print e
-        return HttpResponseBadRequest()
+    if not request.user.is_authenticated():
+        raise(Exception("Unknown user."))
+    if query_type == "request":
+        return request_handler(request)
+    elif query_type == "submit":
+        return submit_handler(request)
+    #except Exception as e:
+    #    print e
+    #    return HttpResponseBadRequest()
 
 
 def request_handler(request):

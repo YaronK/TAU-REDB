@@ -5,8 +5,8 @@ Django models representing functions and descriptions.
 from django.db import models
 from django.contrib.auth.models import User
 import networkx as nx
-import redb_app
 import json
+from django.utils.encoding import smart_text
 
 MAX_EXE_NAME_LENGTH = 255
 EXE_DIGEST_SIZE_IN_BYTES = 32
@@ -38,7 +38,7 @@ class Function(models.Model):
                    regs_size, frame_size, num_of_strings, num_of_calls,
                    num_of_imms, num_of_insns, func_name, exe_name, immediates,
                    strings, itypes, calls, block_bounds, edges):
-        self.signature = func_signature
+        self.signature = smart_text(func_signature)
         self.args_size = args_size
         self.vars_size = vars_size
         self.regs_size = regs_size
@@ -47,8 +47,8 @@ class Function(models.Model):
         self.num_of_calls = num_of_calls
         self.num_of_imms = num_of_imms
         self.num_of_insns = num_of_insns
-        self.func_name = func_name
-        self.exe_name = exe_name
+        self.func_name = smart_text(func_name)
+        self.exe_name = smart_text(exe_name)
 
         self.graph = Graph()
 
@@ -63,19 +63,19 @@ class Function(models.Model):
 
     def save(self, *args, **kwargs):
         super(Function, self).save(*args, **kwargs)
-        self.graph.function = self
+        self.graph.function = self  # TODO: move to graph
         self.graph.save()
         self.executable.save()
 
     def __unicode__(self):
-        return self.exe_name + ":" + self.func_name
+        return self.exe_name + u": " + self.func_name
 
 
 class String(models.Model):
     value = models.TextField(unique=True)
 
     def initialize(self, value):
-        self.value = value
+        self.value = smart_text(value)
 
     def get_data(self):
         return self.value
@@ -92,7 +92,7 @@ class Call(models.Model):
                             unique=True)
 
     def initialize(self, name):
-        self.name = name
+        self.name = smart_text(name)
 
     def get_data(self):
         return self.name
@@ -117,19 +117,12 @@ class Graph(models.Model):
         self.num_of_blocks = len(block_bounds)
         self.num_of_edges = len(edges)
         self.function = function
+
+        self.block_bounds = block_bounds
         self.nx_graph = self._get_nx_graph()
         self.distances = self._get_distances()
-        self.blocks = []
-        for block_id in range(self.num_of_blocks):
-            bounds = block_bounds[block_id]
-            if block_id in self.distances:  # reachable from root
-                distance = self.distances[block_id]
-            else:
-                distance = -1
-            block = Block()
-            block.initialize(immediates, strings, itypes, calls, bounds,
-                             distance, self)
-            self.blocks.append(block)
+        self.blocks = self._get_blocks(immediates, strings, itypes, calls,
+                                       block_bounds)
         self._attach_data_to_nx_graph()
 
     def get_data(self):
@@ -154,6 +147,20 @@ class Graph(models.Model):
     def _get_distances(self):
         return nx.single_source_dijkstra_path_length(self.nx_graph, 0)
 
+    def _get_blocks(self, immediates, strings, itypes, calls, block_bounds):
+        blocks = []
+        for block_id in range(self.num_of_blocks):
+            bounds = block_bounds[block_id]
+            if block_id in self.distances:  # reachable from root
+                distance = self.distances[block_id]
+            else:
+                distance = -1
+            block = Block()
+            block.initialize(immediates, strings, itypes, calls, bounds,
+                             distance, self)
+            blocks.append(block)
+        return blocks
+
     def _attach_data_to_nx_graph(self):
 
         if self.pk:
@@ -171,7 +178,7 @@ class Graph(models.Model):
             block.save()
 
     def __unicode__(self):
-        return str(self.id)
+        return unicode(self.function) + u"'s graph"
 
 
 class Block(models.Model):
@@ -250,7 +257,8 @@ class Block(models.Model):
             Instruction.objects.bulk_create(chunk)
         """
     def __unicode__(self):
-        return unicode(self.graph.function)
+        return (unicode(self.graph) + u"block, dist from root:" +
+                unicode(self.dist_from_root))
 
 
 class Instruction(models.Model):
@@ -308,15 +316,15 @@ class Instruction(models.Model):
         super(Instruction, self).save(*args, **kwargs)
 
     def __unicode__(self):
-        res = ("block: " + unicode(self.block) +
-               ", offset: " + str(self.offset) +
-               ", itype: " + str(self.itype))
+        res = (u"block: " + unicode(self.block) +
+               u", offset: " + unicode(self.offset) +
+               u", itype: " + unicode(self.itype))
         if self.immediate is not None:
-            res += ", immediate: " + str(self.immediate)
+            res += u", immediate: " + unicode(self.immediate)
         if self.string is not None:
-            res += ", string: " + unicode(self.string)
+            res += u", string: " + unicode(self.string)
         if self.call is not None:
-            res += ", call: " + unicode(self.call)
+            res += u", call: " + unicode(self.call)
         return res
 
 
@@ -331,7 +339,7 @@ class Executable(models.Model):
     def initialize(self, signature, function, exe_name):
         self.signature = signature
         self.function = function
-        self.exe_name = exe_name
+        self.exe_name = smart_text(exe_name)
 
     def get_data(self):
         pass
@@ -351,7 +359,7 @@ class Executable(models.Model):
             self.functions.add(self.function)
 
     def __unicode__(self):
-        return "signature: " + self.signature
+        return self.exe_name
 
 
 class Description(models.Model):
@@ -363,7 +371,7 @@ class Description(models.Model):
 
     def initialize(self, function, data, user):
         self.function = function
-        self.data = data
+        self.data = smart_text(data)
         self.user = user
 
     def get_data(self):

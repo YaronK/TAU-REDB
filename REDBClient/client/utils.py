@@ -106,7 +106,8 @@ class Post:
             return "HTTP Error: " + str(response.status_code)
 
     def add_data(self, key, deserialized_value):
-        self.data[key] = json.dumps(deserialized_value)
+        self.data[key] = json.dumps(deserialized_value,
+                                    encoding='ISO-8859-1')
 
 
 #==============================================================================
