@@ -30,8 +30,9 @@ extern set_t clique_find_single(graph_t *g,int min_weight,int max_weight,
 				boolean maximal, clique_options *opts);
 
 extern clique_options * clique_options_new_redb(int *(*reorder_function)(graph_t *, boolean));
+int* get_max_clique_redb(graph_t *g, clique_options *opts);
 
-extern void clique_options_free_redb(clique_options * opts);
+extern void free_redb(void* p);
 
 /* Alternate spelling (let's be a little forgiving): */
 #define cliquer_options clique_options
