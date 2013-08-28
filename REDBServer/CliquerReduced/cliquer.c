@@ -93,23 +93,40 @@ clique_options * clique_options_new_redb(int *(*reorder_function)(graph_t *, boo
 	return opts;
 }
 
-void clique_options_free_redb(clique_options * opts)
-{
-	free(opts);
-	return;
+extern void free_redb(void* p){
+	free(p);
 }
 
-extern void set_print_redb(set_t s) {
-	set_print(s);
-	return;
-}
+int* get_max_clique_redb(graph_t *g, clique_options *opts){
+	
 
-extern void set_free_redb(set_t s) {
+	set_t s;
+	int setSize;
+	int* clique;
+	int i, node;
+
+	ASSERT((sizeof(setelement)*8)==ELEMENTSIZE);
+	ASSERT(g!=NULL);
+
+	s=clique_find_single(g,0,0,FALSE,opts);
+	if (s==NULL) {
+		/* Search was aborted. */
+		return NULL;
+	}
+	
+	setSize = set_size(s);
+
+	clique = (int*)calloc(setSize + 1, sizeof(int));
+	clique[0] = setSize;
+
+	i = 1;
+	node = -1;
+	while ((node=set_return_next(s,node))>=0) {
+		clique[i++] = node;
+	}
+
 	set_free(s);
-}
-
-extern void string_free_redb(char* s){
-	free(s);
+	return clique;
 }
 
 /***** Weighted clique searches *****/
@@ -616,54 +633,6 @@ int clique_max_weight(graph_t *g,clique_options *opts) {
 	weight=graph_subgraph_weight(g,s);
 	set_free(s);
 	return weight;
-}
-
-
-int clique_max_size(graph_t *g,clique_options *opts) {
-	set_t s;
-	int size;
-
-	ASSERT((sizeof(setelement)*8)==ELEMENTSIZE);
-	ASSERT(g!=NULL);
-
-	s=clique_find_single(g,0,0,FALSE,opts);
-	if (s==NULL) {
-		/* Search was aborted. */
-		return 0;
-	}
-	size=set_size(s);
-	set_free(s);
-	return size;
-}
-
-char* get_max_clique(graph_t *g,clique_options *opts){
-	set_t s;
-	int size;
-	char* clique;
-	int i;
-	ASSERT((sizeof(setelement)*8)==ELEMENTSIZE);
-	ASSERT(g!=NULL);
-
-	s=clique_find_single(g,0,0,FALSE,opts);
-	if (s==NULL) {
-		/* Search was aborted. */
-		return NULL;
-	}
-	size=set_size(s);
-	clique = (char*)calloc(300,sizeof(char));
-	if (size == 0){
-		sprintf(clique, "[]");
-	}else{
-		sprintf(clique, "[");
-		for (i=0; i<SET_MAX_SIZE(s); i++){
-			if (SET_CONTAINS(s,i)){
-				sprintf(clique+strlen(clique), "%d,", i);
-			}
-		}
-		sprintf(clique+strlen(clique)-1, "]");
-	}
-	set_free(s);
-	return clique;
 }
 
 /*
