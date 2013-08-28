@@ -189,7 +189,7 @@ void graph_print(graph_t *g) {
 	boolean weighted;
 	
 	ASSERT((sizeof(setelement)*8)==ELEMENTSIZE);
-	__debugbreak();
+
 	if (g==NULL) {
 		printf("   WARNING: Graph pointer is NULL!\n");
 		return;

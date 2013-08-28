@@ -76,10 +76,7 @@ class CliquerGraph:
         """
         return self.lib.graph_set_vertex_weight_redb(self.g, i, w)
 
-    def __str__(self):
-        return str(self.lib.graph_print(self.g))
-
-    def clique_max_size(self, reorder=0):
+    def get_maximum_clique(self, reorder=0):
         """
         reorder =
             0(no reordering)/"reorder_by_greedy_coloring"/"reorder_by_degree"
@@ -92,45 +89,23 @@ class CliquerGraph:
             reorder = getattr(self.lib, reorder)
 
         opts = self.lib.clique_options_new_redb(reorder)
-        max_size = self.lib.clique_max_size(self.g, opts)
-        self.lib.clique_options_free_redb(opts)
-        return max_size
+        int_ptr = self.lib.get_max_clique_redb(self.g, opts)
 
-    def clique_max_weight(self, reorder=0):
-        if reorder not in [0, "reorder_by_greedy_coloring",
-                           "reorder_by_degree"]:
-            return -1
-        if reorder:
-            reorder = getattr(self.lib, reorder)
+        int_ptr = ctypes.cast(int_ptr, ctypes.POINTER(ctypes.c_int))
 
-        opts = self.lib.clique_options_new_redb(reorder)
-        max_weight = self.lib.clique_max_weight(self.g, opts)
-        self.lib.clique_options_free_redb(opts)
-        return max_weight
+        clique_size = int_ptr[0]
 
-    def get_max_clique(self, reorder=0):
-        """
-        reorder =
-            0(no reordering)/"reorder_by_greedy_coloring"/"reorder_by_degree"
-        returns: max_size on success, -1 on failure
-        """
-        if reorder not in [0, "reorder_by_greedy_coloring",
-                           "reorder_by_degree"]:
-            return -1
-        if reorder:
-            reorder = getattr(self.lib, reorder)
+        clique = [int_ptr[i] for i in range(1, 1 + clique_size)]
 
-        opts = self.lib.clique_options_new_redb(reorder)
-        clique = self.lib.get_max_clique(self.g, opts)
-        self.lib.clique_options_free_redb(opts)
-        c_s = ctypes.c_char_p(clique)
-        return json.loads(c_s.value)
+        self.lib.free_redb(int_ptr)
+        self.lib.free_redb(opts)
+        return clique
 
     def free(self):
         self.lib.graph_free(self.g)
 
-    def string_free_redb(self, string):
-        self.lib.string_free_redb(string)
+    def __str__(self):
+        return str(self.lib.graph_print(self.g))
 
 
 ##############################################################################
