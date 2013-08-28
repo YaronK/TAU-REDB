@@ -25,7 +25,8 @@ class Actions(object):
         utils._backup_idb_file()
         utils.Configuration.assert_config_file_validity()
         self._collect_string_addresses()
-
+        self.cur_history_item_index = 0
+        self.first_undo = 1
         print "*** REDB Plugin loaded. ***"
         idaapi.hide_wait_box()
 
@@ -71,6 +72,22 @@ class Actions(object):
     def _show_history_description(self, index):
         return self.cur_func.show_history_item_by_index(index)
 
+    def _undo(self):
+        self.cur_history_item_index -= 1
+        if self.first_undo == 1:
+            self._show_history_description(self.cur_history_item_index)
+            self.first_undo = 0
+        else:
+            selected_description = \
+                self.cur_func._history_buffer[self.cur_history_item_index]
+            selected_description['desc'].show()
+
+    def _redo(self):
+        self.cur_history_item_index += 1
+        selected_description = \
+             self.cur_func._history_buffer[self.cur_history_item_index]
+        selected_description['desc'].show()
+
 
 class HotkeyActions(Actions):
     def __init__(self):
@@ -91,6 +108,10 @@ class HotkeyActions(Actions):
             self._hotkey_show_history_desc()
         elif action_name == "Settings":
             self._hotkey_settings()
+        elif action_name == "Undo":
+            self._hotkey_undo()
+        elif action_name == "Redo":
+            self._hotkey_redo()
 
     def _hotkey_information(self, hotkeys):
         help_string = "\r\nREDB HotkeyActions:\r\n"
@@ -128,6 +149,10 @@ class HotkeyActions(Actions):
              self._get_desc_for_show_index(self.cur_func._public_descriptions,
                                " public descriptions are available for show")
             self._show_public_description(index)
+            self.cur_history_item_index = len(self.cur_func._history_buffer)
+            if self.first_undo == 0:
+                self.first_undo = 1
+                self.cur_func._history_buffer.pop()
         except:
             print "Error: illegal index value"
 
@@ -139,6 +164,10 @@ class HotkeyActions(Actions):
              self._get_desc_for_show_index(self.cur_func._public_descriptions,
                                " history items are available for show")
             self._show_history_description(index)
+            self.cur_history_item_index = len(self.cur_func._history_buffer)
+            if self.first_undo == 0:
+                self.first_undo = 1
+                self.cur_func._history_buffer.pop()
         except:
             print "Error: illegal index value"
 
@@ -152,6 +181,21 @@ class HotkeyActions(Actions):
                 m.update(value)
                 value = m.hexdigest()
             utils.Configuration.set_option(opt, value)
+
+    def _hotkey_undo(self):
+        if self.cur_history_item_index == 0:
+            print "Can't Undo"
+        else:
+            self._undo()
+            print "Undo"
+
+    def _hotkey_redo(self):
+        last_history_item_index = len(self.cur_func._history_buffer) - 1
+        if self.cur_history_item_index == last_history_item_index:
+            print "Can't Redo"
+        else:
+            self._redo()
+            print "Redo"
 
     def term(self):
         # TODO: term neccessary?
@@ -189,8 +233,6 @@ class GuiActions(HotkeyActions):
             self.gui_menu.add_descriptions(desc_rows)
             history_rows = self._generate_history_rows()
             self.gui_menu.add_history(history_rows)
-            self.cur_history_item_index = 0
-            self.first_undo = 1
         self.gui_menu.show()
 
     def _on_mainWindow_destroy(self, _):
@@ -237,9 +279,7 @@ class GuiActions(HotkeyActions):
         selected_description = \
              self.cur_func._history_buffer[self.cur_history_item_index]
         selected_description['desc'].show()
-        self.gui_menu.history_buffer.clear()
-        history_rows = self._generate_history_rows()
-        self.gui_menu.add_history(history_rows)
+        self._handle_history_window()
         self.gui_menu.set_status_bar("Redo")
         last_history_item_index = len(self.cur_func._history_buffer) - 1
         if self.cur_history_item_index == last_history_item_index:
@@ -247,7 +287,7 @@ class GuiActions(HotkeyActions):
         if self.gui_menu.undo_button.get_sensitive() == False:
             self.gui_menu.undo_button.set_sensitive(True)
 
-    def _on_Embed(self, _):
+    def _on_Embed(self, widget, arg2=None, arg3=None):
         # TODO: check we haven't changed function
         self._handle_undo_redo_buttons()
         index = self.gui_menu.get_selected_description_index()
@@ -256,7 +296,7 @@ class GuiActions(HotkeyActions):
         self.cur_history_item_index = len(self.cur_func._history_buffer)
         self.gui_menu.set_status_bar(result)
 
-    def _on_Embed_history(self, _):
+    def _on_Embed_history(self, widget, arg2=None, arg3=None):
         self._handle_undo_redo_buttons()
         index = self.gui_menu.get_selected_history_index()
         result = self._show_history_description(index)

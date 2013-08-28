@@ -5,15 +5,15 @@ from heuristics import DictionarySimilarity, GraphSimilarity
 import json
 from redb_app.utils import _decode_dict
 
-MAX_NUM_INSNS_DEVIATION = 0.15
-MAX_NUM_BLOCKS_DEVIATION = 0.15
-MAX_NUM_EDGES_DEVIATION = 0.15
-MAX_NUM_STRINGS_DEVIATION = 0.15
-MAX_NUM_CALLS_DEVIATION = 0.15
-MAX_VARS_SIZE_DEVIATION = 0.15
-MAX_ARGS_SIZE_DEVIATION = 0.50
-MAX_REGS_SIZE_DEVIATION = 0.50
-MAX_NUM_IMMS_DEVIATION = 0.15
+MAX_NUM_INSNS_DEVIATION = 0.2
+MAX_NUM_BLOCKS_DEVIATION = 0.2
+MAX_NUM_EDGES_DEVIATION = 0.2
+MAX_NUM_STRINGS_DEVIATION = 0.2
+MAX_NUM_CALLS_DEVIATION = 0.2
+MAX_VARS_SIZE_DEVIATION = 0.3
+MAX_ARGS_SIZE_DEVIATION = 0.3
+MAX_REGS_SIZE_DEVIATION = 0.3
+MAX_NUM_IMMS_DEVIATION = 0.2
 
 ATTRIBUTES = ["func_signature",
               "func_name",
@@ -110,49 +110,49 @@ class RequestAction:
         func_set = Function.objects
 
         insns_num = func.num_of_insns
-        func_set.filter(num_of_insns__range=  # @IgnorePep8
+        func_set = func_set.filter(num_of_insns__range=  # @IgnorePep8
                         (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
                          insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
 
         num_of_blocks = func.graph.num_of_blocks
-        func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
+        func_set = func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
                             (num_of_blocks * (1 - MAX_NUM_BLOCKS_DEVIATION),
                              num_of_blocks * (1 + MAX_NUM_BLOCKS_DEVIATION)))
 
         num_of_edges = func.graph.num_of_edges
-        func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
+        func_set = func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
                             (num_of_edges * (1 - MAX_NUM_EDGES_DEVIATION),
                              num_of_edges * (1 + MAX_NUM_EDGES_DEVIATION)))
 
-        num_of_strings = func.num_of_strings
-        func_set.filter(num_of_strings__range=  # @IgnorePep8
-                            (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
-                            num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
+        vars_size = func.vars_size
+        func_set = func_set.filter(vars_size__range=  # @IgnorePep8
+                            (vars_size * (1 - MAX_VARS_SIZE_DEVIATION),
+                            vars_size * (1 + MAX_VARS_SIZE_DEVIATION)))
+
+        args_size = func.args_size
+        func_set = func_set.filter(args_size__range=  # @IgnorePep8
+                            (args_size * (1 - MAX_ARGS_SIZE_DEVIATION),
+                            args_size * (1 + MAX_ARGS_SIZE_DEVIATION)))
+
+        regs_size = func.regs_size
+        func_set = func_set.filter(regs_size__range=  # @IgnorePep8
+                            (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
+                            regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
 
         num_of_calls = func.num_of_calls
-        func_set.filter(num_of_calls__range=  # @IgnorePep8
+        func_set = func_set.filter(num_of_calls__range=  # @IgnorePep8
                             (num_of_calls *
                              (1 - MAX_NUM_CALLS_DEVIATION),
                              num_of_calls *
                              (1 + MAX_NUM_CALLS_DEVIATION)))
 
-        vars_size = func.vars_size
-        func_set.filter(vars_size__range=  # @IgnorePep8
-                            (vars_size * (1 - MAX_VARS_SIZE_DEVIATION),
-                            vars_size * (1 + MAX_VARS_SIZE_DEVIATION)))
-
-        args_size = func.args_size
-        func_set.filter(args_size__range=  # @IgnorePep8
-                            (args_size * (1 - MAX_ARGS_SIZE_DEVIATION),
-                            args_size * (1 + MAX_ARGS_SIZE_DEVIATION)))
-
-        regs_size = func.regs_size
-        func_set.filter(regs_size__range=  # @IgnorePep8
-                            (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
-                            regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
+        num_of_strings = func.num_of_strings
+        func_set = func_set.filter(num_of_strings__range=  # @IgnorePep8
+                            (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
+                            num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
 
         num_of_imms = func.num_of_imms
-        func_set.filter(num_of_imms__range=  # @IgnorePep8
+        func_set = func_set.filter(num_of_imms__range=  # @IgnorePep8
                             (num_of_imms * (1 - MAX_NUM_IMMS_DEVIATION),
                             num_of_imms * (1 + MAX_NUM_IMMS_DEVIATION)))
 
@@ -252,30 +252,18 @@ def generate_function(attributes):
 
 
 def extract_strings_list(function):
-    block_set = function.graph_set.all()[0].block_set.all()
-    strings = []
-    for block in block_set:
-        strings.append(instruction.string.value for instruction in
-                       block.instruction_set.exclude(string=None))
-    return strings
+    instruction_set = function.instruction_set.exclude(string=None)
+    return [instruction.string.value for instruction in instruction_set]
 
 
 def extract_calls_list(function):
-    block_set = function.graph_set.all()[0].block_set.all()
-    calls = []
-    for block in block_set:
-        calls.append(instruction.call.name for instruction in
-                     block.instruction_set.exclude(call=None))
-    return calls
+    instruction_set = function.instruction_set.exclude(call=None)
+    return [instruction.call.name for instruction in instruction_set]
 
 
 def extract_itypes_list(function):
-    block_set = function.graph_set.all()[0].block_set.all()
-    itypes = []
-    for block in block_set:
-        for instruction in block.instruction_set.all():
-            itypes.append(instruction.itype)
-    return itypes
+    instruction_set = function.instruction_set.all()
+    return [instruction.itype for instruction in instruction_set]
 
 
 def dict_filter(func_set, list_extraction_function, ref_dict):

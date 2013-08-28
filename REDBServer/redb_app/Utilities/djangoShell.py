@@ -1,7 +1,7 @@
 def django_shell():
     def del_db():
         # TODO: models require updating
-        for model in [Function, String, Call, Block, Instruction,
+        for model in [Function, String, Call, Instruction,
                       Executable, Graph, Description]:
             objects = model.objects.all()
             print str(model), " ", str(objects.count())
@@ -15,8 +15,8 @@ def django_shell():
     from django.core import management;
     import server.settings as settings;
     management.setup_environ(settings)
-    from redb_app.models import Function, String, Call, Block, Instruction, Executable, Graph, Description
-    #import readline
+    from redb_app.models import Function, String, Call, Instruction, Executable, Graph, Description
+    # import readline
     import code
     vars = globals().copy()
     vars.update(locals())

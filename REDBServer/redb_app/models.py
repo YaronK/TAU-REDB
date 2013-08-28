@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 import networkx as nx
 import json
 from django.utils.encoding import smart_text
+import utils
 
 MAX_EXE_NAME_LENGTH = 255
 EXE_DIGEST_SIZE_IN_BYTES = 32
@@ -50,11 +51,30 @@ class Function(models.Model):
         self.func_name = smart_text(func_name)
         self.exe_name = smart_text(exe_name)
 
+        self.instructions = []
+
+        for offset in range(len(itypes)):
+            str_offset = str(offset)
+
+            immediate = None
+            if str_offset in immediates:
+                immediate = immediates[str_offset]
+
+            string = None
+            if str_offset in strings:
+                string = strings[str_offset]
+
+            call = None
+            if str_offset in calls:
+                call = calls[str_offset]
+
+            instruction = Instruction()
+            instruction.initialize(self, itypes[offset], offset, immediate,
+                                   string, call)
+            self.instructions.append(instruction)
+
         self.graph = Graph()
-
-        self.graph.initialize(immediates, strings, itypes, calls, block_bounds,
-                              edges, self)
-
+        self.graph.initialize(block_bounds, edges, self)
         self.executable = Executable()
         self.executable.initialize(exe_signature, self, exe_name)
 
@@ -64,8 +84,25 @@ class Function(models.Model):
     def save(self, *args, **kwargs):
         super(Function, self).save(*args, **kwargs)
         self.graph.function = self  # TODO: move to graph
+        self.graph.distances = json.dumps(self.graph.distances,
+                                          encoding='ISO-8859-1')
         self.graph.save()
         self.executable.save()
+
+        for instruction in self.instructions:
+            instruction.function = self
+            if instruction.string is not None:
+                instruction.string, _ = String.objects.\
+                    get_or_create(value=instruction.string.value)
+
+            if instruction.call is not None:
+                instruction.call, _ = \
+                    Call.objects.get_or_create(name=instruction.call.name)
+
+        chunks = [self.instructions[x:x + 100]
+                  for x in xrange(0, len(self.instructions), 100)]
+        for chunk in chunks:
+            Instruction.objects.bulk_create(chunk)
 
     def __unicode__(self):
         return self.exe_name + u": " + self.func_name
@@ -79,9 +116,6 @@ class String(models.Model):
 
     def get_data(self):
         return self.value
-
-    def save(self, *args, **kwargs):
-        super(String, self).save(*args, **kwargs)
 
     def __unicode__(self):
         return self.value
@@ -97,9 +131,6 @@ class Call(models.Model):
     def get_data(self):
         return self.name
 
-    def save(self, *args, **kwargs):
-        super(Call, self).save(*args, **kwargs)
-
     def __unicode__(self):
         return self.name
 
@@ -108,10 +139,11 @@ class Graph(models.Model):
     edges = models.TextField()
     num_of_blocks = models.PositiveIntegerField()
     num_of_edges = models.PositiveIntegerField()
+    block_bounds = models.TextField()
+    distances = models.TextField()
     function = models.ForeignKey(Function)
 
-    def initialize(self, immediates, strings, itypes, calls, block_bounds,
-                 edges, function):
+    def initialize(self, block_bounds, edges, function):
 
         self.edges = edges
         self.num_of_blocks = len(block_bounds)
@@ -121,8 +153,6 @@ class Graph(models.Model):
         self.block_bounds = block_bounds
         self.nx_graph = self._get_nx_graph()
         self.distances = self._get_distances()
-        self.blocks = self._get_blocks(immediates, strings, itypes, calls,
-                                       block_bounds)
         self._attach_data_to_nx_graph()
 
     def get_data(self):
@@ -147,133 +177,70 @@ class Graph(models.Model):
     def _get_distances(self):
         return nx.single_source_dijkstra_path_length(self.nx_graph, 0)
 
-    def _get_blocks(self, immediates, strings, itypes, calls, block_bounds):
+    def _get_blocks(self):
+        if self.pk:
+            instructions = self.function.instruction_set.all()
+            self.block_bounds = json.loads(self.block_bounds)
+            self.distances = json.loads(self.distances,
+                                        object_hook=utils._decode_dict)
+        else:
+            instructions = self.function.instructions
+
+        none_filter = lambda x: x is not None
+        ins_data = [instruction.get_data() for instruction in instructions]
         blocks = []
         for block_id in range(self.num_of_blocks):
-            bounds = block_bounds[block_id]
+            data = {}
+            bounds = self.block_bounds[block_id]
+            start_offset = bounds[0]
+            end_offset = bounds[1] + 1
+            ins_data_in_block = ins_data[start_offset:end_offset]
+            if self.pk:
+                block_id = str(block_id)
             if block_id in self.distances:  # reachable from root
-                distance = self.distances[block_id]
+                data["dist_from_root"] = self.distances[block_id]
             else:
-                distance = -1
-            block = Block()
-            block.initialize(immediates, strings, itypes, calls, bounds,
-                             distance, self)
-            blocks.append(block)
+                data["dist_from_root"] = -1
+
+            data["itypes"] = [ins["itype"] for ins in ins_data_in_block]
+
+            string_list = filter(none_filter,
+                                 [ins["string"] for ins in ins_data_in_block])
+            data["strings"] = ''.join(string_list)
+
+            calls_list = filter(none_filter,
+                                [ins["call"] for ins in ins_data_in_block])
+            data["calls"] = ''.join(calls_list)
+
+            data["imms"] = filter(none_filter,
+                                  [ins["imm"] for ins in ins_data_in_block])
+
+            blocks.append(data)
+
         return blocks
 
     def _attach_data_to_nx_graph(self):
-
-        if self.pk:
-            blocks = self.block_set.all()
-        else:
-            blocks = self.blocks
+        blocks = self._get_blocks()
         for i in range(self.num_of_blocks):
-            self.nx_graph.node[i]['data'] = blocks[i].get_data()
-
-    def save(self, *args, **kwargs):
-        super(Graph, self).save(*args, **kwargs)
-
-        for block in self.blocks:
-            block.graph = self
-            block.save()
+            self.nx_graph.node[i]['data'] = blocks[i]
 
     def __unicode__(self):
         return unicode(self.function) + u"'s graph"
 
 
-class Block(models.Model):
-    graph = models.ForeignKey(Graph)
-    dist_from_root = models.PositiveIntegerField()
-
-    def initialize(self, immediates, strings, itypes, calls, bounds, distance,
-                 graph):
-        self.graph = graph
-        self.dist_from_root = distance
-
-        start_offset = bounds[0]
-        end_offset = bounds[1] + 1
-
-        self.instructions = []
-
-        for offset in range(start_offset, end_offset):
-            str_offset = str(offset)
-
-            immediate = None
-            if str_offset in immediates:
-                immediate = immediates[str_offset]
-
-            string = None
-            if str_offset in strings:
-                string = strings[str_offset]
-
-            call = None
-            if str_offset in calls:
-                call = calls[str_offset]
-
-            instruction = Instruction()
-            instruction.initialize(self, itypes[offset], offset, immediate,
-                                   string, call)
-            self.instructions.append(instruction)
-
-    def get_data(self):
-
-        if self.pk:  # extracting data from DB
-            instructions = self.instruction_set.all()
-        else:
-            instructions = self.instructions
-
-        none_filter = lambda x: x is not None
-
-        ins_data = [instruction.get_data() for instruction in instructions]
-
-        tmp_data = {}
-
-        tmp_data["itypes"] = [ins["itype"] for ins in ins_data]
-
-        string_list = filter(none_filter,
-                             [ins["string"] for ins in ins_data])
-        tmp_data["strings"] = ''.join(string_list)
-
-        calls_list = filter(none_filter,
-                            [ins["call"] for ins in ins_data])
-        tmp_data["calls"] = ''.join(calls_list)
-
-        tmp_data["imms"] = filter(none_filter,
-                                  [ins["imm"] for ins in ins_data])
-
-        tmp_data["dist_from_root"] = self.dist_from_root
-
-        return tmp_data
-
-    def save(self, *args, **kwargs):
-        super(Block, self).save(*args, **kwargs)
-        for instruction in self.instructions:
-            instruction.block = self
-            instruction.save()
-        """
-        chunks = [self.instructions[x:x + 100]
-                  for x in xrange(0, len(self.instructions), 100)]
-        for chunk in chunks:
-            Instruction.objects.bulk_create(chunk)
-        """
-    def __unicode__(self):
-        return (unicode(self.graph) + u"block, dist from root:" +
-                unicode(self.dist_from_root))
-
-
 class Instruction(models.Model):
-    block = models.ForeignKey(Block)
+    function = models.ForeignKey(Function)
     itype = models.PositiveSmallIntegerField()
     offset = models.PositiveIntegerField()
     immediate = models.PositiveIntegerField(blank=True, null=True)
     string = models.ForeignKey(to=String, blank=True, null=True)
     call = models.ForeignKey(to=Call, blank=True, null=True)
 
-    def initialize(self, block, itype, offset, immediate=None, string=None,
+    def initialize(self, function, itype, offset, immediate=None, string=None,
                    call=None):
         self.itype = itype
         self.offset = offset
-        self.block = block
+        self.function = function
         self.immediate = immediate
         if string is not None:
             self.string = String()
@@ -300,23 +267,8 @@ class Instruction(models.Model):
         tmp_data["imm"] = self.immediate
         return tmp_data
 
-    def save(self, *args, **kwargs):
-        if self.string is not None:
-            try:
-                self.string = String.objects.get(value=self.string.value)
-            except String.DoesNotExist:
-                self.string.save()
-                self.string = self.string
-        if self.call is not None:
-            try:
-                self.call = Call.objects.get(name=self.call.name)
-            except Call.DoesNotExist:
-                self.call.save()
-                self.call = self.call
-        super(Instruction, self).save(*args, **kwargs)
-
     def __unicode__(self):
-        res = (u"block: " + unicode(self.block) +
+        res = (u"function: " + unicode(self.function) +
                u", offset: " + unicode(self.offset) +
                u", itype: " + unicode(self.itype))
         if self.immediate is not None:
@@ -359,7 +311,7 @@ class Executable(models.Model):
             self.functions.add(self.function)
 
     def __unicode__(self):
-        return self.exe_name
+        return self.names
 
 
 class Description(models.Model):

@@ -38,6 +38,8 @@ def compare_exes_extract_to_excel(path, exe_name1, exe_name2):
         exe1_compared_funcs.append(exe1_funcs.get(func_name=n))
         exe2_compared_funcs.append(exe2_funcs.get(func_name=n))
 
+    exe1_compared_funcs = exe1_compared_funcs[0:100]
+    exe2_compared_funcs = exe2_compared_funcs[0:100]
     i = 1
     for func1 in exe1_compared_funcs:
         j = 1
@@ -66,6 +68,6 @@ def compare_exes_extract_to_excel(path, exe_name1, exe_name2):
     plt.xticks(rotation=90)
     plt.rcParams.update({'font.size': 4})
     # fig.tight_layout()
-    # plt.savefig("C:\\Users\\user\\Desktop\\test.pdf", bbox_inches='tight',dpi=100)
+    plt.savefig("C:\\Users\\user\\Desktop\\test.pdf", bbox_inches='tight', dpi=100)
     plt.show()
     book.save(path)

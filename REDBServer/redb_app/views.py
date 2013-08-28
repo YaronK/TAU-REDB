@@ -23,7 +23,7 @@ from django.http.response import HttpResponseBadRequest
 @require_POST
 @logged_in_or_basicauth()
 def general_handler(request):
-    #try:
+    # try:
     query = actions.Query(request)
     query_type = query.check_validity()
 
@@ -33,7 +33,7 @@ def general_handler(request):
         return request_handler(request)
     elif query_type == "submit":
         return submit_handler(request)
-    #except Exception as e:
+    # except Exception as e:
     #    print e
     #    return HttpResponseBadRequest()
 

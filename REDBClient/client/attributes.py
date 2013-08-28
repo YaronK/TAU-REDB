@@ -328,8 +328,9 @@ class graph(Attribute):
             else:  # last block
                 end_index = len(self._func_items) - 1
             self.block_bounds.append((start_index, end_index))
-
             for basic_block_neighbour in basic_block.succs():
+                if basic_block_neighbour.startEA not in self._func_items:
+                    continue
                 self.edges.append((basic_block.id, basic_block_neighbour.id))
 
         self.dist_from_root = \
