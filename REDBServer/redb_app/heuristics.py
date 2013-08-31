@@ -9,8 +9,9 @@ import networkx.algorithms as graph_alg
 from utils import CliquerGraph
 import copy
 
+
 MIN_HEIGHT_RATIO = 0.2
-MAX_GRAPH_COMP_SIZE = 120
+MAX_GRAPH_COMP_SIZE = 20000
 BLOCK_SIMILARITY_THRESHOLD = 0.85
 
 ITYPES_WEIGHT = 0.7
@@ -137,14 +138,19 @@ class GraphSimilarity(Heuristic):
         self.graph_height_2 = \
             max(nx.single_source_dijkstra_path_length(self.graph_2,
                                                       0).values())
+<<<<<<< HEAD
         if (self.graph_1.number_of_nodes() *
             self.graph_2.number_of_nodes() > 2500):
             self.BLOCK_SIMILARITY_THRESHOLD = 0.95
+=======
+        if self.graph_1.number_of_nodes() * self.graph_2.number_of_nodes() > 2500:
+            self.BLOCK_SIMILARITY_THRESHOLD = 0.9
+>>>>>>> 5b81da23a3f2a73a17afad817fa97fd5903fd4af
         else:
             self.BLOCK_SIMILARITY_THRESHOLD = 0.7
 
     def ratio(self):
-
+        """
         if self.graph_1.edges() == self.graph_2.edges():
             if (self.graph_1.nodes(data='true') ==
                 self.graph_2.nodes(data='true')):
@@ -152,7 +158,7 @@ class GraphSimilarity(Heuristic):
             elif (self.graph_1.number_of_nodes() ==
                   self.graph_2.number_of_nodes()):
                 return self.avg_block_sim_given_equal_edges()
-
+        """
         return self.compare_graphs()
 
     def avg_block_sim_given_equal_edges(self):
@@ -197,6 +203,21 @@ class GraphSimilarity(Heuristic):
         """
         return True
 
+    def merge_all_blocks(self, graph):
+        merged_block = {}
+        merged_block["itypes"] = []
+        merged_block["calls"] = ""
+        merged_block["strings"] = ""
+        merged_block["imms"] = []
+        for block_num in range(graph.number_of_nodes()):
+            block_data = graph.node[block_num]['data']
+            merged_block["itypes"].append(block_data["itypes"])
+            merged_block["calls"] += block_data["calls"]
+            merged_block["strings"] += block_data["strings"]
+            merged_block["imms"].append(block_data["imms"])
+        merged_block["dist_from_root"] = 0
+        return merged_block
+
     def get_similar_block_pairs(self):
         pairs = []
         for (a, b, w) in self.block_similarities:
@@ -210,7 +231,6 @@ class GraphSimilarity(Heuristic):
         for node_index in range(num_of_nodes):
             w = nodes[node_index][2]
             graph.set_vertex_weight(node_index, int(w * 1000))
-
         graph_1_edges = self.graph_1.edges()
         graph_2_edges = self.graph_2.edges()
         for x in range(num_of_nodes):
@@ -276,11 +296,27 @@ class GraphSimilarity(Heuristic):
             return 0.0
         """
         filtered_pairs = self.compared_block_pairs
-        while self.find_more_cliques():
+        continue_to_next_iteration = 1
+        while self.find_more_cliques() and continue_to_next_iteration:
             if len(filtered_pairs) == 0:
                 break
             self.calc_association_graph(filtered_pairs)
+<<<<<<< HEAD
             clique = self.association_graph.get_max_clique()
+=======
+
+            if self.association_graph.edge_count() >= MAX_GRAPH_COMP_SIZE:
+                merged_block_graph1 = self.merge_all_blocks(self.graph_1)
+                merged_block_graph2 = self.merge_all_blocks(self.graph_2)
+                self.association_graph.free()
+                return BlockSimilarity(merged_block_graph1,
+                                       merged_block_graph2,
+                                       self.graph_height_1,
+                                       self.graph_height_2).ratio()
+            print "in cliquer"
+            clique = self.association_graph.get_maximum_clique()
+            print "out cliquer"
+>>>>>>> 5b81da23a3f2a73a17afad817fa97fd5903fd4af
             weight = self.get_clique_weight(clique)
             self.size_of_last_clique_found = len(clique)
             self.total_weight += weight
@@ -288,6 +324,7 @@ class GraphSimilarity(Heuristic):
             self.num_of_cliques_found += 1
             filtered_pairs = self.filter_out_clique(clique)
             self.association_graph.free()
+            continue_to_next_iteration = 0
 
         res = self.total_weight / float(self.num_nodes_graph_1 +
                                    self.num_nodes_graph_2 - self.total_weight)

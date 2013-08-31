@@ -48,6 +48,7 @@ def _decode_dict(data):
 class CliquerGraph:
     DLL_DIR_PATH = os.path.dirname(__file__)
     DLL_FILE_PATH = os.path.join(DLL_DIR_PATH, 'CliquerReduced.dll')
+    # DLL_FILE_PATH = r"C:\Users\user\Documents\Visual Studio 2010\Projects\CliquerReduced\Debug\CliquerReduced.dll"
 
     def __init__(self, n):
         """ n : number of vertices """
@@ -103,6 +104,9 @@ class CliquerGraph:
 
     def free(self):
         self.lib.graph_free(self.g)
+
+    def edge_count(self):
+        return self.lib.graph_edge_count(self.g)
 
     def __str__(self):
         return str(self.lib.graph_print(self.g))
