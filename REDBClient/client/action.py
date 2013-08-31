@@ -1,8 +1,3 @@
-"""
-This module contains the callback functions and utility functions it uses.
-"""
-
-# related third party imports
 import idaapi
 import idautils
 import idc
@@ -48,8 +43,10 @@ class Actions(object):
         plugin, it is added the function list.
         Returns True iff currently pointing at a function.
         """
-        # TODO: add try/except, in case a function hasn't been chosen yet.
-        func = idaapi.get_func(idc.ScreenEA())
+        try:
+            func = idaapi.get_func(idc.ScreenEA())
+        except:
+            return False
         if isinstance(func, idaapi.func_t):
             if str(func.startEA) not in self.functions:
                 self._add_function(func.startEA)
@@ -87,6 +84,9 @@ class Actions(object):
         selected_description = \
              self.cur_func._history_buffer[self.cur_history_item_index]
         selected_description['desc'].show()
+
+    def term(self):
+        pass
 
 
 class HotkeyActions(Actions):
@@ -198,7 +198,7 @@ class HotkeyActions(Actions):
             print "Redo"
 
     def term(self):
-        # TODO: term neccessary?
+
         pass
 
 

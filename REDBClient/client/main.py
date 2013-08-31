@@ -47,8 +47,7 @@ class REDB (idaapi.plugin_t):
         self.actions.action(arg)
 
     def term(self):
-        # self.actions.term()  #TODO: check if neccessary
-        pass
+        self.actions.term()
 
 
 def PLUGIN_ENTRY():

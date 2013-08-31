@@ -83,7 +83,7 @@ class Function(models.Model):
 
     def save(self, *args, **kwargs):
         super(Function, self).save(*args, **kwargs)
-        self.graph.function = self  # TODO: move to graph
+        self.graph.function = self
         self.graph.distances = json.dumps(self.graph.distances,
                                           encoding='ISO-8859-1')
         self.graph.save()
