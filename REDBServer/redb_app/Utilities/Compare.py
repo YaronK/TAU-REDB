@@ -41,6 +41,7 @@ def compare_exes_extract_to_excel(path, exe_name1, exe_name2):
     exe1_compared_funcs = exe1_compared_funcs[0:100]
     exe2_compared_funcs = exe2_compared_funcs[0:100]
     i = 1
+
     for func1 in exe1_compared_funcs:
         j = 1
         sheet1.write(0, i, func1.func_name)
@@ -70,4 +71,19 @@ def compare_exes_extract_to_excel(path, exe_name1, exe_name2):
     # fig.tight_layout()
     plt.savefig("C:\\Users\\user\\Desktop\\test.pdf", bbox_inches='tight', dpi=100)
     plt.show()
+    book.save(path)
+
+
+def compare_all_and_extract_to_excel(path):
+    book = xlwt.Workbook(encoding="utf-8")
+    sheet1 = book.add_sheet("Sheet1")
+    funcs = Function.objects.all()
+    num_of_funcs = len(list(funcs))
+    for i in range(num_of_funcs):
+        func_name = list(funcs)[i].func_name
+        sheet1.write(0, i + 1, func_name)
+        sheet1.write(i + 1, 0, func_name)
+        for j in range(num_of_funcs):
+            res = generate_matching_grade(i + 1, j + 1)
+            sheet1.write(i + 1, j + 1, res)
     book.save(path)

@@ -3,6 +3,7 @@ EXPORTS
 	graph_new
 	graph_free
 	graph_print
+	graph_edge_count
 	
 	reorder_by_greedy_coloring
 	reorder_by_degree
