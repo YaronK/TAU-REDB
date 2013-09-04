@@ -99,17 +99,17 @@ def get_top_similars(num_of_tops, func, func_set):
     return heapq.nlargest(num_of_tops, similarity_res)
 
 
-def get_top_similars_for_all_funcs(func_set, num_of_tops, path):
+def get_top_similars_for_all_funcs(func_set_1, func_set_2, num_of_tops, path):
     f = open(path, 'w')
     delimeter_line = \
          "\n###############################################################\n"
-    for func in func_set:
-        top_similars = get_top_similars(num_of_tops, func, func_set)
+    for func in func_set_1:
+        top_similars = get_top_similars(num_of_tops, func, func_set_2)
         f.write("%s: top similars\n" % str((func.func_name, func.exe_name)))
         for item in top_similars:
             f.write("%s, %.3f\n" % (item[1], item[0]))
         expected_similarities = \
-            get_functions_with_similar_name(func.func_name, func_set)
+            get_functions_with_similar_name(func.func_name, func_set_2)
         f.write("Expected:\n")
         for func in expected_similarities:
             f.write(str((func.func_name, func.exe_name)) + ', ')
