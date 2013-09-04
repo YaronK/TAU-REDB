@@ -1,12 +1,12 @@
-from redb_app import actions, utils
-from redb_app.models import Function
-import json
+
+from redb_app.models import Function, String, Call, Instruction, Executable, Graph, Description
 import xlwt
 from redb_app.heuristics import GraphSimilarity
 import numpy as np
 import matplotlib.pyplot as plt
 from difflib import SequenceMatcher
 import heapq
+import json
 
 NAME_SIMILARITY_THRESHOLD = 0.8
 
@@ -36,6 +36,17 @@ def get_functions_with_similar_name(func_name, function_set):
     return filter(lambda f: SequenceMatcher(a=f.func_name,
                                             b=func_name).ratio() >=
                   NAME_SIMILARITY_THRESHOLD, function_set)
+
+
+def extract_block_similarites(func_set_1, func_set_2):
+    similarities = {}
+    for func_1 in func_set_1:
+        graph_1 = Function.objects.get(id=func_1.id).graph_set.all()[0].get_data()
+        for func_2 in func_set_2:
+            graph_2 = Function.objects.get(id=func_2.id).graph_set.all()[0].get_data()
+            bs = GraphSimilarity(graph_1, graph_2).calc_block_similarities(True)
+            similarities[(func_1.id, func_2.id)] = bs
+    json.dump(similarities, open('similarities', 'w'))
 
 
 def compare(func_set_1, func_set_2):

@@ -113,7 +113,7 @@ class BlockSimilarity(Heuristic):
         self.graph_height_2 = graph_height_2
         self._ratio = None
 
-    def ratio(self):
+    def ratio(self, test=False):
         if self.block_data_1 == self.block_data_2:
             return 1.0
 
@@ -133,6 +133,11 @@ class BlockSimilarity(Heuristic):
         calls_weight = constants.block_similarity.CALLS_WEIGHT
         imms_weight = constants.block_similarity.IMMS_WEIGHT
 
+        if test:
+            return [self.itypes_similarity(),
+                    self.strings_similarity(),
+                    self.call_similarity(),
+                    self.immediates_similarity()]
         return (itypes_weight * self.itypes_similarity() +
                 strings_weight * self.strings_similarity() +
                 calls_weight * self.call_similarity() +
@@ -176,8 +181,6 @@ class GraphSimilarity(Heuristic):
             max(nx.single_source_dijkstra_path_length(self.graph_2,
                                                       0).values())
 
-        
-
     def edges_are_equal(self):
         return self.graph_1_edges == self.graph_2_edges
 
@@ -195,7 +198,7 @@ class GraphSimilarity(Heuristic):
                 return self.ratio_given_similar_structures()
 
         # edges are not equal
-        self.calc_block_similarities()
+        self.block_similarities = self.calc_block_similarities()
         self.compared_block_pairs = self.get_similar_block_pairs()
         if len(self.compared_block_pairs) == 0:
             return 0.0
@@ -235,7 +238,7 @@ class GraphSimilarity(Heuristic):
                                self.graph_height_1,
                                self.graph_height_2).ratio()
 
-    def calc_block_similarities(self):
+    def calc_block_similarities(self, test=False):
         block_pairs = []
         for i in range(self.num_nodes_graph_1):
             block_data_1 = self.graph_1.node[i]['data']
@@ -243,9 +246,9 @@ class GraphSimilarity(Heuristic):
                 block_data_2 = self.graph_2.node[j]['data']
                 sim = BlockSimilarity(block_data_1, block_data_2,
                                       self.graph_height_1,
-                                      self.graph_height_2).ratio()
+                                      self.graph_height_2).ratio(test=test)
                 block_pairs.append((i, j, sim))
-        self.block_similarities = block_pairs
+        return block_pairs
 
     def find_more_cliques(self):
         if self.first_iteration:
