@@ -9,19 +9,7 @@ import networkx.algorithms as graph_alg
 from utils import CliquerGraph
 import copy
 
-
-MIN_HEIGHT_RATIO = 0.1
-MAX_GRAPH_COMP_SIZE = 5000
-BLOCK_SIMILARITY_THRESHOLD = 0.85
-
-ITYPES_WEIGHT = 0.7
-STRINGS_WEIGHT = 0.075
-CALLS_WEIGHT = 0.15
-IMMS_WEIGHT = 0.075
-
-MIN_BLOCK_WEIGHT_DELTA = 0.1
-MIN_RATIO = 0.3
-NEGLACTABLE_REMAINDER_RATIO = 0.1
+import constants
 
 
 class Heuristic:
@@ -136,14 +124,19 @@ class BlockSimilarity(Heuristic):
             height_ratio = distance / float(max_height)
         except Exception:
             height_ratio = 0
-        if height_ratio > MIN_HEIGHT_RATIO:
+        if height_ratio > constants.block_similarity.MIN_HEIGHT_RATIO:
             # nodes are too far apart
             return 0.0
 
-        return (ITYPES_WEIGHT * self.itypes_similarity() + \
-                STRINGS_WEIGHT * self.strings_similarity() + \
-                CALLS_WEIGHT * self.call_similarity() + \
-                IMMS_WEIGHT * self.immediates_similarity())
+        itypes_weight = constants.block_similarity.ITYPES_WEIGHT
+        strings_weight = constants.block_similarity.STRINGS_WEIGHT
+        calls_weight = constants.block_similarity.CALLS_WEIGHT
+        imms_weight = constants.block_similarity.IMMS_WEIGHT
+
+        return (itypes_weight * self.itypes_similarity() +
+                strings_weight * self.strings_similarity() +
+                calls_weight * self.call_similarity() +
+                imms_weight * self.immediates_similarity())
 
     def itypes_similarity(self):
         return SequenceMatcher(a=self.block_data_1["itypes"],
@@ -183,11 +176,7 @@ class GraphSimilarity(Heuristic):
             max(nx.single_source_dijkstra_path_length(self.graph_2,
                                                       0).values())
 
-        if (self.graph_1.number_of_nodes() *
-            self.graph_2.number_of_nodes() > 2500):
-            self.BLOCK_SIMILARITY_THRESHOLD = 0.95
-        else:
-            self.BLOCK_SIMILARITY_THRESHOLD = 0.7
+        
 
     def edges_are_equal(self):
         return self.graph_1_edges == self.graph_2_edges
@@ -205,17 +194,21 @@ class GraphSimilarity(Heuristic):
             elif self.equal_number_of_nodes():
                 return self.ratio_given_similar_structures()
 
-        self.preprocess_blocks()
-        if len(self.compared_block_pairs) == 0:
-            return 0.0
-        self.calc_association_graph(self.compared_block_pairs)
-        if self.association_graph.edge_count() >= MAX_GRAPH_COMP_SIZE:
-            return self.ratio_treat_as_one_block()
-        return self.ratio_using_association_graph()
-
-    def preprocess_blocks(self):
+        # edges are not equal
         self.calc_block_similarities()
         self.compared_block_pairs = self.get_similar_block_pairs()
+        if len(self.compared_block_pairs) == 0:
+            return 0.0
+
+        self.calc_association_graph(self.compared_block_pairs)
+        if self.association_graph_too_big():
+            return self.ratio_treat_as_one_block()
+        else:
+            return self.ratio_using_association_graph()
+
+    def association_graph_too_big(self):
+        return (self.association_graph.edge_count() >=
+                constants.graph_similarity.MAX_GRAPH_COMP_SIZE)
 
     def ratio_given_similar_structures(self):
         f_sum = 0
@@ -258,8 +251,12 @@ class GraphSimilarity(Heuristic):
         if self.first_iteration:
             self.first_iteration = False
             return True
-        if (self.size_of_last_clique_found / float(self.size_of_min_graph) <
-            MIN_RATIO):
+
+        # not first iteration
+        clique_graph_ratio = (self.size_of_last_clique_found /
+                              float(self.size_of_min_graph))
+        if (clique_graph_ratio <
+            constants.graph_similarity.MIN_CLIQUE_GRAPH_RATIO):
             return False
         return True
 
@@ -281,7 +278,7 @@ class GraphSimilarity(Heuristic):
     def get_similar_block_pairs(self):
         pairs = []
         for (a, b, w) in self.block_similarities:
-            if w >= self.BLOCK_SIMILARITY_THRESHOLD:
+            if w >= constants.block_similarity.BLOCK_SIMILARITY_THRESHOLD:
                 pairs.append((a, b, w))
         return pairs
 
