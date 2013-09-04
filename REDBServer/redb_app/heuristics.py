@@ -75,6 +75,47 @@ class DictionarySimilarity(Heuristic):
         return self._ratio
 
 
+class FrameSimilarity(Heuristic):
+    def __init__(self, args_size_func_1, vars_size_func_1, regs_size_func_1,
+                 args_size_func_2, vars_size_func_2, regs_size_func_2):
+        self.args_size_func_1 = args_size_func_1
+        self.vars_size_func_1 = vars_size_func_1
+        self.regs_size_func_1 = regs_size_func_1
+        self.args_size_func_2 = args_size_func_2
+        self.vars_size_func_2 = vars_size_func_2
+        self.regs_size_func_2 = regs_size_func_2
+
+    def ratio(self):
+        max_args_size = max(self.args_size_func_1, self.args_size_func_2)
+        max_vars_size = max(self.vars_size_func_1, self.vars_size_func_2)
+        max_regs_size = max(self.regs_size_func_1, self.regs_size_func_2)
+
+        if  max_args_size == 0:
+            args_size_similarity = 1
+        else:
+            args_size_similarity = \
+                1 - abs(self.args_size_func_1 -
+                        self.args_size_func_2) / float(max_args_size)
+        if  max_vars_size == 0:
+            vars_size_similarity = 1
+        else:
+            vars_size_similarity = \
+                1 - abs(self.vars_size_func_1 -
+                        self.vars_size_func_2) / float(max_vars_size)
+
+        if  max_regs_size == 0:
+            regs_size_similarity = 1
+        else:
+            regs_size_similarity = \
+                1 - abs(self.regs_size_func_1 -
+                        self.regs_size_func_2) / float(max_regs_size)
+
+        ratio = (args_size_similarity / float(3) +
+                 vars_size_similarity / float(3) +
+                 regs_size_similarity / float(3))
+        return ratio
+
+
 class BlockSimilarity(Heuristic):
     def __init__(self, block_data_1, block_data_2,
                  graph_height_1, graph_height_2):
@@ -84,7 +125,7 @@ class BlockSimilarity(Heuristic):
         self.graph_height_2 = graph_height_2
         self._ratio = None
 
-    def ratio(self,):
+    def ratio(self):
         if self.block_data_1 == self.block_data_2:
             return 1.0
 

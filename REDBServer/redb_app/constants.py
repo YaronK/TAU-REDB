@@ -20,11 +20,14 @@ class dict_filter:
     ITYPES_THRESHOLD = 0.8
 
 
-class matching_grade_filter:
+class matching_grade:
     """
     Constants related to the final filtering of the DB.
     """
     MATCHING_THRESHOLD = 0.9
+
+    GRAPH_SIMILARITY_WEIGHT = 0.95
+    FRAME_SIMILARITY_WEIGHT = 0.05
 
 REQUIRED_ATTRIBUTES = ["func_signature",
                        "func_name",

@@ -105,15 +105,14 @@ def get_top_similars_for_all_funcs(func_set, num_of_tops, path):
          "\n###############################################################\n"
     for func in func_set:
         top_similars = get_top_similars(num_of_tops, func, func_set)
-        f.write("%s: top similars\n" % func.func_name)
+        f.write("%s: top similars\n" % str((func.func_name, func.exe_name)))
         for item in top_similars:
             f.write("%s, %.3f\n" % (item[1], item[0]))
         expected_similarities = \
             get_functions_with_similar_name(func.func_name, func_set)
-        expected_similarities = [func.func_name for func in expected_similarities]
         f.write("Expected:\n")
-        for func_name in expected_similarities:
-            f.write(func_name + ', ')
+        for func in expected_similarities:
+            f.write(str((func.func_name, func.exe_name)) + ', ')
         f.write(delimeter_line)
     f.close()
 

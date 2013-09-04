@@ -5,7 +5,7 @@ import json
 # REDB
 import utils
 from models import Function, Description
-from heuristics import DictionarySimilarity, GraphSimilarity
+from heuristics import DictionarySimilarity, GraphSimilarity, FrameSimilarity
 import constants
 
 
@@ -43,6 +43,9 @@ class SubmitAction:
 
     def process_attributes(self):
         self.attributes = general_process_attributes(self.attributes)
+        if self.attributes["num_of_insns"] <= 1:
+            return 0
+        return 1
 
     def temp_function(self):
         self.function = generate_function(self.attributes)
@@ -164,8 +167,21 @@ class RequestAction:
 
         for func in self.filtered_function_set:
             second_graph_nx = func.graph_set.all()[0].get_data()
-            grade = GraphSimilarity(temp_graph_nx, second_graph_nx).ratio()
-            if (grade >= constants.matching_grade_filter.MATCHING_THRESHOLD):
+            graph_simialrity_grade = \
+                GraphSimilarity(temp_graph_nx, second_graph_nx).ratio()
+            frame_similarity = \
+                FrameSimilarity(self.function.args_size,
+                                          self.function.vars_size,
+                                          self.function.regs_size,
+                                          func.args_size,
+                                          func.vars_size,
+                                          func.regs_size).ratio()
+
+            grade = (constants.matching_grade.GRAPH_SIMILARITY_WEIGHT *
+                     graph_simialrity_grade +
+                     constants.matching_grade.FRAME_SIMILARITY_WEIGHT *
+                     frame_similarity)
+            if (grade >= constants.matching_grade.MATCHING_THRESHOLD):
                 self.matching_funcs.append((func, grade))
 
     def get_descriptions(self):

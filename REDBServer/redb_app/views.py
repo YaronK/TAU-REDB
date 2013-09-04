@@ -57,7 +57,8 @@ def submit_handler(request):
     Handles a Submitted descriptions.
     """
     submit_action = actions.SubmitAction(request)
-    submit_action.process_attributes()
+    if not submit_action.process_attributes():
+        return HttpResponse(json.dumps("Unable to submit a Thunk"))
     submit_action.temp_function()
     submit_action.process_description()
     submit_action.insert_description()

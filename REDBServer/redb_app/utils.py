@@ -5,7 +5,6 @@ import os
 from ctypes import cdll
 import time
 import ctypes
-import json
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
 import base64
@@ -48,7 +47,6 @@ def _decode_dict(data):
 class CliquerGraph:
     DLL_DIR_PATH = os.path.dirname(__file__)
     DLL_FILE_PATH = os.path.join(DLL_DIR_PATH, 'CliquerReduced.dll')
-    # DLL_FILE_PATH = r"C:\Users\user\Documents\Visual Studio 2010\Projects\CliquerReduced\Debug\CliquerReduced.dll"
 
     def __init__(self, n):
         """ n : number of vertices """
