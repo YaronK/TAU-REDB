@@ -10,8 +10,8 @@ from utils import CliquerGraph
 import copy
 
 
-MIN_HEIGHT_RATIO = 0.2
-MAX_GRAPH_COMP_SIZE = 20000
+MIN_HEIGHT_RATIO = 0.1
+MAX_GRAPH_COMP_SIZE = 5000
 BLOCK_SIMILARITY_THRESHOLD = 0.85
 
 ITYPES_WEIGHT = 0.7
@@ -106,8 +106,7 @@ class BlockSimilarity(Heuristic):
 
     def itypes_similarity(self):
         return SequenceMatcher(a=self.block_data_1["itypes"],
-                               b=self.block_data_2["itypes"],
-                               autojunk=False).ratio()
+                               b=self.block_data_2["itypes"]).ratio()
 
     def strings_similarity(self):
         return SequenceMatcher(a=self.block_data_1["strings"],
@@ -138,19 +137,15 @@ class GraphSimilarity(Heuristic):
         self.graph_height_2 = \
             max(nx.single_source_dijkstra_path_length(self.graph_2,
                                                       0).values())
-<<<<<<< HEAD
+
         if (self.graph_1.number_of_nodes() *
             self.graph_2.number_of_nodes() > 2500):
             self.BLOCK_SIMILARITY_THRESHOLD = 0.95
-=======
-        if self.graph_1.number_of_nodes() * self.graph_2.number_of_nodes() > 2500:
-            self.BLOCK_SIMILARITY_THRESHOLD = 0.9
->>>>>>> 5b81da23a3f2a73a17afad817fa97fd5903fd4af
         else:
             self.BLOCK_SIMILARITY_THRESHOLD = 0.7
 
     def ratio(self):
-        """
+
         if self.graph_1.edges() == self.graph_2.edges():
             if (self.graph_1.nodes(data='true') ==
                 self.graph_2.nodes(data='true')):
@@ -158,7 +153,7 @@ class GraphSimilarity(Heuristic):
             elif (self.graph_1.number_of_nodes() ==
                   self.graph_2.number_of_nodes()):
                 return self.avg_block_sim_given_equal_edges()
-        """
+
         return self.compare_graphs()
 
     def avg_block_sim_given_equal_edges(self):
@@ -211,10 +206,10 @@ class GraphSimilarity(Heuristic):
         merged_block["imms"] = []
         for block_num in range(graph.number_of_nodes()):
             block_data = graph.node[block_num]['data']
-            merged_block["itypes"].append(block_data["itypes"])
+            merged_block["itypes"] += block_data["itypes"]
             merged_block["calls"] += block_data["calls"]
             merged_block["strings"] += block_data["strings"]
-            merged_block["imms"].append(block_data["imms"])
+            merged_block["imms"] += block_data["imms"]
         merged_block["dist_from_root"] = 0
         return merged_block
 
@@ -290,7 +285,6 @@ class GraphSimilarity(Heuristic):
         if len(self.compared_block_pairs) == 0:
             return 0.0
 
-
         """
         if self.association_graph.number_of_edges() == 0:
             return 0.0
@@ -301,9 +295,6 @@ class GraphSimilarity(Heuristic):
             if len(filtered_pairs) == 0:
                 break
             self.calc_association_graph(filtered_pairs)
-<<<<<<< HEAD
-            clique = self.association_graph.get_max_clique()
-=======
 
             if self.association_graph.edge_count() >= MAX_GRAPH_COMP_SIZE:
                 merged_block_graph1 = self.merge_all_blocks(self.graph_1)
@@ -316,7 +307,7 @@ class GraphSimilarity(Heuristic):
             print "in cliquer"
             clique = self.association_graph.get_maximum_clique()
             print "out cliquer"
->>>>>>> 5b81da23a3f2a73a17afad817fa97fd5903fd4af
+
             weight = self.get_clique_weight(clique)
             self.size_of_last_clique_found = len(clique)
             self.total_weight += weight
