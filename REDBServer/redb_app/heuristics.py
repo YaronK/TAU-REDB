@@ -166,12 +166,13 @@ class GraphSimilarity(Heuristic):
     def __init__(self, graph_1, graph_2):
         self.graph_1 = graph_1
         self.graph_2 = graph_2
-        """
-        nx.draw(graph_1)
-        plt.show()
-        nx.draw(graph_2)
-        plt.show()
-        """
+
+        self.num_nodes_graph_1 = self.graph_1.number_of_nodes()
+        self.num_nodes_graph_2 = self.graph_2.number_of_nodes()
+
+        self.graph_1_edges = self.graph_1.edges()
+        self.graph_2_edges = self.graph_2.edges()
+
         self.graph_height_1 = \
             max(nx.single_source_dijkstra_path_length(self.graph_1,
                                                    0).values())
@@ -185,19 +186,25 @@ class GraphSimilarity(Heuristic):
         else:
             self.BLOCK_SIMILARITY_THRESHOLD = 0.7
 
+    def edges_are_equal(self):
+        return self.graph_1_edges == self.graph_2_edges
+
+    def nodes_are_equal(self):
+        return self.graph_1.nodes(data=True) == self.graph_2.nodes(data=True)
+
+    def equal_number_of_nodes(self):
+        return self.num_nodes_graph_1 == self.num_nodes_graph_2
+
     def ratio(self):
-
-        if self.graph_1.edges() == self.graph_2.edges():
-            if (self.graph_1.nodes(data='true') ==
-                self.graph_2.nodes(data='true')):
+        if self.edges_are_equal():
+            if self.nodes_are_equal():
                 return 1.0
-            elif (self.graph_1.number_of_nodes() ==
-                  self.graph_2.number_of_nodes()):
-                return self.avg_block_sim_given_equal_edges()
+            elif self.equal_number_of_nodes():
+                return self.ratio_given_similar_structures()
 
-        return self.compare_graphs()
+        return self.ratio_using_association_graph()
 
-    def avg_block_sim_given_equal_edges(self):
+    def ratio_given_similar_structures(self):
         f_sum = 0
         d_sum = 0
 
@@ -212,6 +219,16 @@ class GraphSimilarity(Heuristic):
             f_sum += (len_1 + len_2)
             d_sum += (len_1 + len_2) * ratio
         return d_sum / f_sum
+
+    def ratio_treat_as_one_block(self):
+        if self.association_graph.edge_count() >= MAX_GRAPH_COMP_SIZE:
+                merged_block_graph1 = self.merge_all_blocks(self.graph_1)
+                merged_block_graph2 = self.merge_all_blocks(self.graph_2)
+                self.association_graph.free()
+                return BlockSimilarity(merged_block_graph1,
+                                       merged_block_graph2,
+                                       self.graph_height_1,
+                                       self.graph_height_2).ratio()
 
     def calc_block_similarities(self):
         block_pairs = []
@@ -232,11 +249,6 @@ class GraphSimilarity(Heuristic):
         if (self.size_of_last_clique_found / float(self.size_of_min_graph) <
             MIN_RATIO):
             return False
-        """
-        if (self.association_graph.number_of_nodes() <
-            len(self.compared_block_pairs) * NEGLACTABLE_REMAINDER_RATIO):
-            return False
-        """
         return True
 
     def merge_all_blocks(self, graph):
@@ -267,8 +279,7 @@ class GraphSimilarity(Heuristic):
         for node_index in range(num_of_nodes):
             w = nodes[node_index][2]
             graph.set_vertex_weight(node_index, int(w * 1000))
-        graph_1_edges = self.graph_1.edges()
-        graph_2_edges = self.graph_2.edges()
+        
         for x in range(num_of_nodes):
             (i, s, _) = nodes[x]
             for y in range(num_of_nodes):
@@ -311,9 +322,8 @@ class GraphSimilarity(Heuristic):
             weight += self.compared_block_pairs[i][2]
         return weight
 
-    def compare_graphs(self):
-        self.num_nodes_graph_1 = self.graph_1.number_of_nodes()
-        self.num_nodes_graph_2 = self.graph_2.number_of_nodes()
+    def ratio_using_association_graph(self):
+
         self.size_of_min_graph = min(self.num_nodes_graph_1,
                                      self.num_nodes_graph_2)
         self.first_iteration = True
@@ -337,14 +347,7 @@ class GraphSimilarity(Heuristic):
                 break
             self.calc_association_graph(filtered_pairs)
 
-            if self.association_graph.edge_count() >= MAX_GRAPH_COMP_SIZE:
-                merged_block_graph1 = self.merge_all_blocks(self.graph_1)
-                merged_block_graph2 = self.merge_all_blocks(self.graph_2)
-                self.association_graph.free()
-                return BlockSimilarity(merged_block_graph1,
-                                       merged_block_graph2,
-                                       self.graph_height_1,
-                                       self.graph_height_2).ratio()
+           
             print "in cliquer"
             clique = self.association_graph.get_maximum_clique()
             print "out cliquer"

@@ -1,3 +1,15 @@
+REQUIRED_ATTRIBUTES = ["func_signature",
+                       "func_name",
+                       "frame_attributes",
+                       "itypes",
+                       "strings",
+                       "immediates",
+                       "calls",
+                       "exe_signature",
+                       "exe_name",
+                       "graph"]
+
+
 class db_filter:
     """
     Constants related to the preliminary filtering of the DB.
@@ -29,13 +41,22 @@ class matching_grade:
     GRAPH_SIMILARITY_WEIGHT = 0.95
     FRAME_SIMILARITY_WEIGHT = 0.05
 
-REQUIRED_ATTRIBUTES = ["func_signature",
-                       "func_name",
-                       "frame_attributes",
-                       "itypes",
-                       "strings",
-                       "immediates",
-                       "calls",
-                       "exe_signature",
-                       "exe_name",
-                       "graph"]
+
+class graph_similarity:
+    """
+    Constants which affect the graph similarity algorithm.
+    """
+    MAX_GRAPH_COMP_SIZE = 5000
+    MIN_CLIQUE_GRAPH_RATIO = 0.3
+
+
+class block_similarity:
+    """
+    Constants which affect the graph similarity algorithm.
+    """
+    MIN_HEIGHT_RATIO = 0.1
+    BLOCK_SIMILARITY_THRESHOLD = 0.85
+    ITYPES_WEIGHT = 0.7
+    STRINGS_WEIGHT = 0.075
+    CALLS_WEIGHT = 0.15
+    IMMS_WEIGHT = 0.075
