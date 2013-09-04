@@ -1,33 +1,12 @@
-from models import Function, Description
-import utils
+# Python
 from collections import Counter
-from heuristics import DictionarySimilarity, GraphSimilarity
 import json
-from redb_app.utils import _decode_dict
 
-MAX_NUM_INSNS_DEVIATION = 0.2
-MAX_NUM_BLOCKS_DEVIATION = 0.2
-MAX_NUM_EDGES_DEVIATION = 0.2
-MAX_NUM_STRINGS_DEVIATION = 0.2
-MAX_NUM_CALLS_DEVIATION = 0.2
-MAX_VARS_SIZE_DEVIATION = 0.3
-MAX_ARGS_SIZE_DEVIATION = 0.3
-MAX_REGS_SIZE_DEVIATION = 0.3
-MAX_NUM_IMMS_DEVIATION = 0.2
-
-ATTRIBUTES = ["func_signature",
-              "func_name",
-              "frame_attributes",
-              "itypes",
-              "strings",
-              "immediates",
-              "calls",
-              "exe_signature",
-              "exe_name",
-              "graph"]
-
-FILTERING_THRESHOLD = 0.8
-MATCHING_THRESHOLD = 0.9
+# REDB
+import utils
+from models import Function, Description
+from heuristics import DictionarySimilarity, GraphSimilarity
+import constants
 
 
 class Query:
@@ -79,8 +58,7 @@ class SubmitAction:
         except Function.DoesNotExist:
             self.function.save()
         description = Description()
-        description.initialize(self.function, self.description_data,
-                                self.user)
+        description.initialize(self.function, self.description_data, self.user)
         description.save()
 
 
@@ -94,9 +72,10 @@ class RequestAction:
 
         self.attributes = json.loads(query_dict["attributes"],
                                      encoding='ISO-8859-1',
-                                     object_hook=_decode_dict)
+                                     object_hook=utils._decode_dict)
 
-        if not (set(self.attributes.keys()) == set(ATTRIBUTES)):
+        if not (set(self.attributes.keys()) ==
+                set(constants.REQUIRED_ATTRIBUTES)):
             raise Exception("Missing attribute(s) / Too many attributes.")
 
     def process_attributes(self):
@@ -106,74 +85,87 @@ class RequestAction:
         self.function = generate_function(self.attributes)
 
     def db_filtering(self):
+        def get_bounds(mean, deviation):
+            return mean * (1 - deviation), mean * (1 + deviation)
+
         func = self.function
         func_set = Function.objects
 
         insns_num = func.num_of_insns
+        deviation = constants.db_filter.MAX_NUM_INSNS_DEVIATION
+        lower_bound, upper_bound = get_bounds(insns_num, deviation)
         func_set = func_set.filter(num_of_insns__range=  # @IgnorePep8
-                        (insns_num * (1 - MAX_NUM_INSNS_DEVIATION),
-                         insns_num * (1 + MAX_NUM_INSNS_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         num_of_blocks = func.graph.num_of_blocks
+        deviation = constants.db_filter.MAX_NUM_BLOCKS_DEVIATION
+        lower_bound, upper_bound = get_bounds(num_of_blocks, deviation)
         func_set = func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
-                            (num_of_blocks * (1 - MAX_NUM_BLOCKS_DEVIATION),
-                             num_of_blocks * (1 + MAX_NUM_BLOCKS_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         num_of_edges = func.graph.num_of_edges
+        deviation = constants.db_filter.MAX_NUM_EDGES_DEVIATION
+        lower_bound, upper_bound = get_bounds(num_of_edges, deviation)
         func_set = func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
-                            (num_of_edges * (1 - MAX_NUM_EDGES_DEVIATION),
-                             num_of_edges * (1 + MAX_NUM_EDGES_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         vars_size = func.vars_size
+        deviation = constants.db_filter.MAX_VARS_SIZE_DEVIATION
+        lower_bound, upper_bound = get_bounds(vars_size, deviation)
         func_set = func_set.filter(vars_size__range=  # @IgnorePep8
-                            (vars_size * (1 - MAX_VARS_SIZE_DEVIATION),
-                            vars_size * (1 + MAX_VARS_SIZE_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         args_size = func.args_size
+        deviation = constants.db_filter.MAX_ARGS_SIZE_DEVIATION
+        lower_bound, upper_bound = get_bounds(args_size, deviation)
         func_set = func_set.filter(args_size__range=  # @IgnorePep8
-                            (args_size * (1 - MAX_ARGS_SIZE_DEVIATION),
-                            args_size * (1 + MAX_ARGS_SIZE_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         regs_size = func.regs_size
+        deviation = constants.db_filter.MAX_REGS_SIZE_DEVIATION
+        lower_bound, upper_bound = get_bounds(regs_size, deviation)
         func_set = func_set.filter(regs_size__range=  # @IgnorePep8
-                            (regs_size * (1 - MAX_REGS_SIZE_DEVIATION),
-                            regs_size * (1 + MAX_REGS_SIZE_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         num_of_calls = func.num_of_calls
+        deviation = constants.db_filter.MAX_NUM_CALLS_DEVIATION
+        lower_bound, upper_bound = get_bounds(num_of_calls, deviation)
         func_set = func_set.filter(num_of_calls__range=  # @IgnorePep8
-                            (num_of_calls *
-                             (1 - MAX_NUM_CALLS_DEVIATION),
-                             num_of_calls *
-                             (1 + MAX_NUM_CALLS_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         num_of_strings = func.num_of_strings
+        deviation = constants.db_filter.MAX_NUM_STRINGS_DEVIATION
+        lower_bound, upper_bound = get_bounds(num_of_strings, deviation)
         func_set = func_set.filter(num_of_strings__range=  # @IgnorePep8
-                            (num_of_strings * (1 - MAX_NUM_STRINGS_DEVIATION),
-                            num_of_strings * (1 + MAX_NUM_STRINGS_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         num_of_imms = func.num_of_imms
+        deviation = constants.db_filter.MAX_NUM_IMMS_DEVIATION
+        lower_bound, upper_bound = get_bounds(num_of_imms, deviation)
         func_set = func_set.filter(num_of_imms__range=  # @IgnorePep8
-                            (num_of_imms * (1 - MAX_NUM_IMMS_DEVIATION),
-                            num_of_imms * (1 + MAX_NUM_IMMS_DEVIATION)))
+                                   (lower_bound, upper_bound))
 
         self.filtered_function_set = func_set.all()
 
-    def dictionaries_filtering(self):
-        func_set = self.filtered_function_set
-        temp_func_itypes_dict = Counter(self.attributes["itypes"])
-        func_set = dict_filter(func_set, extract_itypes_list,
-                               temp_func_itypes_dict)
-        self.filtered_function_set = func_set
+    def dictionary_filtering(self):
+        function_set = self.filtered_function_set
+
+        reference_itypes_dict = Counter(self.attributes["itypes"])
+        function_set = dict_filter_by_single_attr(function_set,
+                                   extract_itypes_list_function,
+                                   reference_itypes_dict,
+                                   constants.dict_filter.ITYPES_THRESHOLD)
+
+        self.filtered_function_set = function_set
 
     def matching_grade_filtering(self):
         self.matching_funcs = []
-        temp_graph_nx = \
-            self.function.graph.get_data()
+        temp_graph_nx = self.function.graph.get_data()
 
         for func in self.filtered_function_set:
             second_graph_nx = func.graph_set.all()[0].get_data()
             grade = GraphSimilarity(temp_graph_nx, second_graph_nx).ratio()
-            if (grade >= MATCHING_THRESHOLD):
+            if (grade >= constants.matching_grade_filter.MATCHING_THRESHOLD):
                 self.matching_funcs.append((func, grade))
 
     def get_descriptions(self):
@@ -181,7 +173,7 @@ class RequestAction:
         exe_names = ""
         for (func, grade) in self.matching_funcs:
             for exe in func.executable_set.all():
-                exe_names = exe.names + exe_names
+                exe_names += exe.names
             for desc in func.description_set.all():
                 try:
                     desc_data = json.loads(desc.data,
@@ -200,32 +192,37 @@ class RequestAction:
 
 
 def general_process_attributes(attributes):
-    pro_attrs = {}
-    pro_attrs["func_signature"] = attributes["func_signature"]
-    pro_attrs["func_name"] = attributes["func_name"]
-    pro_attrs["itypes"] = attributes["itypes"]
-    pro_attrs["strings"] = attributes["strings"]
-    pro_attrs["calls"] = attributes["calls"]
-    pro_attrs["immediates"] = attributes["immediates"]
-    pro_attrs["num_of_imms"] = len(pro_attrs["immediates"])
-    pro_attrs["exe_signature"] = attributes["exe_signature"]
-    pro_attrs["exe_name"] = attributes["exe_name"]
-    pro_attrs["num_of_insns"] = len(pro_attrs["itypes"])
+    temp_attributes = {}
+
+    temp_attributes["func_signature"] = attributes["func_signature"]
+    temp_attributes["func_name"] = attributes["func_name"]
+
+    temp_attributes["exe_signature"] = attributes["exe_signature"]
+    temp_attributes["exe_name"] = attributes["exe_name"]
+
+    temp_attributes["itypes"] = attributes["itypes"]
+    temp_attributes["num_of_insns"] = len(temp_attributes["itypes"])
+
+    temp_attributes["strings"] = attributes["strings"]
+    temp_attributes["num_of_strings"] = len(temp_attributes["strings"])
+
+    temp_attributes["calls"] = attributes["calls"]
+    temp_attributes["num_of_calls"] = len(temp_attributes["calls"])
+
+    temp_attributes["immediates"] = attributes["immediates"]
+    temp_attributes["num_of_imms"] = len(temp_attributes["immediates"])
 
     frame_attributes = attributes["frame_attributes"]
-    pro_attrs["args_size"] = frame_attributes["args_size"]
-    pro_attrs["vars_size"] = frame_attributes["vars_size"]
-    pro_attrs["regs_size"] = frame_attributes["regs_size"]
-    pro_attrs["frame_size"] = frame_attributes["frame_size"]
-
-    pro_attrs["num_of_strings"] = len(pro_attrs["strings"])
-    pro_attrs["num_of_calls"] = len(pro_attrs["calls"])
+    temp_attributes["args_size"] = frame_attributes["args_size"]
+    temp_attributes["vars_size"] = frame_attributes["vars_size"]
+    temp_attributes["regs_size"] = frame_attributes["regs_size"]
+    temp_attributes["frame_size"] = frame_attributes["frame_size"]
 
     graph = attributes["graph"]
-    pro_attrs["block_bounds"] = graph["block_bounds"]
-    pro_attrs["edges"] = graph["edges"]
+    temp_attributes["block_bounds"] = graph["block_bounds"]
+    temp_attributes["edges"] = graph["edges"]
 
-    return pro_attrs
+    return temp_attributes
 
 
 def generate_function(attributes):
@@ -251,26 +248,17 @@ def generate_function(attributes):
     return function
 
 
-def extract_strings_list(function):
-    instruction_set = function.instruction_set.exclude(string=None)
-    return [instruction.string.value for instruction in instruction_set]
-
-
-def extract_calls_list(function):
-    instruction_set = function.instruction_set.exclude(call=None)
-    return [instruction.call.name for instruction in instruction_set]
-
-
-def extract_itypes_list(function):
+def extract_itypes_list_function(function):
     instruction_set = function.instruction_set.all()
     return [instruction.itype for instruction in instruction_set]
 
 
-def dict_filter(func_set, list_extraction_function, ref_dict):
+def dict_filter_by_single_attr(func_set, list_extraction_function, ref_dict,
+                               threshold):
     filtered_functions = []
     for func in func_set:
         func_dict = Counter(list_extraction_function(func))
         grade = DictionarySimilarity(func_dict, ref_dict).ratio()
-        if (grade >= FILTERING_THRESHOLD):
+        if (grade >= threshold):
             filtered_functions.append(func)
     return filtered_functions

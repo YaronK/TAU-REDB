@@ -46,7 +46,7 @@ def request_handler(request):
     request_action.process_attributes()
     request_action.temp_function()
     request_action.db_filtering()
-    request_action.dictionaries_filtering()
+    request_action.dictionary_filtering()
     request_action.matching_grade_filtering()
     descriptions = request_action.get_descriptions()
     return HttpResponse(json.dumps(descriptions))

@@ -33,19 +33,19 @@ def get_intersecting_func_names(exe_name1, exe_name2):
 
 
 def get_functions_with_similar_name(func_name, function_set):
-    return filter(lambda f: SequenceMatcher(a=f.func_name, b=func_name).ratio() >=
+    return filter(lambda f: SequenceMatcher(a=f.func_name,
+                                            b=func_name).ratio() >=
                   NAME_SIMILARITY_THRESHOLD, function_set)
 
 
 def compare(func_set_1, func_set_2):
     res_matrix = []
-    res_row = []
     for func1 in func_set_1:
+        res_row = []
         for func2 in func_set_2:
             res = generate_matching_grade(func1.id, func2.id)
             res_row.append(res)
         res_matrix.append(res_row)
-        res_row = []
     return res_matrix
 
 
