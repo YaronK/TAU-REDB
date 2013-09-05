@@ -1,5 +1,6 @@
 from redb_app.models import Function, String, Call, Instruction, Executable, Graph, Description
 import xlwt
+import redb_app.utils
 from redb_app.heuristics import GraphSimilarity
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,10 +15,10 @@ def get_function_graph_by_id(func_id):
     return Function.objects.get(id=func_id).graph_set.all()[0].get_data()
 
 
-def generate_matching_grade_by_id(a_id, b_id):
+def generate_matching_grade_by_id(a_id, b_id, test=False):
     a_graph = get_function_graph_by_id(a_id)
     b_graph = get_function_graph_by_id(b_id)
-    return GraphSimilarity(a_graph, b_graph).ratio()
+    return GraphSimilarity(a_graph, b_graph).ratio(test=test)
 
 
 EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
@@ -66,6 +67,50 @@ def calc_weighted_block_similarities(func1_id, func2_id,
                                            calls_weight * block[2] +
                                            imms_weight * block[3])
     return block_similarities_weighted
+
+
+def get_all_weights_combibation():
+    def frange(x, y, jump):
+        while x < y:
+            yield x
+            x += jump
+
+    all_weights_combination = []
+    for i in frange(0, 1, 0.1):
+        for j in frange(0, 1 - i, 0.1):
+            for k in frange(0, 1 - i - j, 0.1):
+                l = 1 - i - j - k
+                all_weights_combination.append([i, j, k, l])
+    return all_weights_combination
+
+
+def tune_to_optimal_weights(func_set_1, func_set_2, path,
+                            names_similarity_threshold):
+    block_attrs_similarities = \
+         json.load(open(path), object_hook=redb_app.utils._decode_dict)
+    all_weights_combination = get_all_weights_combibation()
+    cur_similar_grade = 0
+    cur_non_similar_grade = 0
+    best_delta = 0
+    for weights_list in all_weights_combination:
+        for func1 in func_set_1:
+            for func2 in func_set_2:
+                block_similarities = \
+                     calc_weighted_block_similarities(func1.id,
+                                                      func2.id,
+                                                      block_attrs_similarities,
+                                                      weights_list)
+
+                grade = generate_matching_grade_by_id(func1.id, func2.id,
+                                                      test=block_similarities)
+                if SequenceMatcher(a=func1.func_name, b=func1.func_name).ratio() == names_similarity_threshold:
+                    cur_similar_grade += grade
+                else:
+                    cur_non_similar_grade += grade
+        if cur_similar_grade - cur_non_similar_grade > best_delta:
+            best_delta = cur_similar_grade - cur_non_similar_grade
+            optimal_weight = weights_list
+    return optimal_weight
 
 
 def compare_function_sets(func_set_1, func_set_2):
