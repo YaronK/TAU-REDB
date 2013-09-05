@@ -1,4 +1,3 @@
-
 from redb_app.models import Function, String, Call, Instruction, Executable, Graph, Description
 import xlwt
 from redb_app.heuristics import GraphSimilarity
@@ -11,9 +10,13 @@ import json
 NAME_SIMILARITY_THRESHOLD = 0.8
 
 
-def generate_matching_grade(a_id, b_id):
-    a_graph = Function.objects.get(id=a_id).graph_set.all()[0].get_data()
-    b_graph = Function.objects.get(id=b_id).graph_set.all()[0].get_data()
+def get_function_graph_by_id(func_id):
+    return Function.objects.get(id=func_id).graph_set.all()[0].get_data()
+
+
+def generate_matching_grade_by_id(a_id, b_id):
+    a_graph = get_function_graph_by_id(a_id)
+    b_graph = get_function_graph_by_id(b_id)
     return GraphSimilarity(a_graph, b_graph).ratio()
 
 
@@ -41,11 +44,14 @@ def get_functions_with_similar_name(func_name, function_set):
 def extract_block_attrs_similarities(func_set_1, func_set_2, path):
     similarities = {}
     for func_1 in func_set_1:
-        graph_1 = Function.objects.get(id=func_1.id).graph_set.all()[0].get_data()
+        graph_1 = get_function_graph_by_id(func_1.id)
         for func_2 in func_set_2:
-            graph_2 = Function.objects.get(id=func_2.id).graph_set.all()[0].get_data()
-            bs = GraphSimilarity(graph_1, graph_2).calc_block_similarities(True)
-            similarities[str((func_1.id, func_2.id))] = bs
+            graph_2 = get_function_graph_by_id(func_2.id)
+
+            graph_sim = GraphSimilarity(graph_1, graph_2)
+            block_sim = graph_sim.calc_block_similarities(True)
+            similarities[str((func_1.id, func_2.id))] = block_sim
+
     json.dump(similarities, open(path, 'w'))
 
 
@@ -62,23 +68,22 @@ def calc_weighted_block_similarities(func1_id, func2_id,
     return block_similarities_weighted
 
 
-def compare(func_set_1, func_set_2):
-    res_matrix = []
-    for func1 in func_set_1:
-        res_row = []
-        for func2 in func_set_2:
-            res = generate_matching_grade(func1.id, func2.id)
-            res_row.append(res)
-        res_matrix.append(res_row)
+def compare_function_sets(func_set_1, func_set_2):
+
+    gmgbi = generate_matching_grade_by_id
+
+    res_matrix = [[gmgbi(func1.id, func2.id) for func1 in func_set_1]
+                  for func2 in func_set_2]
+
     return res_matrix
 
 
-def extract_results_to_excel(path, func_set_1, func_set_2):
+def compare_function_set_excel(path, func_set_1, func_set_2):
     book = xlwt.Workbook(encoding="utf-8")
     sheet1 = book.add_sheet("Sheet1")
     xlwt.Alignment.HORZ_CENTER
     xlwt.Alignment.VERT_CENTER
-    res_mat = compare(func_set_1, func_set_2)
+    res_mat = compare_function_sets(func_set_1, func_set_2)
     rows = len(res_mat)
     cols = len(res_mat[0])
     for i in range(1, rows + 1):
@@ -93,8 +98,8 @@ def extract_results_to_excel(path, func_set_1, func_set_2):
     book.save(path)
 
 
-def extract_results_to_heat_map(path, func_set_1, func_set_2):
-    res_mat = compare(func_set_1, func_set_2)
+def compare_function_sets_heat_map(path, func_set_1, func_set_2):
+    res_mat = compare_function_sets(func_set_1, func_set_2)
     func_set_names_1 = [func.func_name for func in func_set_1]
     func_set_names_2 = [func.func_name for func in func_set_2]
     data = np.array(res_mat)
@@ -113,22 +118,22 @@ def extract_results_to_heat_map(path, func_set_1, func_set_2):
     plt.show()
 
 
-def get_top_similars(num_of_tops, func, func_set):
+def get_top_similarities_for_single_function(num_of_tops, func, func_set):
     similarity_res = []
     for compared_func in func_set:
         print (compared_func.id, func.id)
-        similarity_grade = generate_matching_grade(compared_func.id, func.id)
+        similarity_grade = generate_matching_grade_by_id(compared_func.id, func.id)
         similarity_res.append((similarity_grade, compared_func.func_name))
 
     return heapq.nlargest(num_of_tops, similarity_res)
 
 
-def get_top_similars_for_all_funcs(func_set_1, func_set_2, num_of_tops, path):
+def get_top_similarities_for_all_functions(func_set_1, func_set_2, num_of_tops, path):
     f = open(path, 'w')
     delimeter_line = \
          "\n###############################################################\n"
     for func in func_set_1:
-        top_similars = get_top_similars(num_of_tops, func, func_set_2)
+        top_similars = get_top_similarities_for_single_function(num_of_tops, func, func_set_2)
         f.write("%s: top similars\n" % str((func.func_name, func.exe_name)))
         for item in top_similars:
             f.write("%s, %.3f\n" % (item[1], item[0]))
@@ -142,59 +147,3 @@ def get_top_similars_for_all_funcs(func_set_1, func_set_2, num_of_tops, path):
 
 
 # TODO: separate comparison and extraction
-def compare_exes_extract_to_excel(path, exe_name1, exe_name2):
-    book = xlwt.Workbook(encoding="utf-8")
-    sheet1 = book.add_sheet("Sheet1")
-
-    exe1_funcs = Function.objects.filter(exe_name=exe_name1)
-    exe2_funcs = Function.objects.filter(exe_name=exe_name2)
-    exe1_func_names = [func.func_name for func in exe1_funcs]
-    exe2_func_names = [func.func_name for func in exe2_funcs]
-    exe1_compared_funcs = []
-    exe2_compared_funcs = []
-    res_arr = []
-    arr_row = []
-    compared_func_names = set(exe1_func_names) & set(exe2_func_names)
-    for excluded in EXCLUDED_ON_EXE_COMPARISON:
-        compared_func_names = filter(lambda n: excluded not in n,
-                                     compared_func_names)
-
-    for n in compared_func_names:
-        exe1_compared_funcs.append(exe1_funcs.get(func_name=n))
-        exe2_compared_funcs.append(exe2_funcs.get(func_name=n))
-
-    exe1_compared_funcs = exe1_compared_funcs[0:100]
-    exe2_compared_funcs = exe2_compared_funcs[0:100]
-    i = 1
-
-    for func1 in exe1_compared_funcs:
-        j = 1
-        sheet1.write(0, i, func1.func_name)
-        sheet1.write(i, 0, func1.func_name)
-        for func2 in exe2_compared_funcs:
-            print (func1.id, func2.id)
-            res = generate_matching_grade(func1.id, func2.id)
-            arr_row.append(res)
-            sheet1.write(i, j, res)
-            j += 1
-        i += 1
-        res_arr.append(arr_row)
-        arr_row = []
-
-    data = np.array(res_arr)
-    fig, ax = plt.subplots()
-    heatmap = ax.pcolor(data, cmap=plt.cm.Blues)  # @UndefinedVariable
-    ax.set_xticks(np.arange(data.shape[0]) + 0.5, minor=False)
-    ax.set_yticks(np.arange(data.shape[1]) + 0.5, minor=False)
-    ax.invert_yaxis()
-    ax.xaxis.tick_top()
-    ax.set_xticklabels(compared_func_names, minor=False)
-    ax.set_yticklabels(compared_func_names, minor=False)
-
-    plt.xticks(rotation=90)
-    plt.rcParams.update({'font.size': 4})
-    # fig.tight_layout()
-    plt.savefig("C:\\Users\\user\\Desktop\\test.pdf", bbox_inches='tight', dpi=100)
-    plt.show()
-    book.save(path)
-
