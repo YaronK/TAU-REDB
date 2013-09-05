@@ -77,8 +77,7 @@ def calc_weighted_block_similarities(func1_id, func2_id,
                                            weights["itypes"] * block[2][0] +
                                            weights["strings"] * block[2][1] +
                                            weights["calls"] * block[2][2] +
-                                           weights["imms"] * block[2][3] +
-                                           weights["dist_from_root"] * block[2][4]))
+                                           weights["imms"] * block[2][3]))
     return block_similarities_weighted
 
 
@@ -87,9 +86,8 @@ def get_all_weights_combibation():
     for i in pl.frange(0.5, 1, 0.1):
         for j in pl.frange(0, 1 - i, 0.1):
             for k in pl.frange(0, 1 - i - j, 0.1):
-                for l in pl.frange(0, 1 - i - j - k, 0.1):
-                    m = 1 - i - j - k - l
-                    all_weights_combination.append([i, j, k, l, m])
+                l = 1 - i - j - k
+                all_weights_combination.append([i, j, k, l])
     return all_weights_combination
 
 
@@ -107,7 +105,6 @@ def tune_to_optimal_weights(func_set_1, func_set_2, path,
         weights["strings"] = weight_list[1]
         weights["calls"] = weight_list[2]
         weights["imms"] = weight_list[3]
-        weights["dist_from_root"] = weight_list[4]
 
         print "testing weight: " + str(weight_list)
         for func1 in func_set_1:

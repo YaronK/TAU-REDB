@@ -145,32 +145,26 @@ class BlockSimilarity(Heuristic):
                 strings_weight = const.STRINGS_WEIGHT
                 calls_weight = const.CALLS_WEIGHT
                 imms_weight = const.IMMS_WEIGHT
-                dist_from_root_weight = const.DIST_FROM_ROOT_WEIGHT
             else:
                 itypes_weight = weights['itypes']
                 strings_weight = weights['strings']
                 calls_weight = weights['calls']
                 imms_weight = weights['imms']
-                dist_from_root_weight = weights['dist_from_root']
-
             self._ratio = (itypes_weight * self.itypes_similarity() +
                            strings_weight * self.strings_similarity() +
                            calls_weight * self.call_similarity() +
-                           imms_weight * self.immediates_similarity() +
-                           dist_from_root_weight *
-                           self.distance_from_root_similarity())
+                           imms_weight * self.immediates_similarity())
         return self._ratio
 
     def get_similarities(self):
         distance_from_root_similarity = self.distance_from_root_similarity()
         if (distance_from_root_similarity <
             constants.block_similarity.MIN_BLOCK_DIST_SIMILARITY):
-            return [0, 0, 0, 0, 0]
+            return [0, 0, 0, 0]
         return [self.itypes_similarity(),
                 self.strings_similarity(),
                 self.call_similarity(),
-                self.immediates_similarity(),
-                self.distance_from_root_similarity()]
+                self.immediates_similarity()]
 
     def itypes_similarity(self):
         return SequenceMatcher(a=self.block_data_1["itypes"],
