@@ -190,15 +190,17 @@ class GraphSimilarity(Heuristic):
     def equal_number_of_nodes(self):
         return self.num_nodes_graph_1 == self.num_nodes_graph_2
 
-    def ratio(self):
+    def ratio(self, test=False):
         if self.edges_are_equal():
             if self.nodes_are_equal():
                 return 1.0
             elif self.equal_number_of_nodes():
                 return self.ratio_given_similar_structures()
-
         # edges are not equal
-        self.block_similarities = self.calc_block_similarities()
+        if (test != False):
+            self.block_similarities = test
+        else:
+            self.block_similarities = self.calc_block_similarities()
         self.compared_block_pairs = self.get_similar_block_pairs()
         if len(self.compared_block_pairs) == 0:
             return 0.0

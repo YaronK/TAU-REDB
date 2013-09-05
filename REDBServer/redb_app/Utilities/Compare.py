@@ -38,15 +38,28 @@ def get_functions_with_similar_name(func_name, function_set):
                   NAME_SIMILARITY_THRESHOLD, function_set)
 
 
-def extract_block_similarites(func_set_1, func_set_2):
+def extract_block_attrs_similarities(func_set_1, func_set_2, path):
     similarities = {}
     for func_1 in func_set_1:
         graph_1 = Function.objects.get(id=func_1.id).graph_set.all()[0].get_data()
         for func_2 in func_set_2:
             graph_2 = Function.objects.get(id=func_2.id).graph_set.all()[0].get_data()
             bs = GraphSimilarity(graph_1, graph_2).calc_block_similarities(True)
-            similarities[(func_1.id, func_2.id)] = bs
-    json.dump(similarities, open('similarities', 'w'))
+            similarities[str((func_1.id, func_2.id))] = bs
+    json.dump(similarities, open(path, 'w'))
+
+
+def calc_weighted_block_similarities(func1_id, func2_id,
+                                     block_attrs_similarities, weights_list):
+    bs_attr = block_attrs_similarities[str((func1_id, func2_id))]
+    block_similarities_weighted = []
+    [itypes_weight, strings_weight, calls_weight, imms_weight] = weights_list
+    for block in bs_attr:
+        block_similarities_weighted.append(itypes_weight * block[0] +
+                                           strings_weight * block[1] +
+                                           calls_weight * block[2] +
+                                           imms_weight * block[3])
+    return block_similarities_weighted
 
 
 def compare(func_set_1, func_set_2):
