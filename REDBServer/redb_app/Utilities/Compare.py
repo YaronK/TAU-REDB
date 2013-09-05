@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from difflib import SequenceMatcher
 import heapq
 import json
+import pylab as pl
 
 NAME_SIMILARITY_THRESHOLD = 0.8
 
@@ -15,10 +16,10 @@ def get_function_graph_by_id(func_id):
     return Function.objects.get(id=func_id).graph_set.all()[0].get_data()
 
 
-def generate_matching_grade_by_id(a_id, b_id, test=False):
+def generate_matching_grade_by_id(a_id, b_id, test=False, weight_list=None):
     a_graph = get_function_graph_by_id(a_id)
     b_graph = get_function_graph_by_id(b_id)
-    return GraphSimilarity(a_graph, b_graph).ratio(test=test)
+    return GraphSimilarity(a_graph, b_graph).ratio(test=test, weight_list=weight_list)
 
 
 EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
@@ -33,7 +34,12 @@ def get_intersecting_func_names(exe_name1, exe_name2):
     for excluded in EXCLUDED_ON_EXE_COMPARISON:
         intersected_func_names = filter(lambda n: excluded not in n,
                                         intersected_func_names)
-    return intersected_func_names
+    exe1 = []
+    exe2 = []
+    for n in intersected_func_names:
+        exe1.append(exe1_funcs.get(func_name=n))
+        exe2.append(exe2_funcs.get(func_name=n))
+    return (exe1, exe2)
 
 
 def get_functions_with_similar_name(func_name, function_set):
@@ -44,41 +50,41 @@ def get_functions_with_similar_name(func_name, function_set):
 
 def extract_block_attrs_similarities(func_set_1, func_set_2, path):
     similarities = {}
+    num_of_comparisons = len(func_set_1) * len(func_set_2)
+    counter = 0
     for func_1 in func_set_1:
         graph_1 = get_function_graph_by_id(func_1.id)
         for func_2 in func_set_2:
             graph_2 = get_function_graph_by_id(func_2.id)
 
             graph_sim = GraphSimilarity(graph_1, graph_2)
-            block_sim = graph_sim.calc_block_similarities(True)
+            block_sim = graph_sim.calc_block_similarities(test=True)
             similarities[str((func_1.id, func_2.id))] = block_sim
-
+            counter += 1
+            print str(counter) + "/" + str(num_of_comparisons)
     json.dump(similarities, open(path, 'w'))
 
 
 def calc_weighted_block_similarities(func1_id, func2_id,
-                                     block_attrs_similarities, weights_list):
+                                     block_attrs_similarities, weight_list):
     bs_attr = block_attrs_similarities[str((func1_id, func2_id))]
     block_similarities_weighted = []
-    [itypes_weight, strings_weight, calls_weight, imms_weight] = weights_list
+    [itypes_weight, strings_weight, calls_weight, imms_weight] = weight_list
     for block in bs_attr:
-        block_similarities_weighted.append(itypes_weight * block[0] +
-                                           strings_weight * block[1] +
-                                           calls_weight * block[2] +
-                                           imms_weight * block[3])
+        block_similarities_weighted.append((block[0],
+                                           block[1],
+                                           itypes_weight * block[2][0] +
+                                           strings_weight * block[2][1] +
+                                           calls_weight * block[2][2] +
+                                           imms_weight * block[2][3]))
     return block_similarities_weighted
 
 
 def get_all_weights_combibation():
-    def frange(x, y, jump):
-        while x < y:
-            yield x
-            x += jump
-
     all_weights_combination = []
-    for i in frange(0, 1, 0.1):
-        for j in frange(0, 1 - i, 0.1):
-            for k in frange(0, 1 - i - j, 0.1):
+    for i in pl.frange(0.5, 1, 0.1):
+        for j in pl.frange(0, 1 - i, 0.1):
+            for k in pl.frange(0, 1 - i - j, 0.1):
                 l = 1 - i - j - k
                 all_weights_combination.append([i, j, k, l])
     return all_weights_combination
@@ -92,16 +98,18 @@ def tune_to_optimal_weights(func_set_1, func_set_2, path,
     cur_similar_grade = 0
     cur_non_similar_grade = 0
     best_delta = 0
-    for weights_list in all_weights_combination:
+    for weight_list in all_weights_combination:
+        print "testing weight: " + str(weight_list)
         for func1 in func_set_1:
             for func2 in func_set_2:
                 block_similarities = \
                      calc_weighted_block_similarities(func1.id,
                                                       func2.id,
                                                       block_attrs_similarities,
-                                                      weights_list)
+                                                      weight_list)
 
                 grade = generate_matching_grade_by_id(func1.id, func2.id,
+<<<<<<< HEAD
                                                       test=block_similarities)
                 name_similarity = SequenceMatcher(a=func1.func_name, 
                                                   b=func1.func_name).ratio()
@@ -113,6 +121,22 @@ def tune_to_optimal_weights(func_set_1, func_set_2, path,
         if cur_delta > best_delta:
             best_delta = cur_delta
             optimal_weight = weights_list
+=======
+                                                      test=block_similarities,
+                                                      weight_list=weight_list)
+                if SequenceMatcher(a=func1.func_name, b=func1.func_name).ratio() >= names_similarity_threshold:
+                    cur_similar_grade += grade
+                else:
+                    cur_non_similar_grade += grade
+        if (cur_similar_grade - cur_non_similar_grade) > best_delta:
+            print "old best delta: " + str(best_delta)
+            best_delta = cur_similar_grade - cur_non_similar_grade
+            print "new best delta: " + str(best_delta)
+            print "best weight: " + str(weight_list)
+            optimal_weight = weight_list
+        cur_non_similar_grade = 0
+        cur_similar_grade = 0
+>>>>>>> 0436b1c80c64933453d1974a6924b04bc63dba7b
     return optimal_weight
 
 
