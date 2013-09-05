@@ -119,7 +119,7 @@ def tune_to_optimal_weights(func_set_1, func_set_2, path,
                                                       block_similarity_tuples=block_similarities,
                                                       weights=weights)
                 name_similarity = SequenceMatcher(a=func1.func_name,
-                                                  b=func1.func_name).ratio()
+                                                  b=func2.func_name).ratio()
                 if (name_similarity >= names_similarity_threshold):
                     cur_similar_grade += grade
                 else:
