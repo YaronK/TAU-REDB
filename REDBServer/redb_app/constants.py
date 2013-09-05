@@ -52,7 +52,7 @@ class graph_similarity:
 
 class block_similarity:
     """
-    Constants which affect the graph similarity algorithm.
+    Constants which affect the block similarity.
     """
     BLOCK_SIMILARITY_THRESHOLD = 0.75
 
@@ -61,3 +61,14 @@ class block_similarity:
     CALLS_WEIGHT = 0.15
     IMMS_WEIGHT = 0.075
     DIST_FROM_ROOT_WEIGHT = 0.05
+
+    MIN_BLOCK_DIST_SIMILARITY = 0.9
+
+
+class frame_similarity:
+    """
+    Constants which affect the frame similarity.
+    """
+    ARGS_SIZE_WEIGHT = 0.4
+    VARS_SIZE_WEIGHT = 0.3
+    REGS_SIZE_WEIGHT = 0.3

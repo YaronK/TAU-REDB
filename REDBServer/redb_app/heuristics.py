@@ -21,8 +21,12 @@ class Heuristic:
         """
         pass
 
-    def ratio(self):
-        """ Retrieves Results """
+    def ratio(self, weights=None):
+        """
+        weights is a dictionary containing attr-weight pairs,
+        where attr is a string, and weight is a float. i.e. {'itypes': 0.4}.
+        if the weights arg is not supplied, default weights are taken.
+        """
         pass
 
 
@@ -35,7 +39,7 @@ class DictionarySimilarity(Heuristic):
         self.b_dict = dict2
         self._ratio = None
 
-    def ratio(self):
+    def ratio(self, weights=None):  # @UnusedVariable
         if (self._ratio == None):
             a_keys = set(self.a_dict.keys())
             b_keys = set(self.b_dict.keys())
@@ -72,37 +76,53 @@ class FrameSimilarity(Heuristic):
         self.args_size_func_2 = args_size_func_2
         self.vars_size_func_2 = vars_size_func_2
         self.regs_size_func_2 = regs_size_func_2
-        # TODO: _ratio
+        self._ratio = None
 
-    def ratio(self):
-        max_args_size = max(self.args_size_func_1, self.args_size_func_2)
-        max_vars_size = max(self.vars_size_func_1, self.vars_size_func_2)
+    def ratio(self, weights=None):
+        if (self._ratio == None):
+            if weights == None:
+                const = constants.frame_similarity
+                args_size_weight = const.ARGS_SIZE_WEIGHT
+                vars_size_weight = const.VARS_SIZE_WEIGHT
+                regs_size_weight = const.REGS_SIZE_WEIGHT
+            else:
+                args_size_weight = weights['args_size']
+                vars_size_weight = weights['vars_size']
+                regs_size_weight = weights['regs_size']
+
+            self._ratio = (args_size_weight * self.args_size_similarity() +
+                    vars_size_weight * self.vars_size_similarity() +
+                    regs_size_weight * self.regs_size_similarity())
+        return self._ratio
+
+    def get_similarities(self):
+        return [self.args_size_similarity(),
+                self.vars_size_similarity(),
+                self.regs_size_similarity()]
+
+    def regs_size_similarity(self):
         max_regs_size = max(self.regs_size_func_1, self.regs_size_func_2)
-
-        if  max_args_size == 0:
-            args_size_similarity = 1
-        else:
-            args_size_similarity = \
-                1 - abs(self.args_size_func_1 -
-                        self.args_size_func_2) / float(max_args_size)
-        if  max_vars_size == 0:
-            vars_size_similarity = 1
-        else:
-            vars_size_similarity = \
-                1 - abs(self.vars_size_func_1 -
-                        self.vars_size_func_2) / float(max_vars_size)
-
         if  max_regs_size == 0:
-            regs_size_similarity = 1
+            return 1.0
         else:
-            regs_size_similarity = \
-                1 - abs(self.regs_size_func_1 -
-                        self.regs_size_func_2) / float(max_regs_size)
+            return (1 - abs(self.regs_size_func_1 -
+                            self.regs_size_func_2) / float(max_regs_size))
 
-        ratio = (args_size_similarity / float(3) +
-                 vars_size_similarity / float(3) +
-                 regs_size_similarity / float(3))
-        return ratio
+    def args_size_similarity(self):
+        max_args_size = max(self.args_size_func_1, self.args_size_func_2)
+        if  max_args_size == 0:
+            return 1.0
+        else:
+            return (1 - abs(self.args_size_func_1 -
+                            self.args_size_func_2) / float(max_args_size))
+
+    def vars_size_similarity(self):
+        max_vars_size = max(self.vars_size_func_1, self.vars_size_func_2)
+        if  max_vars_size == 0:
+            return 1.0
+        else:
+            return (1 - abs(self.vars_size_func_1 -
+                            self.vars_size_func_2) / float(max_vars_size))
 
 
 class BlockSimilarity(Heuristic):
@@ -115,39 +135,42 @@ class BlockSimilarity(Heuristic):
         self._ratio = None
 
     def ratio(self, weights=None):
-        """
-        weights is a dictionary containing attr-weight pairs,
-        where attr is a string, and weight is a float. i.e. {'itypes': 0.4}.
-        if the weights arg is not supplied, default weights are taken.
-        """
-        if self.block_data_1 == self.block_data_2:
-            return 1.0
+        if self._ratio == None:
+            if self.block_data_1 == self.block_data_2:
+                return 1.0
 
-        if weights is None:
-            const = constants.block_similarity
-            itypes_weight = const.ITYPES_WEIGHT
-            strings_weight = const.STRINGS_WEIGHT
-            calls_weight = const.CALLS_WEIGHT
-            imms_weight = const.IMMS_WEIGHT
-            dist_from_root_weight = const.DIST_FROM_ROOT_WEIGHT
-        else:
-            itypes_weight = weights['itypes']
-            strings_weight = weights['strings']
-            calls_weight = weights['calls']
-            imms_weight = weights['imms']
-            dist_from_root_weight = weights['dist_from_root']
+            if weights is None:
+                const = constants.block_similarity
+                itypes_weight = const.ITYPES_WEIGHT
+                strings_weight = const.STRINGS_WEIGHT
+                calls_weight = const.CALLS_WEIGHT
+                imms_weight = const.IMMS_WEIGHT
+                dist_from_root_weight = const.DIST_FROM_ROOT_WEIGHT
+            else:
+                itypes_weight = weights['itypes']
+                strings_weight = weights['strings']
+                calls_weight = weights['calls']
+                imms_weight = weights['imms']
+                dist_from_root_weight = weights['dist_from_root']
 
-        return (itypes_weight * self.itypes_similarity() +
-                strings_weight * self.strings_similarity() +
-                calls_weight * self.call_similarity() +
-                imms_weight * self.immediates_similarity() +
-                dist_from_root_weight * self.distance_from_root_similarity())
+            self._ratio = (itypes_weight * self.itypes_similarity() +
+                           strings_weight * self.strings_similarity() +
+                           calls_weight * self.call_similarity() +
+                           imms_weight * self.immediates_similarity() +
+                           dist_from_root_weight *
+                           self.distance_from_root_similarity())
+        return self._ratio
 
     def get_similarities(self):
+        distance_from_root_similarity = self.distance_from_root_similarity()
+        if (distance_from_root_similarity < 
+            constants.block_similarity.MIN_BLOCK_DIST_SIMILARITY):
+            return [0, 0, 0, 0, 0]
         return [self.itypes_similarity(),
                 self.strings_similarity(),
                 self.call_similarity(),
-                self.immediates_similarity()]
+                self.immediates_similarity(),
+                self.distance_from_root_similarity()]
 
     def itypes_similarity(self):
         return SequenceMatcher(a=self.block_data_1["itypes"],
@@ -197,64 +220,61 @@ class GraphSimilarity(Heuristic):
             max(nx.single_source_dijkstra_path_length(self.graph_2,
                                                       0).values())
 
-    def edges_are_equal(self):
-        return self.graph_1_edges == self.graph_2_edges
+    def ratio(self, block_similarity_tuples=None, weights=None):
+        """
+        if the block_similarities arg is not supplied, the block similarities
+        are computed.
+        """
+        if self.structure_and_attribues_are_equal():
+            return 1.0
 
-    def nodes_are_equal(self):
-        return self.graph_1.nodes(data=True) == self.graph_2.nodes(data=True)
+        if self.structure_is_equal():
+            return self.ratio_given_similar_structures(block_similarity_tuples,
+                                                       weights)
 
-    def equal_number_of_nodes(self):
-        return self.num_nodes_graph_1 == self.num_nodes_graph_2
-
-    def ratio(self, test=False):
-        if self.edges_are_equal():
-            if self.nodes_are_equal():
-                return 1.0
-            elif self.equal_number_of_nodes():
-                return self.ratio_given_similar_structures()
-        # edges are not equal
-        if (test != False):
-            self.block_similarities = test
-        else:
-            self.block_similarities = self.calc_block_similarities()
-        self.compared_block_pairs = self.get_similar_block_pairs()
+        self.compared_block_pairs = \
+            self.get_similar_block_pairs(block_similarity_tuples,
+                                         weights)
         if len(self.compared_block_pairs) == 0:
             return 0.0
 
         self.calc_association_graph(self.compared_block_pairs)
         if self.association_graph_too_big():
-            return self.ratio_treat_as_one_block()
+            return self.ratio_treat_as_one_block(weights)
         else:
-            return self.ratio_using_association_graph()
+            return self.ratio_using_association_graph(weights)
 
-    def association_graph_too_big(self):
-        return (self.association_graph.edge_count() >=
-                constants.graph_similarity.MAX_GRAPH_COMP_SIZE)
-
-    def ratio_given_similar_structures(self):
+    def ratio_given_similar_structures(self, block_similarity_tuples, weights):
         f_sum = 0
         d_sum = 0
-
+        if block_similarity_tuples is not None:
+            similarity_tuples = filter(lambda (x, y, _): (x == y),
+                                       block_similarity_tuples)
         for block_num in range(self.graph_1.number_of_nodes()):
+            if block_similarity_tuples is not None:
+                single_tuple = filter(lambda (x, _, _): x == block_num,
+                                      similarity_tuples)[0]
+                ratio = single_tuple[2]
             block_data_1 = self.graph_1.node[block_num]['data']
             block_data_2 = self.graph_2.node[block_num]['data']
-            ratio = \
-             BlockSimilarity(block_data_1, block_data_2, self.graph_height_1,
-                             self.graph_height_2).ratio()
+            if block_similarity_tuples is None:
+                ratio = BlockSimilarity(block_data_1, block_data_2,
+                                        self.graph_height_1,
+                                        self.graph_height_2).ratio(weights)
             len_1 = float(len(block_data_1["itypes"]))
             len_2 = float(len(block_data_2["itypes"]))
             f_sum += (len_1 + len_2)
             d_sum += (len_1 + len_2) * ratio
         return d_sum / f_sum
 
-    def ratio_treat_as_one_block(self):
+    def ratio_treat_as_one_block(self, weights):
         merged_block_graph1 = self.merge_all_blocks(self.graph_1)
         merged_block_graph2 = self.merge_all_blocks(self.graph_2)
         self.association_graph.free()
         return BlockSimilarity(merged_block_graph1,
                                merged_block_graph2,
                                self.graph_height_1,
-                               self.graph_height_2).ratio()
+                               self.graph_height_2).ratio(weights)
 
     def calc_block_similarities(self, test=False):
         block_pairs = []
@@ -380,3 +400,20 @@ class GraphSimilarity(Heuristic):
                                    self.total_weight))
         print res
         return res
+
+    def structure_and_attribues_are_equal(self):
+        return self.structure_is_equal and self.attributes_are_equal()
+
+    def structure_is_equal(self):
+        return self.graph_1_edges == self.graph_2_edges
+
+    def attributes_are_equal(self):
+        return self.graph_1.nodes(data=True) == self.graph_2.nodes(data=True)
+
+    def equal_number_of_nodes(self):
+        return self.num_nodes_graph_1 == self.num_nodes_graph_2
+
+    def association_graph_too_big(self):
+        return (self.association_graph.edge_count() >=
+                constants.graph_similarity.MAX_GRAPH_COMP_SIZE)
+
