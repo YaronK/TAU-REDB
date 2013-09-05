@@ -72,6 +72,7 @@ class FrameSimilarity(Heuristic):
         self.args_size_func_2 = args_size_func_2
         self.vars_size_func_2 = vars_size_func_2
         self.regs_size_func_2 = regs_size_func_2
+        # TODO: _ratio
 
     def ratio(self):
         max_args_size = max(self.args_size_func_1, self.args_size_func_2)
@@ -113,35 +114,40 @@ class BlockSimilarity(Heuristic):
         self.graph_height_2 = graph_height_2
         self._ratio = None
 
-    def ratio(self, test=False):
+    def ratio(self, weights=None):
+        """
+        weights is a dictionary containing attr-weight pairs,
+        where attr is a string, and weight is a float. i.e. {'itypes': 0.4}.
+        if the weights arg is not supplied, default weights are taken.
+        """
         if self.block_data_1 == self.block_data_2:
             return 1.0
 
-        distance = abs(self.block_data_1["dist_from_root"] -
-                       self.block_data_2["dist_from_root"])
-        max_height = max(self.graph_height_1, self.graph_height_2)
-        try:
-            height_ratio = distance / float(max_height)
-        except Exception:
-            height_ratio = 0
-        if height_ratio > constants.block_similarity.MIN_HEIGHT_RATIO:
-            # nodes are too far apart
-            return 0.0
+        if weights is None:
+            const = constants.block_similarity
+            itypes_weight = const.ITYPES_WEIGHT
+            strings_weight = const.STRINGS_WEIGHT
+            calls_weight = const.CALLS_WEIGHT
+            imms_weight = const.IMMS_WEIGHT
+            dist_from_root_weight = const.DIST_FROM_ROOT_WEIGHT
+        else:
+            itypes_weight = weights['itypes']
+            strings_weight = weights['strings']
+            calls_weight = weights['calls']
+            imms_weight = weights['imms']
+            dist_from_root_weight = weights['dist_from_root']
 
-        itypes_weight = constants.block_similarity.ITYPES_WEIGHT
-        strings_weight = constants.block_similarity.STRINGS_WEIGHT
-        calls_weight = constants.block_similarity.CALLS_WEIGHT
-        imms_weight = constants.block_similarity.IMMS_WEIGHT
-
-        if test:
-            return [self.itypes_similarity(),
-                    self.strings_similarity(),
-                    self.call_similarity(),
-                    self.immediates_similarity()]
         return (itypes_weight * self.itypes_similarity() +
                 strings_weight * self.strings_similarity() +
                 calls_weight * self.call_similarity() +
-                imms_weight * self.immediates_similarity())
+                imms_weight * self.immediates_similarity() +
+                dist_from_root_weight * self.distance_from_root_similarity())
+
+    def get_similarities(self):
+        return [self.itypes_similarity(),
+                self.strings_similarity(),
+                self.call_similarity(),
+                self.immediates_similarity()]
 
     def itypes_similarity(self):
         return SequenceMatcher(a=self.block_data_1["itypes"],
@@ -158,6 +164,16 @@ class BlockSimilarity(Heuristic):
     def immediates_similarity(self):
         return SequenceMatcher(a=self.block_data_1["imms"],
                                b=self.block_data_2["imms"]).ratio()
+
+    def distance_from_root_similarity(self):
+        block_dist_delta = abs(self.block_data_1["dist_from_root"] -
+                               self.block_data_2["dist_from_root"])
+        graph_max_height = max(self.graph_height_1, self.graph_height_2)
+
+        if (graph_max_height == 0):  # both graphs contain only a single node
+            return 1.0
+        else:
+            return (1.0 - block_dist_delta / float(graph_max_height))
 
 
 class GraphSimilarity(Heuristic):
