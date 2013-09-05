@@ -163,7 +163,7 @@ class BlockSimilarity(Heuristic):
 
     def get_similarities(self):
         distance_from_root_similarity = self.distance_from_root_similarity()
-        if (distance_from_root_similarity < 
+        if (distance_from_root_similarity <
             constants.block_similarity.MIN_BLOCK_DIST_SIMILARITY):
             return [0, 0, 0, 0, 0]
         return [self.itypes_similarity(),
@@ -229,12 +229,15 @@ class GraphSimilarity(Heuristic):
             return 1.0
 
         if self.structure_is_equal():
-            return self.ratio_given_similar_structures(block_similarity_tuples,
-                                                       weights)
+            return self.ratio_given_similar_structures(block_similarity_tuples)
+
+        if block_similarity_tuples:
+            self.block_similarities = block_similarity_tuples
+        else:
+            self.block_similarities = self.calc_block_similarities()
 
         self.compared_block_pairs = \
-            self.get_similar_block_pairs(block_similarity_tuples,
-                                         weights)
+            self.get_similar_block_pairs()
         if len(self.compared_block_pairs) == 0:
             return 0.0
 
@@ -242,9 +245,9 @@ class GraphSimilarity(Heuristic):
         if self.association_graph_too_big():
             return self.ratio_treat_as_one_block(weights)
         else:
-            return self.ratio_using_association_graph(weights)
+            return self.ratio_using_association_graph()
 
-    def ratio_given_similar_structures(self, block_similarity_tuples, weights):
+    def ratio_given_similar_structures(self, block_similarity_tuples):
         f_sum = 0
         d_sum = 0
         if block_similarity_tuples is not None:
@@ -252,7 +255,7 @@ class GraphSimilarity(Heuristic):
                                        block_similarity_tuples)
         for block_num in range(self.graph_1.number_of_nodes()):
             if block_similarity_tuples is not None:
-                single_tuple = filter(lambda (x, _, _): x == block_num,
+                single_tuple = filter(lambda (x, y, _): x == block_num,
                                       similarity_tuples)[0]
                 ratio = single_tuple[2]
             block_data_1 = self.graph_1.node[block_num]['data']
@@ -260,7 +263,7 @@ class GraphSimilarity(Heuristic):
             if block_similarity_tuples is None:
                 ratio = BlockSimilarity(block_data_1, block_data_2,
                                         self.graph_height_1,
-                                        self.graph_height_2).ratio(weights)
+                                        self.graph_height_2).ratio()
             len_1 = float(len(block_data_1["itypes"]))
             len_2 = float(len(block_data_2["itypes"]))
             f_sum += (len_1 + len_2)
@@ -282,9 +285,14 @@ class GraphSimilarity(Heuristic):
             block_data_1 = self.graph_1.node[i]['data']
             for j in range(self.num_nodes_graph_2):
                 block_data_2 = self.graph_2.node[j]['data']
-                sim = BlockSimilarity(block_data_1, block_data_2,
+                if test:
+                    sim = BlockSimilarity(block_data_1, block_data_2,
                                       self.graph_height_1,
-                                      self.graph_height_2).ratio(test=test)
+                                      self.graph_height_2).get_similarities()
+                else:
+                    sim = BlockSimilarity(block_data_1, block_data_2,
+                                          self.graph_height_1,
+                                          self.graph_height_2).ratio()
                 block_pairs.append((i, j, sim))
         return block_pairs
 
@@ -379,9 +387,9 @@ class GraphSimilarity(Heuristic):
         self.total_size = 0
 
         while self.find_more_cliques() and (self.num_of_cliques_found == 0):
-            print "in cliquer"
+            # print "in cliquer"
             clique = self.association_graph.get_maximum_clique()
-            print "out cliquer"
+            # print "out cliquer"
 
             weight = self.get_clique_weight(clique)
             self.size_of_last_clique_found = len(clique)
@@ -398,7 +406,7 @@ class GraphSimilarity(Heuristic):
         res = self.total_weight / (float(self.num_nodes_graph_1 +
                                    self.num_nodes_graph_2 -
                                    self.total_weight))
-        print res
+        # print res
         return res
 
     def structure_and_attribues_are_equal(self):
@@ -416,4 +424,3 @@ class GraphSimilarity(Heuristic):
     def association_graph_too_big(self):
         return (self.association_graph.edge_count() >=
                 constants.graph_similarity.MAX_GRAPH_COMP_SIZE)
-
