@@ -139,21 +139,38 @@ class BlockSimilarity(Heuristic):
             if self.block_data_1 == self.block_data_2:
                 return 1.0
 
-            if weights is None:
-                const = constants.block_similarity
-                itypes_weight = const.ITYPES_WEIGHT
-                strings_weight = const.STRINGS_WEIGHT
-                calls_weight = const.CALLS_WEIGHT
-                imms_weight = const.IMMS_WEIGHT
-            else:
-                itypes_weight = weights['itypes']
-                strings_weight = weights['strings']
-                calls_weight = weights['calls']
-                imms_weight = weights['imms']
-            self._ratio = (itypes_weight * self.itypes_similarity() +
-                           strings_weight * self.strings_similarity() +
-                           calls_weight * self.call_similarity() +
-                           imms_weight * self.immediates_similarity())
+            const = constants.block_similarity
+            def_itypes_weight = (const.ITYPES_WEIGHT if weights is None
+                                 else weights['itypes'])
+            def_strings_weight = (const.STRINGS_WEIGHT if weights is None
+                                 else weights['strings'])
+            def_calls_weight = (const.CALLS_WEIGHT if weights is None
+                                 else weights['calls'])
+            def_immediates_weight = (const.IMMS_WEIGHT if weights is None
+                                      else weights['imms'])
+
+            itypes_similarity = self.itypes_similarity()
+            strings_similarity = self.strings_similarity()
+            calls_similarity = self.calls_similarity()
+            immediates_similarity = self.immediates_similarity()
+
+            itypes_weight = (0.0 if itypes_similarity is None
+                             else def_itypes_weight)
+            strings_weight = (0.0 if strings_similarity is None
+                              else def_strings_weight)
+            calls_weight = (0.0 if calls_similarity is None
+                            else def_calls_weight)
+            immediates_weight = (0.0 if immediates_similarity is None
+                           else def_immediates_weight)
+
+            weight_sum = (itypes_weight + strings_weight +
+                          calls_weight + immediates_weight)
+
+            self._ratio = ((itypes_weight * itypes_similarity +
+                            strings_weight * strings_similarity +
+                            calls_weight * calls_similarity +
+                            immediates_weight * immediates_similarity) /
+                                float(weight_sum))
         return self._ratio
 
     def get_similarities(self):
@@ -167,20 +184,36 @@ class BlockSimilarity(Heuristic):
                 self.immediates_similarity()]
 
     def itypes_similarity(self):
-        return SequenceMatcher(a=self.block_data_1["itypes"],
-                               b=self.block_data_2["itypes"]).ratio()
+        if ((len(self.block_data_1["itypes"]) == 0) and
+            (len(self.block_data_2["itypes"]) == 0)):
+            return None
+        else:
+            return SequenceMatcher(a=self.block_data_1["itypes"],
+                                   b=self.block_data_2["itypes"]).ratio()
 
     def strings_similarity(self):
-        return SequenceMatcher(a=self.block_data_1["strings"],
-                               b=self.block_data_2["strings"]).ratio()
+        if ((len(self.block_data_1["strings"]) == 0) and
+            (len(self.block_data_2["strings"]) == 0)):
+            return 0
+        else:
+            return SequenceMatcher(a=self.block_data_1["strings"],
+                                   b=self.block_data_2["strings"]).ratio()
 
-    def call_similarity(self):
-        return SequenceMatcher(a=self.block_data_1["calls"],
-                               b=self.block_data_2["calls"]).ratio()
+    def calls_similarity(self):
+        if ((len(self.block_data_1["calls"]) == 0) and
+            (len(self.block_data_2["calls"]) == 0)):
+            return 0
+        else:
+            return SequenceMatcher(a=self.block_data_1["calls"],
+                                   b=self.block_data_2["calls"]).ratio()
 
     def immediates_similarity(self):
-        return SequenceMatcher(a=self.block_data_1["imms"],
-                               b=self.block_data_2["imms"]).ratio()
+        if ((len(self.block_data_1["imms"]) == 0) and
+            (len(self.block_data_2["imms"]) == 0)):
+            return 0
+        else:
+            return SequenceMatcher(a=self.block_data_1["imms"],
+                                   b=self.block_data_2["imms"]).ratio()
 
     def distance_from_root_similarity(self):
         block_dist_delta = abs(self.block_data_1["dist_from_root"] -
@@ -249,7 +282,7 @@ class GraphSimilarity(Heuristic):
                                        block_similarity_tuples)
         for block_num in range(self.graph_1.number_of_nodes()):
             if block_similarity_tuples is not None:
-                single_tuple = filter(lambda (x, y, _): x == block_num,
+                single_tuple = filter(lambda (x, _, _): x == block_num,
                                       similarity_tuples)[0]
                 ratio = single_tuple[2]
             block_data_1 = self.graph_1.node[block_num]['data']
