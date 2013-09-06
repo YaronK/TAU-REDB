@@ -120,73 +120,73 @@ class RequestAction:
     def blocks_num_filter(cls, func, func_set):
         num_of_blocks = func.graph.num_of_blocks
         deviation = constants.db_filter.MAX_NUM_BLOCKS_DEVIATION
-        lower_bound, upper_bound = RequestAction.get_bounds(num_of_blocks,
-                                                            deviation)
+        lower_bound, upper_bound = cls.get_bounds(num_of_blocks, deviation)
         func_set = func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
+        return func_set
 
     @classmethod
     def edges_num_filter(cls, func, func_set):
         num_of_edges = func.graph.num_of_edges
         deviation = constants.db_filter.MAX_NUM_EDGES_DEVIATION
-        lower_bound, upper_bound = RequestAction.get_bounds(num_of_edges,
-                                                            deviation)
+        lower_bound, upper_bound = cls.get_bounds(num_of_edges, deviation)
         func_set = func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
+        return func_set
 
     @classmethod
     def vars_size_filter(cls, func, func_set):
         vars_size = func.vars_size
         deviation = constants.db_filter.MAX_VARS_SIZE_DEVIATION
-        lower_bound, upper_bound = RequestAction.get_bounds(vars_size,
-                                                            deviation)
+        lower_bound, upper_bound = cls.get_bounds(vars_size, deviation)
         func_set = func_set.filter(vars_size__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
+        return func_set
 
     @classmethod
     def args_size_filter(cls, func, func_set):
         args_size = func.args_size
         deviation = constants.db_filter.MAX_ARGS_SIZE_DEVIATION
-        lower_bound, upper_bound = RequestAction.get_bounds(args_size,
-                                                            deviation)
+        lower_bound, upper_bound = cls.get_bounds(args_size, deviation)
         func_set = func_set.filter(args_size__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
+        return func_set
 
     @classmethod
     def regs_size_filter(cls, func, func_set):
         regs_size = func.regs_size
         deviation = constants.db_filter.MAX_REGS_SIZE_DEVIATION
-        lower_bound, upper_bound = RequestAction.get_bounds(regs_size,
-                                                            deviation)
+        lower_bound, upper_bound = cls.get_bounds(regs_size, deviation)
         func_set = func_set.filter(regs_size__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
+        return func_set
 
     @classmethod
     def calls_num_filter(cls, func, func_set):
         num_of_calls = func.num_of_calls
         deviation = constants.db_filter.MAX_NUM_CALLS_DEVIATION
-        lower_bound, upper_bound = RequestAction.get_bounds(num_of_calls,
-                                                            deviation)
+        lower_bound, upper_bound = cls.get_bounds(num_of_calls, deviation)
         func_set = func_set.filter(num_of_calls__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
+        return func_set
 
     @classmethod
     def strings_num_filter(cls, func, func_set):
         num_of_strings = func.num_of_strings
         deviation = constants.db_filter.MAX_NUM_STRINGS_DEVIATION
-        lower_bound, upper_bound = RequestAction.get_bounds(num_of_strings,
-                                                            deviation)
+        lower_bound, upper_bound = cls.get_bounds(num_of_strings, deviation)
         func_set = func_set.filter(num_of_strings__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
+        return func_set
 
     @classmethod
     def imms_num_filter(cls, func, func_set):
         num_of_imms = func.num_of_imms
         deviation = constants.db_filter.MAX_NUM_IMMS_DEVIATION
-        lower_bound, upper_bound = RequestAction.get_bounds(num_of_imms,
-                                                            deviation)
+        lower_bound, upper_bound = cls.get_bounds(num_of_imms, deviation)
         func_set = func_set.filter(num_of_imms__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
+        return func_set
 
     def dictionary_filtering(self):
         function_set = self.filtered_function_set
