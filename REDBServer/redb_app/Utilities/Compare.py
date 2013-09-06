@@ -8,7 +8,7 @@ from difflib import SequenceMatcher
 import heapq
 import json
 import pylab as pl
-
+import os
 NAME_SIMILARITY_THRESHOLD = 0.8
 
 
@@ -50,7 +50,7 @@ def get_functions_with_similar_name(func_name, function_set):
                   NAME_SIMILARITY_THRESHOLD, function_set)
 
 
-def extract_block_attrs_similarities(func_set_1, func_set_2, path):
+def extract_block_attrs_similarities(func_set_1, func_set_2, dir_path):
     similarities = {}
     num_of_comparisons = len(func_set_1) * len(func_set_2)
     counter = 0
@@ -61,17 +61,17 @@ def extract_block_attrs_similarities(func_set_1, func_set_2, path):
 
             graph_sim = GraphSimilarity(graph_1, graph_2)
             block_sim = graph_sim.calc_block_similarities(test=True)
-            similarities[str((func_1.id, func_2.id))] = block_sim
+            # similarities[str((func_1.id, func_2.id))] = block_sim
             counter += 1
             print str(counter) + "/" + str(num_of_comparisons)
-    json.dump(similarities, open(path, 'w'))
+            file_path = os.path.join(dir_path, str(func_1.id) + "_" + str(func_2.id))
+            json.dump(block_sim, open(file_path, 'w'))
 
 
 def calc_weighted_block_similarities(func1_id, func2_id,
                                      block_attrs_similarities, weights):
-    bs_attr = block_attrs_similarities[str((func1_id, func2_id))]
     block_similarities_weighted = []
-    for block in bs_attr:
+    for block in block_attrs_similarities:
         block_similarities_weighted.append((block[0],
                                            block[1],
                                            weights["itypes"] * block[2][0] +
@@ -91,14 +91,13 @@ def get_all_weights_combibation():
     return all_weights_combination
 
 
-def tune_to_optimal_weights(func_set_1, func_set_2, path,
+def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
                             names_similarity_threshold):
-    block_attrs_similarities = \
-         json.load(open(path), object_hook=redb_app.utils._decode_dict)
+
     all_weights_combination = get_all_weights_combibation()
     cur_similar_grade = 0
     cur_non_similar_grade = 0
-    best_delta = 0
+    best_delta = float("-infinity")
     for weight_list in all_weights_combination:
         weights = {}
         weights["itypes"] = weight_list[0]
@@ -109,6 +108,9 @@ def tune_to_optimal_weights(func_set_1, func_set_2, path,
         print "testing weight: " + str(weight_list)
         for func1 in func_set_1:
             for func2 in func_set_2:
+                print (func1.id, func2.id)
+                file_path = os.path.join(dir_path, str(func1.id) + "_" + str(func2.id))
+                block_attrs_similarities = json.load(open(file_path))
                 block_similarities = \
                      calc_weighted_block_similarities(func1.id,
                                                       func2.id,
