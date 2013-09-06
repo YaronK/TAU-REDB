@@ -58,6 +58,9 @@ def extract_block_attrs_similarities(func_set_1, func_set_2, dir_path):
     for func_1 in func_set_1:
         graph_1 = get_function_graph_by_id(func_1.id)
         for func_2 in func_set_2:
+            file_path = os.path.join(dir_path, str(func_1.id) + "_" + str(func_2.id))
+            if os.path.exists(file_path):
+                continue
             graph_2 = get_function_graph_by_id(func_2.id)
 
             graph_sim = GraphSimilarity(graph_1, graph_2)
@@ -65,7 +68,7 @@ def extract_block_attrs_similarities(func_set_1, func_set_2, dir_path):
             # similarities[str((func_1.id, func_2.id))] = block_sim
             counter += 1
             print str(counter) + "/" + str(num_of_comparisons)
-            file_path = os.path.join(dir_path, str(func_1.id) + "_" + str(func_2.id))
+
             json.dump(block_sim, open(file_path, 'w'))
 
 
@@ -133,8 +136,8 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
                             names_similarity_threshold):
 
     all_weights_combination = get_all_weights_combibation()
-    min_mistakes_for_specific_weights = int("+infinity")
-    min_mistakes_total = int("+infinity")
+    min_mistakes_for_specific_weights = float("+infinity")
+    min_mistakes_total = float("+infinity")
     min_mistakes_for_specific_weights_threshold = 0
     min_mistakes_total_threshold = 0
     best_weights = {}
@@ -150,7 +153,7 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
         should_be_equal_grades = []
         should_be_different_grades = []
 
-        print "testing weight: " + str(weight_list)
+        print "testing weight: " + str(weights)
         for func1 in func_set_1:
             for func2 in func_set_2:
                 file_path = os.path.join(dir_path, str(func1.id) + "_" + str(func2.id))
@@ -174,15 +177,19 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
                                   should_be_different_grades) +
                            filter(lambda x: x < threshold,
                                   should_be_equal_grades))
+            print mistakes,
+            print ""
             if mistakes < min_mistakes_for_specific_weights:
                 min_mistakes_for_specific_weights = mistakes
                 min_mistakes_for_specific_weights_threshold = threshold
-
+        print "min mistakes: " + str(min_mistakes_for_specific_weights)
         if min_mistakes_total > min_mistakes_for_specific_weights:
             min_mistakes_total = min_mistakes_for_specific_weights
             min_mistakes_total_threshold = min_mistakes_for_specific_weights_threshold
             best_weights = weights
+            print "best: " + str(best_weights)
 
+        min_mistakes_for_specific_weights = ("+infinity")
     print (min_mistakes_total, min_mistakes_total_threshold, best_weights)
 
 
@@ -376,11 +383,11 @@ def calc_variance_of_num_of_filtered_funcs(func_list, filter_func,
     return np.mean(num_filtered_funcs_list)
 
 
-LIBC_FUNC_NAMES = ["inet_ntoa", "inet_aton" ,"inet_addr", "inet_ntop",
+LIBC_FUNC_NAMES = ["inet_ntoa", "inet_aton" , "inet_addr", "inet_ntop",
                    "inet_pton", "execve", "accept", "alarm", "alphasort",
                    "asctime", "atol", "bind", "bsearch", "calloc", "chdir",
                    "chmod", "chown", "chroot", "clock", "clock_settime",
                    "clock_gettime", "connect", "cos", "difftime", "dirname",
-                   "div", "exit", "exp", "fseek", "getcwd", 
+                   "div", "exit", "exp", "fseek", "getcwd",
                    ]
 
