@@ -133,11 +133,12 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
                             names_similarity_threshold):
 
     all_weights_combination = get_all_weights_combibation()
-    cur_similar_grade = 0
-    similar_name_counter = 0
-    cur_non_similar_grade = 0
-    non_similar_name_counter = 0
-    best_delta = float("-infinity")
+    min_mistakes_for_specific_weights = int("+infinity")
+    min_mistakes_total = int("+infinity")
+    min_mistakes_for_specific_weights_threshold = 0
+    min_mistakes_total_threshold = 0
+    best_weights = {}
+
     for weight_list in all_weights_combination:
         weights = {}
         weights["itypes"] = weight_list[0]
@@ -145,10 +146,13 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
         weights["calls"] = weight_list[2]
         weights["imms"] = weight_list[3]
 
+        step = 0.05
+        should_be_equal_grades = []
+        should_be_different_grades = []
+
         print "testing weight: " + str(weight_list)
         for func1 in func_set_1:
             for func2 in func_set_2:
-                # print str((func1.id, func2.id))
                 file_path = os.path.join(dir_path, str(func1.id) + "_" + str(func2.id))
                 block_attrs_similarities = json.load(open(file_path))
                 block_similarities = \
@@ -161,24 +165,25 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
                 name_similarity = SequenceMatcher(a=func1.func_name,
                                                   b=func2.func_name).ratio()
                 if (name_similarity >= names_similarity_threshold):
-                    cur_similar_grade += grade
-                    similar_name_counter += 1
+                    should_be_equal_grades.append(grade)
                 else:
-                    cur_non_similar_grade += grade
-                    non_similar_name_counter += 1
-        cur_delta = (cur_similar_grade / float(similar_name_counter) -
-                     cur_non_similar_grade / float(non_similar_name_counter))
-        if cur_delta >= best_delta:
-            print "old best delta: " + str(best_delta)
-            best_delta = cur_delta
-            print "new best delta: " + str(best_delta)
-            print "best weight: " + str(weight_list)
-            optimal_weight = weight_list
-        cur_non_similar_grade = 0
-        cur_similar_grade = 0
-        similar_name_counter = 0
-        non_similar_name_counter = 0
-    return optimal_weight
+                    should_be_different_grades.append(grade)
+
+        for threshold in pl.frange(0, 1, step):
+            mistakes = len(filter(lambda x: x > threshold,
+                                  should_be_different_grades) +
+                           filter(lambda x: x < threshold,
+                                  should_be_equal_grades))
+            if mistakes < min_mistakes_for_specific_weights:
+                min_mistakes_for_specific_weights = mistakes
+                min_mistakes_for_specific_weights_threshold = threshold
+
+        if min_mistakes_total > min_mistakes_for_specific_weights:
+            min_mistakes_total = min_mistakes_for_specific_weights
+            min_mistakes_total_threshold = min_mistakes_for_specific_weights_threshold
+            best_weights = weights
+
+    print (min_mistakes_total, min_mistakes_total_threshold, best_weights)
 
 
 def compare_function_sets(func_set_1, func_set_2):
@@ -369,3 +374,13 @@ def calc_variance_of_num_of_filtered_funcs(func_list, filter_func,
         num_filtered_funcs_list.append(num_filtered)
     print num_filtered_funcs_list
     return np.mean(num_filtered_funcs_list)
+
+
+LIBC_FUNC_NAMES = ["inet_ntoa", "inet_aton" ,"inet_addr", "inet_ntop",
+                   "inet_pton", "execve", "accept", "alarm", "alphasort",
+                   "asctime", "atol", "bind", "bsearch", "calloc", "chdir",
+                   "chmod", "chown", "chroot", "clock", "clock_settime",
+                   "clock_gettime", "connect", "cos", "difftime", "dirname",
+                   "div", "exit", "exp", "fseek", "getcwd", 
+                   ]
+
