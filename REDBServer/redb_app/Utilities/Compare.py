@@ -68,10 +68,31 @@ def extract_block_attrs_similarities(func_set_1, func_set_2, dir_path):
             json.dump(block_sim, open(file_path, 'w'))
 
 
-def calc_weighted_block_similarities(func1_id, func2_id,
-                                     block_attrs_similarities, weights):
+def calc_weighted_block_similarities(block_attrs_similarities, weights):
+
     block_similarities_weighted = []
     for block in block_attrs_similarities:
+        itypes_similarity = block[2][0]
+        strings_similarity = block[2][1]
+        calls_similarity = block[2][2]
+        imms_similarity = block[2][3]
+        if itypes_similarity is None:
+            weights["itypes"] = 0
+        if strings_similarity is None:
+            weights["strings"] = 0
+        if calls_similarity is None:
+            weights["calls"] = 0
+        if imms_similarity is None:
+            weights["imms"] = 0
+
+        sum_weights = (weights["itypes"] + weights["strings"] +
+                       weights["calls"] + weights["imms"])
+
+        weights["itypes"] = weights["itypes"] / float(sum_weights)
+        weights["strings"] = weights["strings"] / float(sum_weights)
+        weights["calls"] = weights["calls"] / float(sum_weights)
+        weights["imms"] = weights["imms"] / float(sum_weights)
+
         block_similarities_weighted.append((block[0],
                                            block[1],
                                            weights["itypes"] * block[2][0] +
@@ -83,10 +104,10 @@ def calc_weighted_block_similarities(func1_id, func2_id,
 
 def get_all_weights_combibation():
     all_weights_combination = []
-    for i in pl.frange(0.5, 1, 0.1):
-        for j in pl.frange(0, 1 - i, 0.1):
-            for k in pl.frange(0, 1 - i - j, 0.1):
-                l = 1 - i - j - k
+    for i in range(5, 10, 1):
+        for j in range(0, 10 - i, 1):
+            for k in range(0, 10 - i - j, 1):
+                l = 10 - i - j - k
                 all_weights_combination.append([i, j, k, l])
     return all_weights_combination
 
@@ -108,13 +129,10 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
         print "testing weight: " + str(weight_list)
         for func1 in func_set_1:
             for func2 in func_set_2:
-                print (func1.id, func2.id)
                 file_path = os.path.join(dir_path, str(func1.id) + "_" + str(func2.id))
                 block_attrs_similarities = json.load(open(file_path))
                 block_similarities = \
-                     calc_weighted_block_similarities(func1.id,
-                                                      func2.id,
-                                                      block_attrs_similarities,
+                     calc_weighted_block_similarities(block_attrs_similarities,
                                                       weights)
 
                 grade = generate_matching_grade_by_id(func1.id, func2.id,
@@ -131,7 +149,7 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
             print "old best delta: " + str(best_delta)
             best_delta = cur_delta
             print "new best delta: " + str(best_delta)
-            print "best weight: " + str(weight_list)
+            print "best weight: " + str(weights)
             optimal_weight = weight_list
         cur_non_similar_grade = 0
         cur_similar_grade = 0
