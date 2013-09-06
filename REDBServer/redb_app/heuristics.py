@@ -282,7 +282,7 @@ class GraphSimilarity(Heuristic):
                                        block_similarity_tuples)
         for block_num in range(self.graph_1.number_of_nodes()):
             if block_similarity_tuples is not None:
-                single_tuple = filter(lambda (x, _, _): x == block_num,
+                single_tuple = filter(lambda (x, y, _): x == block_num,
                                       similarity_tuples)[0]
                 ratio = single_tuple[2]
             block_data_1 = self.graph_1.node[block_num]['data']
