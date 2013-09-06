@@ -9,7 +9,7 @@ import heapq
 import json
 import pylab as pl
 import os
-from lib2to3.fixer_util import String
+import redb_app.constants as constants
 NAME_SIMILARITY_THRESHOLD = 0.8
 
 
@@ -259,4 +259,113 @@ def get_top_similarities_for_all_functions(func_set_1, func_set_2, num_of_tops, 
     f.close()
 
 
-# TODO: separate comparison and extraction
+def get_bounds(mean, deviation):
+    return mean * (1 - deviation), mean * (1 + deviation)
+
+con_db = constants.db_filter
+
+
+def insns_num_filter(func, func_set,
+                     deviation=con_db.MAX_NUM_INSNS_DEVIATION):
+    insns_num = func.num_of_insns
+    lower_bound, upper_bound = get_bounds(insns_num, deviation)
+    func_set = func_set.filter(num_of_insns__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def blocks_num_filter(func, func_set,
+                      deviation=con_db.MAX_NUM_BLOCKS_DEVIATION):
+    num_of_blocks = func.graph_set.all()[0].num_of_blocks
+    lower_bound, upper_bound = get_bounds(num_of_blocks, deviation)
+    func_set = func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def edges_num_filter(func, func_set,
+                     deviation=con_db.MAX_NUM_EDGES_DEVIATION):
+    num_of_edges = func.graph_set.all()[0].num_of_edges
+    lower_bound, upper_bound = get_bounds(num_of_edges, deviation)
+    func_set = func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def vars_size_filter(func, func_set,
+                     deviation=con_db.MAX_VARS_SIZE_DEVIATION):
+    vars_size = func.vars_size
+    lower_bound, upper_bound = get_bounds(vars_size, deviation)
+    func_set = func_set.filter(vars_size__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def args_size_filter(func, func_set,
+                     deviation=con_db.MAX_ARGS_SIZE_DEVIATION):
+    args_size = func.args_size
+    lower_bound, upper_bound = get_bounds(args_size, deviation)
+    func_set = func_set.filter(args_size__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def regs_size_filter(func, func_set,
+                     deviation=con_db.MAX_REGS_SIZE_DEVIATION):
+    regs_size = func.regs_size
+    lower_bound, upper_bound = get_bounds(regs_size, deviation)
+    func_set = func_set.filter(regs_size__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def calls_num_filter(func, func_set,
+                     deviation=con_db.MAX_NUM_CALLS_DEVIATION):
+    num_of_calls = func.num_of_calls
+    lower_bound, upper_bound = get_bounds(num_of_calls, deviation)
+    func_set = func_set.filter(num_of_calls__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def strings_num_filter(func, func_set,
+                       deviation=con_db.MAX_NUM_STRINGS_DEVIATION):
+    num_of_strings = func.num_of_strings
+    lower_bound, upper_bound = get_bounds(num_of_strings, deviation)
+    func_set = func_set.filter(num_of_strings__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def imms_num_filter(func, func_set,
+                    deviation=con_db.MAX_NUM_IMMS_DEVIATION):
+    num_of_imms = func.num_of_imms
+    lower_bound, upper_bound = get_bounds(num_of_imms, deviation)
+    func_set = func_set.filter(num_of_imms__range=  # @IgnorePep8
+                               (lower_bound, upper_bound))
+    return func_set
+
+
+def before_after(my_func_index, filter_func, deviation=None):
+    my_func = Function.objects.all()[my_func_index]
+    print "Before: " + str(len(Function.objects.all()))
+    if deviation != None:
+        after = len(filter_func(my_func, Function.objects.all(), deviation))
+    else:
+        after = len(filter_func(my_func, Function.objects.all()))
+    print "After: " + str(after)
+
+
+def calc_variance_of_num_of_filtered_funcs(func_list, filter_func,
+                                          deviation=None):
+    before = len(Function.objects.all())
+    num_filtered_funcs_list = []
+    for func in func_list:
+        if deviation != None:
+            after = len(filter_func(func, Function.objects.all(), deviation))
+        else:
+            after = len(filter_func(func, Function.objects.all()))
+        num_filtered = before - after
+        num_filtered_funcs_list.append(num_filtered)
+    print num_filtered_funcs_list
+    return np.mean(num_filtered_funcs_list)
