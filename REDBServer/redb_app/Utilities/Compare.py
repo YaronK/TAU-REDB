@@ -9,6 +9,7 @@ import heapq
 import json
 import pylab as pl
 import os
+from lib2to3.fixer_util import String
 NAME_SIMILARITY_THRESHOLD = 0.8
 
 
@@ -76,38 +77,54 @@ def calc_weighted_block_similarities(block_attrs_similarities, weights):
         strings_similarity = block[2][1]
         calls_similarity = block[2][2]
         imms_similarity = block[2][3]
+
         if itypes_similarity is None:
-            weights["itypes"] = 0
+            itypes_similarity = 0
+            itypes_weight = 0
+        else:
+            itypes_weight = weights["itypes"]
+
         if strings_similarity is None:
-            weights["strings"] = 0
+            strings_similarity = 0
+            strings_weight = 0
+        else:
+            strings_weight = weights["strings"]
+
         if calls_similarity is None:
-            weights["calls"] = 0
+            calls_similarity = 0
+            calls_weight = 0
+        else:
+            calls_weight = weights["calls"]
+
         if imms_similarity is None:
-            weights["imms"] = 0
+            imms_similarity = 0
+            imms_weight = 0
+        else:
+            imms_weight = weights["imms"]
 
-        sum_weights = (weights["itypes"] + weights["strings"] +
-                       weights["calls"] + weights["imms"])
+        sum_weights = (itypes_weight + strings_weight +
+                       calls_weight + imms_weight)
 
-        weights["itypes"] = weights["itypes"] / float(sum_weights)
-        weights["strings"] = weights["strings"] / float(sum_weights)
-        weights["calls"] = weights["calls"] / float(sum_weights)
-        weights["imms"] = weights["imms"] / float(sum_weights)
-
+        itypes_weight = itypes_weight / float(sum_weights)
+        strings_weight = strings_weight / float(sum_weights)
+        calls_weight = calls_weight / float(sum_weights)
+        imms_weight = imms_weight / float(sum_weights)
         block_similarities_weighted.append((block[0],
                                            block[1],
-                                           weights["itypes"] * block[2][0] +
-                                           weights["strings"] * block[2][1] +
-                                           weights["calls"] * block[2][2] +
-                                           weights["imms"] * block[2][3]))
+                                           itypes_weight * itypes_similarity +
+                                           strings_weight * strings_similarity +
+                                           calls_weight * calls_similarity +
+                                           imms_weight * imms_similarity))
     return block_similarities_weighted
 
 
 def get_all_weights_combibation():
     all_weights_combination = []
-    for i in range(5, 10, 1):
-        for j in range(0, 10 - i, 1):
-            for k in range(0, 10 - i - j, 1):
-                l = 10 - i - j - k
+    max_weight = 10
+    for i in range(int(max_weight * 1 / 2), max_weight, 1):
+        for j in range(0, max_weight - i, 1):
+            for k in range(0, max_weight - i - j, 1):
+                l = max_weight - i - j - k
                 all_weights_combination.append([i, j, k, l])
     return all_weights_combination
 
@@ -117,7 +134,9 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
 
     all_weights_combination = get_all_weights_combibation()
     cur_similar_grade = 0
+    similar_name_counter = 0
     cur_non_similar_grade = 0
+    non_similar_name_counter = 0
     best_delta = float("-infinity")
     for weight_list in all_weights_combination:
         weights = {}
@@ -129,6 +148,7 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
         print "testing weight: " + str(weight_list)
         for func1 in func_set_1:
             for func2 in func_set_2:
+                # print str((func1.id, func2.id))
                 file_path = os.path.join(dir_path, str(func1.id) + "_" + str(func2.id))
                 block_attrs_similarities = json.load(open(file_path))
                 block_similarities = \
@@ -142,17 +162,22 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
                                                   b=func2.func_name).ratio()
                 if (name_similarity >= names_similarity_threshold):
                     cur_similar_grade += grade
+                    similar_name_counter += 1
                 else:
                     cur_non_similar_grade += grade
-        cur_delta = cur_similar_grade - cur_non_similar_grade
-        if cur_delta > best_delta:
+                    non_similar_name_counter += 1
+        cur_delta = (cur_similar_grade / float(similar_name_counter) -
+                     cur_non_similar_grade / float(non_similar_name_counter))
+        if cur_delta >= best_delta:
             print "old best delta: " + str(best_delta)
             best_delta = cur_delta
             print "new best delta: " + str(best_delta)
-            print "best weight: " + str(weights)
+            print "best weight: " + str(weight_list)
             optimal_weight = weight_list
         cur_non_similar_grade = 0
         cur_similar_grade = 0
+        similar_name_counter = 0
+        non_similar_name_counter = 0
     return optimal_weight
 
 

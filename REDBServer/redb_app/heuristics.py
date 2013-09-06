@@ -150,9 +150,20 @@ class BlockSimilarity(Heuristic):
                                       else weights['imms'])
 
             itypes_similarity = self.itypes_similarity()
+            if itypes_similarity is None:
+                itypes_similarity = 0
+
             strings_similarity = self.strings_similarity()
+            if strings_similarity is None:
+                strings_similarity = 0
+
             calls_similarity = self.calls_similarity()
+            if calls_similarity is None:
+                calls_similarity = 0
+
             immediates_similarity = self.immediates_similarity()
+            if immediates_similarity is None:
+                immediates_similarity = 0
 
             itypes_weight = (0.0 if itypes_similarity is None
                              else def_itypes_weight)
@@ -180,7 +191,7 @@ class BlockSimilarity(Heuristic):
             return [0, 0, 0, 0]
         return [self.itypes_similarity(),
                 self.strings_similarity(),
-                self.call_similarity(),
+                self.calls_similarity(),
                 self.immediates_similarity()]
 
     def itypes_similarity(self):
@@ -194,7 +205,7 @@ class BlockSimilarity(Heuristic):
     def strings_similarity(self):
         if ((len(self.block_data_1["strings"]) == 0) and
             (len(self.block_data_2["strings"]) == 0)):
-            return 0
+            return None
         else:
             return SequenceMatcher(a=self.block_data_1["strings"],
                                    b=self.block_data_2["strings"]).ratio()
@@ -202,7 +213,7 @@ class BlockSimilarity(Heuristic):
     def calls_similarity(self):
         if ((len(self.block_data_1["calls"]) == 0) and
             (len(self.block_data_2["calls"]) == 0)):
-            return 0
+            return None
         else:
             return SequenceMatcher(a=self.block_data_1["calls"],
                                    b=self.block_data_2["calls"]).ratio()
@@ -210,7 +221,7 @@ class BlockSimilarity(Heuristic):
     def immediates_similarity(self):
         if ((len(self.block_data_1["imms"]) == 0) and
             (len(self.block_data_2["imms"]) == 0)):
-            return 0
+            return None
         else:
             return SequenceMatcher(a=self.block_data_1["imms"],
                                    b=self.block_data_2["imms"]).ratio()
