@@ -227,6 +227,30 @@ def collect_operands_data(func_item):
     return operands_list
 
 
+def get_ret_offset_in_stack(first_addr):
+    try:
+        stack = idc.GetFrame(first_addr)
+        return idc.GetMemberOffset(stack, ' r')
+    except:
+        return None
+
+
+def get_argument_offsets_in_stack_list(first_addr):
+    offset_list = []
+    try:
+        stack = idc.GetFrame(first_addr)
+        stack_size = idc.GetStrucSize(stack)
+        name_set = set(idc.GetMemberName(stack, i) for i in xrange(stack_size))
+        if ' r' not in name_set:
+            return offset_list
+        ret_offset = idc.GetMemberOffset(stack, ' r')
+        offset_list = [idc.GetMemberOffset(stack, name) for name in name_set]
+        offset_list = filter(lambda offset: offset > ret_offset, offset_list)
+    except:
+        pass
+    return offset_list
+
+
 #-----------------------------------------------------------------------------
 # Data
 #-----------------------------------------------------------------------------

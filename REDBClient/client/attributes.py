@@ -51,6 +51,10 @@ class FuncAttributes:
         self._func_items = func_items
         self._string_addresses = string_addresses
 
+        self._arg_offsets = \
+            utils.get_argument_offsets_in_stack_list(first_addr)
+        self._ret_offset = utils.get_ret_offset_in_stack(first_addr)
+
         # At initalization, self._results is filled with all attributes
         # data.
         self._results = {}
@@ -64,7 +68,9 @@ class FuncAttributes:
         Initializes attribute classes.
         """
         init_args = {"_func_items": self._func_items,
-                     "_string_addresses": self._string_addresses}
+                     "_string_addresses": self._string_addresses,
+                     "_arg_offsets": self._arg_offsets,
+                     "_ret_offset": self._ret_offset}
         for one_attribute in ATTRIBUTES:
             one_class = globals()[one_attribute]
             setattr(self, one_attribute, one_class(init_args))
@@ -291,13 +297,20 @@ class immediates(Attribute):
 
     def _collect_data(self, collect_args):
         Attribute._collect_data(self, collect_args)
+
+        def is_immediate_value(op):
+            return op[0] == idc.o_imm
+
+        def is_reference_to_argument(op):
+            return op[0] == idc.o_displ and op[1] in self._arg_offsets
+
         for one_op in self._ins_operands:
-            if ((one_op[0] in [5, 6, 7]) and
-                (one_op[1] not in list(idautils.\
-                    CodeRefsFrom(self._func_item, True)))):
-                op = one_op[1]
-                index = self._func_items.index(self._func_item)
+            index = self._func_items.index(self._func_item)
+            op = one_op[1]
+            if is_immediate_value(one_op):
                 self._immediates_dict[index] = op
+            elif is_reference_to_argument(one_op):
+                self._immediates_dict[index] = op - self._ret_offset
 
     def _extract(self):
         return self._immediates_dict

@@ -210,7 +210,7 @@ class Graph(models.Model):
                 data["block_data"].append(ins["imm"])
             data["block_data"] = filter(none_filter, data["block_data"])
             blocks.append(data)
-
+        print blocks
         return blocks
 
     def _attach_data_to_nx_graph(self):

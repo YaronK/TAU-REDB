@@ -134,11 +134,21 @@ class BlockSimilarity(Heuristic):
         self.graph_height_2 = graph_height_2
         self._ratio = None
 
-    def ratio(self):
+    def ratio(self, test_dict=None):
         if self._ratio == None:
-            distance_from_root_similarity = self.distance_from_root_similarity()
+
+            if test_dict and "min_block_dist_similarity" in test_dict:
+                self.min_block_dist_similarity = \
+                    test_dict["min_block_dist_similarity"]
+            else:
+                self.min_block_dist_similarity = \
+                    constants.block_similarity.MIN_BLOCK_DIST_SIMILARITY
+
+            distance_from_root_similarity = \
+                self.distance_from_root_similarity()
+
             if (distance_from_root_similarity <
-                constants.block_similarity.MIN_BLOCK_DIST_SIMILARITY):
+                self.min_block_dist_similarity):
                 return 0.0
 
             if self.block_data_1 == self.block_data_2:
@@ -220,11 +230,26 @@ class GraphSimilarity(Heuristic):
             max(nx.single_source_dijkstra_path_length(self.graph_2,
                                                       0).values())
 
-    def ratio(self):
+    def ratio(self, test_dict=None):
         """
         if the block_similarities arg is not supplied, the block similarities
         are computed.
         """
+
+        if test_dict and "block_similarity_threshold" in test_dict:
+            self.block_similarity_threshold = \
+                test_dict["block_similarity_threshold"]
+        else:
+            self.block_similarity_threshold = \
+                constants.block_similarity.BLOCK_SIMILARITY_THRESHOLD
+
+        if test_dict and "association_graph_max_size" in test_dict:
+            self.association_graph_max_size = \
+                test_dict["association_graph_max_size"]
+        else:
+            self.association_graph_max_size = \
+                constants.graph_similarity.ASSOCIATION_GRAPH_MAX_SIZE
+
         if self.structure_and_attribues_are_equal():
             return 1.0
 
@@ -233,8 +258,7 @@ class GraphSimilarity(Heuristic):
 
         self.block_similarities = self.calc_block_similarities()
 
-        self.compared_block_pairs = \
-            self.get_similar_block_pairs()
+        self.compared_block_pairs = self.get_similar_block_pairs()
         if len(self.compared_block_pairs) == 0:
             return self.ratio_treat_as_one_block()
             # return 0.0
@@ -246,7 +270,7 @@ class GraphSimilarity(Heuristic):
         else:
             return self.ratio_using_association_graph()
 
-    def ratio_given_similar_structures(self):
+    def ratio_given_similar_structures(self, test_dict=None):
         f_sum = 0
         d_sum = 0
 
@@ -257,23 +281,23 @@ class GraphSimilarity(Heuristic):
 
             ratio = BlockSimilarity(block_data_1, block_data_2,
                                     self.graph_height_1,
-                                    self.graph_height_2).ratio()
+                                    self.graph_height_2).ratio(test_dict=test_dict)
             len_1 = float(len(block_data_1["block_data"]))
             len_2 = float(len(block_data_2["block_data"]))
             f_sum += (len_1 + len_2)
             d_sum += (len_1 + len_2) * ratio
         return d_sum / f_sum
 
-    def ratio_treat_as_one_block(self):
+    def ratio_treat_as_one_block(self, test_dict=None):
         merged_block_graph1 = self.merge_all_blocks(self.graph_1)
         merged_block_graph2 = self.merge_all_blocks(self.graph_2)
 
         return BlockSimilarity(merged_block_graph1,
                                merged_block_graph2,
                                self.graph_height_1,
-                               self.graph_height_2).ratio()
+                               self.graph_height_2).ratio(test_dict=test_dict)
 
-    def calc_block_similarities(self):
+    def calc_block_similarities(self, test_dict=None):
         block_pairs = []
         for i in range(self.num_nodes_graph_1):
             block_data_1 = self.graph_1.node[i]['data']
@@ -281,7 +305,7 @@ class GraphSimilarity(Heuristic):
                 block_data_2 = self.graph_2.node[j]['data']
                 sim = BlockSimilarity(block_data_1, block_data_2,
                                       self.graph_height_1,
-                                      self.graph_height_2).ratio()
+                                      self.graph_height_2).ratio(test_dict=test_dict)
                 block_pairs.append((i, j, sim))
         return block_pairs
 
@@ -311,7 +335,7 @@ class GraphSimilarity(Heuristic):
     def get_similar_block_pairs(self):
         pairs = []
         for (a, b, w) in self.block_similarities:
-            if w >= constants.block_similarity.BLOCK_SIMILARITY_THRESHOLD:
+            if w >= self.block_similarity_threshold:
                 pairs.append((a, b, w))
         return pairs
 
@@ -407,4 +431,4 @@ class GraphSimilarity(Heuristic):
 
     def association_graph_too_big(self):
         return (self.association_graph.edge_count() >=
-                constants.graph_similarity.MAX_GRAPH_COMP_SIZE)
+                self.association_graph_max_size)

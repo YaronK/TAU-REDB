@@ -46,7 +46,7 @@ class graph_similarity:
     """
     Constants which affect the graph similarity algorithm.
     """
-    MAX_GRAPH_COMP_SIZE = 5000
+    ASSOCIATION_GRAPH_MAX_SIZE = 5000
     MIN_CLIQUE_GRAPH_RATIO = 0.3
 
 
@@ -54,10 +54,9 @@ class block_similarity:
     """
     Constants which affect the block similarity.
     """
-    BLOCK_SIMILARITY_THRESHOLD = 0.75
-
     STR_FLEXIBILITY = 0.85
 
+    BLOCK_SIMILARITY_THRESHOLD = 0.75
     MIN_BLOCK_DIST_SIMILARITY = 0.75
 
 

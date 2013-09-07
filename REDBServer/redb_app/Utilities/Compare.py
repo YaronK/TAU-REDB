@@ -18,10 +18,10 @@ def get_function_graph_by_id(func_id):
     return Function.objects.get(id=func_id).graph_set.all()[0].get_data()
 
 
-def generate_matching_grade_by_id(a_id, b_id):
+def generate_matching_grade_by_id(a_id, b_id, test_dict=None):
     a_graph = get_function_graph_by_id(a_id)
     b_graph = get_function_graph_by_id(b_id)
-    return GraphSimilarity(a_graph, b_graph).ratio()
+    return GraphSimilarity(a_graph, b_graph).ratio(test_dict=test_dict)
 
 
 EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
@@ -222,12 +222,12 @@ def tune_to_optimal_weights(func_set_1, func_set_2, names_similarity_threshold):
            best_weights)
 
 
-def compare_function_sets(func_set_1, func_set_2):
+def compare_function_sets(func_set_1, func_set_2, test_dict=None):
 
     gmgbi = generate_matching_grade_by_id
 
-    res_matrix = [[gmgbi(func1.id, func2.id) for func1 in func_set_1]
-                  for func2 in func_set_2]
+    res_matrix = [[gmgbi(func1.id, func2.id, test_dict=test_dict)
+                   for func1 in func_set_1] for func2 in func_set_2]
 
     return res_matrix
 
@@ -464,11 +464,4 @@ def filter_several_stages(func_set, filter_functions, deviation=None):
 
 
 
-LIBC_FUNC_NAMES = ["inet_ntoa", "inet_aton" , "inet_addr", "inet_ntop",
-                   "inet_pton", "execve", "accept", "alarm", "alphasort",
-                   "asctime", "atol", "bind", "bsearch", "calloc", "chdir",
-                   "chmod", "chown", "chroot", "clock", "clock_settime",
-                   "clock_gettime", "connect", "cos", "difftime", "dirname",
-                   "div", "exit", "exp", "fseek", "getcwd",
-                   ]
 
