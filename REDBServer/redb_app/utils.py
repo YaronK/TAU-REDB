@@ -8,6 +8,7 @@ import ctypes
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
 import base64
+from difflib import SequenceMatcher
 
 
 #==============================================================================
@@ -228,3 +229,29 @@ def log_timing():
         wrapper.__name__ = func_to_decorate.__name__
         return wrapper
     return decorator
+
+
+class FlexibleSequenceMatcher(SequenceMatcher):
+    class FlexibleString(str):
+        def __eq__(self, other):
+            return (SequenceMatcher(a=self, b=other).ratio() >
+                    self.flexibility)
+
+        def set_flexibility(self, flexibility):
+            self.flexibility = flexibility
+
+    def __init__(self, str_flexibility, isjunk=None, a='', b='',
+                 autojunk=True):
+        for i in range(len(a)):
+            if isinstance(a[i], str):
+                flexible_string = FlexibleSequenceMatcher.FlexibleString(a[i])
+                flexible_string.set_flexibility(str_flexibility)
+                a[i] = flexible_string
+
+        for i in range(len(b)):
+            if isinstance(b[i], str):
+                flexible_string = FlexibleSequenceMatcher.FlexibleString(b[i])
+                flexible_string.set_flexibility(str_flexibility)
+                b[i] = flexible_string
+
+        SequenceMatcher.__init__(self, isjunk, a, b, autojunk)
