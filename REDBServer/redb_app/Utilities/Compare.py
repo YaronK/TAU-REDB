@@ -165,7 +165,8 @@ def test_weight(weight_list, func_set_1, func_set_2,
 
     min_max_false_ratio = 2.0  # worst ratio
     min_max_false_ratio_threshold = 0
-
+    min_max_false_ratio_false_pos = 0
+    min_max_false_ratio_false_neg = 0
     for threshold in pl.frange(0.01, 1, step):
 
         pos = (len(filter(lambda x: x > threshold, should_be_different_grades)) +
@@ -185,8 +186,14 @@ def test_weight(weight_list, func_set_1, func_set_2,
 
         if min_max_false_ratio >= max_false_ratio:
             min_max_false_ratio = max_false_ratio
+            min_max_false_ratio_false_pos = false_pos_ratio
+            min_max_false_ratio_false_neg = false_neg_ratio
             min_max_false_ratio_threshold = threshold
-    print [min_max_false_ratio, min_max_false_ratio_threshold]
+    print ("false_pos_ratio: " + str(min_max_false_ratio_false_pos) +
+           ", false_neg_ratio: " + str(min_max_false_ratio_false_neg) +
+           ", min_max: " + str(min_max_false_ratio) +
+           ", threshold: " + str(min_max_false_ratio_threshold))
+    #print [min_max_false_ratio, min_max_false_ratio_threshold]
     return min_max_false_ratio, min_max_false_ratio_threshold
 
 
