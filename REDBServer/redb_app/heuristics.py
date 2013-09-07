@@ -6,7 +6,7 @@ Heuristics for comparing attribute instances.
 from difflib import SequenceMatcher
 import networkx as nx
 import networkx.algorithms as graph_alg
-from utils import CliquerGraph
+from utils import CliquerGraph, FlexibleSequenceMatcher
 import copy
 
 import constants
@@ -134,9 +134,8 @@ class BlockSimilarity(Heuristic):
         self.graph_height_2 = graph_height_2
         self._ratio = None
 
-    def ratio(self, weights=None):
+    def ratio(self):
         if self._ratio == None:
-
             distance_from_root_similarity = self.distance_from_root_similarity()
             if (distance_from_root_similarity <
                 constants.block_similarity.MIN_BLOCK_DIST_SIMILARITY):
@@ -145,47 +144,10 @@ class BlockSimilarity(Heuristic):
             if self.block_data_1 == self.block_data_2:
                 return 1.0
 
-            const = constants.block_similarity
-            def_itypes_weight = (const.ITYPES_WEIGHT if weights is None
-                                 else weights['itypes'])
-            def_strings_weight = (const.STRINGS_WEIGHT if weights is None
-                                 else weights['strings'])
-            def_calls_weight = (const.CALLS_WEIGHT if weights is None
-                                 else weights['calls'])
-            def_immediates_weight = (const.IMMS_WEIGHT if weights is None
-                                      else weights['imms'])
-
-            [itypes_similarity,
-             strings_similarity,
-             calls_similarity,
-             immediates_similarity] = self.get_similarities()
-
-            itypes_weight = (0.0 if itypes_similarity is None
-                             else def_itypes_weight)
-            strings_weight = (0.0 if strings_similarity is None
-                              else def_strings_weight)
-            calls_weight = (0.0 if calls_similarity is None
-                            else def_calls_weight)
-            immediates_weight = (0.0 if immediates_similarity is None
-                           else def_immediates_weight)
-
-            if itypes_similarity is None:
-                itypes_similarity = 0
-            if strings_similarity is None:
-                strings_similarity = 0
-            if calls_similarity is None:
-                calls_similarity = 0
-            if immediates_similarity is None:
-                immediates_similarity = 0
-
-            weight_sum = (itypes_weight + strings_weight +
-                          calls_weight + immediates_weight)
-
-            self._ratio = ((itypes_weight * itypes_similarity +
-                            strings_weight * strings_similarity +
-                            calls_weight * calls_similarity +
-                            immediates_weight * immediates_similarity) /
-                                float(weight_sum))
+            self._ratio = \
+                FlexibleSequenceMatcher(flexibility=constants.block_similarity.FLEXIBILITY,
+                                        a=self.block_data_1["block_data"],
+                                        b=self.block_data_2["block_data"]).ratio()
         return self._ratio
 
     def get_similarities(self):
@@ -258,7 +220,7 @@ class GraphSimilarity(Heuristic):
             max(nx.single_source_dijkstra_path_length(self.graph_2,
                                                       0).values())
 
-    def ratio(self, weights=None):
+    def ratio(self):
         """
         if the block_similarities arg is not supplied, the block similarities
         are computed.
@@ -274,17 +236,17 @@ class GraphSimilarity(Heuristic):
         self.compared_block_pairs = \
             self.get_similar_block_pairs()
         if len(self.compared_block_pairs) == 0:
-            return self.ratio_treat_as_one_block(weights)
+            return self.ratio_treat_as_one_block()
             # return 0.0
 
         self.calc_association_graph(self.compared_block_pairs)
         if self.association_graph_too_big():
             self.association_graph.free()
-            return self.ratio_treat_as_one_block(weights)
+            return self.ratio_treat_as_one_block()
         else:
             return self.ratio_using_association_graph()
 
-    def ratio_given_similar_structures(self, weights=None):
+    def ratio_given_similar_structures(self):
         f_sum = 0
         d_sum = 0
 
@@ -295,23 +257,23 @@ class GraphSimilarity(Heuristic):
 
             ratio = BlockSimilarity(block_data_1, block_data_2,
                                     self.graph_height_1,
-                                    self.graph_height_2).ratio(weights=weights)
-            len_1 = float(len(block_data_1["itypes"]))
-            len_2 = float(len(block_data_2["itypes"]))
+                                    self.graph_height_2).ratio()
+            len_1 = float(len(block_data_1["block_data"]))
+            len_2 = float(len(block_data_2["block_data"]))
             f_sum += (len_1 + len_2)
             d_sum += (len_1 + len_2) * ratio
         return d_sum / f_sum
 
-    def ratio_treat_as_one_block(self, weights):
+    def ratio_treat_as_one_block(self):
         merged_block_graph1 = self.merge_all_blocks(self.graph_1)
         merged_block_graph2 = self.merge_all_blocks(self.graph_2)
 
         return BlockSimilarity(merged_block_graph1,
                                merged_block_graph2,
                                self.graph_height_1,
-                               self.graph_height_2).ratio(weights=weights)
+                               self.graph_height_2).ratio()
 
-    def calc_block_similarities(self, weights=None):
+    def calc_block_similarities(self):
         block_pairs = []
         for i in range(self.num_nodes_graph_1):
             block_data_1 = self.graph_1.node[i]['data']
@@ -319,7 +281,7 @@ class GraphSimilarity(Heuristic):
                 block_data_2 = self.graph_2.node[j]['data']
                 sim = BlockSimilarity(block_data_1, block_data_2,
                                       self.graph_height_1,
-                                      self.graph_height_2).ratio(weights=weights)
+                                      self.graph_height_2).ratio()
                 block_pairs.append((i, j, sim))
         return block_pairs
 
@@ -338,16 +300,11 @@ class GraphSimilarity(Heuristic):
 
     def merge_all_blocks(self, graph):
         merged_block = {}
-        merged_block["itypes"] = []
-        merged_block["calls"] = ""
-        merged_block["strings"] = ""
-        merged_block["imms"] = []
+        merged_block["block_data"] = []
+
         for block_num in range(graph.number_of_nodes()):
             block_data = graph.node[block_num]['data']
-            merged_block["itypes"] += block_data["itypes"]
-            merged_block["calls"] += block_data["calls"]
-            merged_block["strings"] += block_data["strings"]
-            merged_block["imms"] += block_data["imms"]
+            merged_block["block_data"] += block_data["block_data"]
         merged_block["dist_from_root"] = 0
         return merged_block
 

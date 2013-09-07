@@ -18,10 +18,10 @@ def get_function_graph_by_id(func_id):
     return Function.objects.get(id=func_id).graph_set.all()[0].get_data()
 
 
-def generate_matching_grade_by_id(a_id, b_id, weights=None):
+def generate_matching_grade_by_id(a_id, b_id):
     a_graph = get_function_graph_by_id(a_id)
     b_graph = get_function_graph_by_id(b_id)
-    return GraphSimilarity(a_graph, b_graph).ratio(weights=weights)
+    return GraphSimilarity(a_graph, b_graph).ratio()
 
 
 EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
@@ -193,7 +193,7 @@ def test_weight(weight_list, func_set_1, func_set_2,
            ", false_neg_ratio: " + str(min_max_false_ratio_false_neg) +
            ", min_max: " + str(min_max_false_ratio) +
            ", threshold: " + str(min_max_false_ratio_threshold))
-    #print [min_max_false_ratio, min_max_false_ratio_threshold]
+    # print [min_max_false_ratio, min_max_false_ratio_threshold]
     return min_max_false_ratio, min_max_false_ratio_threshold
 
 
@@ -230,6 +230,37 @@ def compare_function_sets(func_set_1, func_set_2):
                   for func2 in func_set_2]
 
     return res_matrix
+
+
+def set_optimal_threshold(func_set_1, func_set_2):
+    res_matrix = compare_function_sets(func_set_1, func_set_2)
+    opt_threshold = 0
+    min_max_false_ratio = float("+infinity")
+    should_be_equal_grades = []
+    should_be_different_grades = []
+    for row in range(len(res_matrix)):
+        for col in range(len(res_matrix[0])):
+            grade = res_matrix[row][col]
+            if row == col:
+                should_be_equal_grades.append(grade)
+            else:
+                should_be_different_grades.append(grade)
+    for threshold in pl.frange(0, 1, 0.05):
+        false_neg = len(filter(lambda x: x < threshold, should_be_equal_grades))
+        false_pos = len(filter(lambda x: x > threshold, should_be_different_grades))
+        pos = (len(filter(lambda x: x > threshold, should_be_equal_grades)) +
+               len(filter(lambda x: x > threshold, should_be_different_grades)))
+        neg = (len(filter(lambda x: x < threshold, should_be_equal_grades)) +
+               len(filter(lambda x: x < threshold, should_be_different_grades)))
+        false_neg_ratio = false_neg / float(neg)
+        false_pos_ratio = false_pos / float(pos)
+        max_false_ratio = max(false_neg_ratio, false_pos_ratio)
+        if max_false_ratio < min_max_false_ratio:
+            min_max_false_ratio = max_false_ratio
+            opt_threshold = threshold
+        print ("opt threshold: " + str(opt_threshold) +
+               ", min_max_false_ratio: " + str(min_max_false_ratio))
+        return [min_max_false_ratio, opt_threshold]
 
 
 def compare_function_set_excel(path, func_set_1, func_set_2):

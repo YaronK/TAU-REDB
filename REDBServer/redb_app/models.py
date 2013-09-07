@@ -202,19 +202,13 @@ class Graph(models.Model):
             else:
                 data["dist_from_root"] = -1
 
-            data["itypes"] = [ins["itype"] for ins in ins_data_in_block]
-
-            string_list = filter(none_filter,
-                                 [ins["string"] for ins in ins_data_in_block])
-            data["strings"] = ''.join(string_list)
-
-            calls_list = filter(none_filter,
-                                [ins["call"] for ins in ins_data_in_block])
-            data["calls"] = ''.join(calls_list)
-
-            data["imms"] = filter(none_filter,
-                                  [ins["imm"] for ins in ins_data_in_block])
-
+            data["block_data"] = []
+            for ins in ins_data_in_block:
+                data["block_data"].append(ins["itype"])
+                data["block_data"].append(ins["string"])
+                data["block_data"].append(ins["call"])
+                data["block_data"].append(ins["imm"])
+            data["block_data"] = filter(none_filter, data["block_data"])
             blocks.append(data)
 
         return blocks

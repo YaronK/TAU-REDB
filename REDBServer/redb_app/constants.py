@@ -56,6 +56,8 @@ class block_similarity:
     """
     BLOCK_SIMILARITY_THRESHOLD = 0.75
 
+    FLEXIBILITY = 0.85
+
     ITYPES_WEIGHT = 0.65
     STRINGS_WEIGHT = 0.075
     CALLS_WEIGHT = 0.15
