@@ -11,7 +11,7 @@ import pylab as pl
 import os
 import redb_app.constants as constants
 NAME_SIMILARITY_THRESHOLD = 0.8
-
+import copy
 
 def get_function_graph_by_id(func_id):
     return Function.objects.get(id=func_id).graph_set.all()[0].get_data()
@@ -112,7 +112,7 @@ def calc_weighted_block_similarities(block_attrs_similarities, weights):
         strings_weight = strings_weight / float(sum_weights)
         calls_weight = calls_weight / float(sum_weights)
         imms_weight = imms_weight / float(sum_weights)
-        #print [itypes_weight, strings_weight, calls_weight, imms_weight]
+        # print [itypes_weight, strings_weight, calls_weight, imms_weight]
         block_similarities_weighted.append((block[0],
                                            block[1],
                                            itypes_weight * itypes_similarity +
@@ -399,19 +399,36 @@ def before_after(my_func_index, filter_func, deviation=None):
     print "After: " + str(after)
 
 
-def calc_variance_of_num_of_filtered_funcs(func_list, filter_func,
-                                          deviation=None):
-    before = len(Function.objects.all())
-    num_filtered_funcs_list = []
-    for func in func_list:
-        if deviation != None:
-            after = len(filter_func(func, Function.objects.all(), deviation))
-        else:
-            after = len(filter_func(func, Function.objects.all()))
-        num_filtered = before - after
-        num_filtered_funcs_list.append(num_filtered)
-    print num_filtered_funcs_list
-    return np.mean(num_filtered_funcs_list)
+def filter_stage(func, func_set, filter_func, deviation):
+    before = len(func_set)
+    print "before " + filter_func.__name__ + str(before)
+
+    if deviation != None:
+        func_set = filter_func(func, func_set, deviation)
+    else:
+        func_set = filter_func(func, func_set)
+
+    after = len(func_set)
+    print "after " + filter_func.__name__ + str(after)
+
+    diff = before - after
+    print "diff " + filter_func.__name__ + str(diff)
+    return (diff, func_set)
+
+
+def filter_several_stages(func_set, filter_functions, deviation=None):
+    diffs = []
+    for func in func_set:
+        func_set_copy = copy.deepcopy(func_set)
+        for filter_function in filter_functions:
+            diff, func_set_copy = filter_stage(func, func_set_copy, filter_function,
+                                          deviation)
+            if (filter_functions.index(filter_function) ==
+                len(filter_functions) - 1):  # last filter
+                diffs.append(diff)
+
+    return np.mean(diffs)
+
 
 
 LIBC_FUNC_NAMES = ["inet_ntoa", "inet_aton" , "inet_addr", "inet_ntop",
