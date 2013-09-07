@@ -27,9 +27,9 @@ def generate_matching_grade_by_id(a_id, b_id):
 EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
 
 
-def get_intersecting_func_names(exe_name1, exe_name2):
-    exe1_funcs = Function.objects.filter(exe_name=exe_name1)
-    exe2_funcs = Function.objects.filter(exe_name=exe_name2)
+def get_intersecting_func_names(func_set, exe_name1, exe_name2):
+    exe1_funcs = func_set.filter(exe_name=exe_name1)
+    exe2_funcs = func_set.filter(exe_name=exe_name2)
     exe1_func_names = [func.func_name for func in exe1_funcs]
     exe2_func_names = [func.func_name for func in exe2_funcs]
     intersected_func_names = set(exe1_func_names) & set(exe2_func_names)
@@ -232,7 +232,7 @@ def compare_function_sets(func_set_1, func_set_2):
     return res_matrix
 
 
-def set_optimal_threshold(func_set_1, func_set_2):
+def get_optimal_threshold(func_set_1, func_set_2):
     res_matrix = compare_function_sets(func_set_1, func_set_2)
     opt_threshold = 0
     min_max_false_ratio = float("+infinity")
@@ -252,15 +252,19 @@ def set_optimal_threshold(func_set_1, func_set_2):
                len(filter(lambda x: x > threshold, should_be_different_grades)))
         neg = (len(filter(lambda x: x < threshold, should_be_equal_grades)) +
                len(filter(lambda x: x < threshold, should_be_different_grades)))
-        false_neg_ratio = false_neg / float(neg)
-        false_pos_ratio = false_pos / float(pos)
+
+        false_pos_ratio = false_pos / float(pos) if float(pos) != 0 else 1.0
+        false_neg_ratio = false_neg / float(neg) if float(neg) != 0 else 1.0
+
         max_false_ratio = max(false_neg_ratio, false_pos_ratio)
-        if max_false_ratio < min_max_false_ratio:
+
+        if min_max_false_ratio > max_false_ratio:
             min_max_false_ratio = max_false_ratio
             opt_threshold = threshold
-        print ("opt threshold: " + str(opt_threshold) +
-               ", min_max_false_ratio: " + str(min_max_false_ratio))
-        return [min_max_false_ratio, opt_threshold]
+
+    print ("opt threshold: " + str(opt_threshold) +
+           ", min_max_false_ratio: " + str(min_max_false_ratio))
+    return [min_max_false_ratio, opt_threshold]
 
 
 def compare_function_set_excel(path, func_set_1, func_set_2):

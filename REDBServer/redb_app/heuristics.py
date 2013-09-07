@@ -145,7 +145,7 @@ class BlockSimilarity(Heuristic):
                 return 1.0
 
             self._ratio = \
-                FlexibleSequenceMatcher(flexibility=constants.block_similarity.FLEXIBILITY,
+                FlexibleSequenceMatcher(str_flexibility=constants.block_similarity.STR_FLEXIBILITY,
                                         a=self.block_data_1["block_data"],
                                         b=self.block_data_2["block_data"]).ratio()
         return self._ratio

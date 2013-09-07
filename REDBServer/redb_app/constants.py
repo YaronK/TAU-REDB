@@ -56,15 +56,9 @@ class block_similarity:
     """
     BLOCK_SIMILARITY_THRESHOLD = 0.75
 
-    FLEXIBILITY = 0.85
+    STR_FLEXIBILITY = 0.85
 
-    ITYPES_WEIGHT = 0.65
-    STRINGS_WEIGHT = 0.075
-    CALLS_WEIGHT = 0.15
-    IMMS_WEIGHT = 0.075
-    DIST_FROM_ROOT_WEIGHT = 0.05
-
-    MIN_BLOCK_DIST_SIMILARITY = 0.9
+    MIN_BLOCK_DIST_SIMILARITY = 0.75
 
 
 class frame_similarity:
