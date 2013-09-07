@@ -13,16 +13,15 @@ import redb_app.constants as constants
 NAME_SIMILARITY_THRESHOLD = 0.8
 import copy
 
+
 def get_function_graph_by_id(func_id):
     return Function.objects.get(id=func_id).graph_set.all()[0].get_data()
 
 
-def generate_matching_grade_by_id(a_id, b_id, block_similarity_tuples=None,
-                                  weights=None):
+def generate_matching_grade_by_id(a_id, b_id, weights=None):
     a_graph = get_function_graph_by_id(a_id)
     b_graph = get_function_graph_by_id(b_id)
-    return GraphSimilarity(a_graph, b_graph).ratio(block_similarity_tuples=block_similarity_tuples,
-                                                   weights=weights)
+    return GraphSimilarity(a_graph, b_graph).ratio(weights=weights)
 
 
 EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
@@ -125,30 +124,23 @@ def calc_weighted_block_similarities(block_attrs_similarities, weights):
 def get_all_weights_combibation():
     all_weights_combination = []
     max_weight = 10
-    for i in range(1, max_weight, 1):
-        for j in range(1, max_weight - i, 1):
-            for k in range(1, max_weight - i - j, 1):
+    for i in range(5, max_weight, 1):
+        for j in range(0, max_weight - i, 1):
+            for k in range(0, max_weight - i - j, 1):
                 l = max_weight - i - j - k
-                if l == 0:
-                    continue
+                # if l == 0:
+                #   continue
                 all_weights_combination.append([i, j, k, l])
     return all_weights_combination
 
 
-def get_grade_given_weights(dir_path, func1, func2, weights):
-    file_path = os.path.join(dir_path, str(func1.id) + "_" + str(func2.id))
-    block_attrs_similarities = json.load(open(file_path))
-    block_similarities = \
-         calc_weighted_block_similarities(block_attrs_similarities,
-                                          weights)
-
-    grade = generate_matching_grade_by_id(func1.id, func2.id,
-                block_similarity_tuples=block_similarities, weights=weights)
+def get_grade_given_weights(func1, func2, weights):
+    grade = generate_matching_grade_by_id(func1.id, func2.id, weights=weights)
     return grade
 
 
 def test_weight(weight_list, func_set_1, func_set_2,
-                dir_path, names_similarity_threshold):
+                 names_similarity_threshold):
 
     weights = {}
     weights["itypes"] = weight_list[0]
@@ -163,7 +155,7 @@ def test_weight(weight_list, func_set_1, func_set_2,
     print "testing weight: " + str(weights)
     for func1 in func_set_1:
         for func2 in func_set_2:
-            grade = get_grade_given_weights(dir_path, func1, func2, weights)
+            grade = get_grade_given_weights(func1, func2, weights)
             name_similarity = SequenceMatcher(a=func1.func_name,
                                               b=func2.func_name).ratio()
             if (name_similarity >= names_similarity_threshold):
@@ -198,8 +190,7 @@ def test_weight(weight_list, func_set_1, func_set_2,
     return min_max_false_ratio, min_max_false_ratio_threshold
 
 
-def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
-                            names_similarity_threshold):
+def tune_to_optimal_weights(func_set_1, func_set_2, names_similarity_threshold):
 
     all_weights_combination = get_all_weights_combibation()
 
@@ -210,7 +201,7 @@ def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
     for weight_list in all_weights_combination:
 
         (min_max_false_ratio, min_max_false_ratio_threshold) = \
-            test_weight(weight_list, func_set_1, func_set_2, dir_path,
+            test_weight(weight_list, func_set_1, func_set_2,
                         names_similarity_threshold)
 
         if min_max_false_ratio_total >= min_max_false_ratio:
