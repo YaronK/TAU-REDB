@@ -150,20 +150,9 @@ class BlockSimilarity(Heuristic):
                                       else weights['imms'])
 
             itypes_similarity = self.itypes_similarity()
-            if itypes_similarity is None:
-                itypes_similarity = 0
-
             strings_similarity = self.strings_similarity()
-            if strings_similarity is None:
-                strings_similarity = 0
-
             calls_similarity = self.calls_similarity()
-            if calls_similarity is None:
-                calls_similarity = 0
-
             immediates_similarity = self.immediates_similarity()
-            if immediates_similarity is None:
-                immediates_similarity = 0
 
             itypes_weight = (0.0 if itypes_similarity is None
                              else def_itypes_weight)
@@ -173,6 +162,15 @@ class BlockSimilarity(Heuristic):
                             else def_calls_weight)
             immediates_weight = (0.0 if immediates_similarity is None
                            else def_immediates_weight)
+
+            if itypes_similarity is None:
+                itypes_similarity = 0
+            if strings_similarity is None:
+                strings_similarity = 0
+            if calls_similarity is None:
+                calls_similarity = 0
+            if immediates_similarity is None:
+                immediates_similarity = 0
 
             weight_sum = (itypes_weight + strings_weight +
                           calls_weight + immediates_weight)
@@ -277,10 +275,12 @@ class GraphSimilarity(Heuristic):
         self.compared_block_pairs = \
             self.get_similar_block_pairs()
         if len(self.compared_block_pairs) == 0:
-            return 0.0
+            return self.ratio_treat_as_one_block(weights)
+            #return 0.0
 
         self.calc_association_graph(self.compared_block_pairs)
         if self.association_graph_too_big():
+            self.association_graph.free()
             return self.ratio_treat_as_one_block(weights)
         else:
             return self.ratio_using_association_graph()
@@ -311,7 +311,7 @@ class GraphSimilarity(Heuristic):
     def ratio_treat_as_one_block(self, weights):
         merged_block_graph1 = self.merge_all_blocks(self.graph_1)
         merged_block_graph2 = self.merge_all_blocks(self.graph_2)
-        self.association_graph.free()
+
         return BlockSimilarity(merged_block_graph1,
                                merged_block_graph2,
                                self.graph_height_1,

@@ -112,6 +112,7 @@ def calc_weighted_block_similarities(block_attrs_similarities, weights):
         strings_weight = strings_weight / float(sum_weights)
         calls_weight = calls_weight / float(sum_weights)
         imms_weight = imms_weight / float(sum_weights)
+        #print [itypes_weight, strings_weight, calls_weight, imms_weight]
         block_similarities_weighted.append((block[0],
                                            block[1],
                                            itypes_weight * itypes_similarity +
@@ -124,73 +125,103 @@ def calc_weighted_block_similarities(block_attrs_similarities, weights):
 def get_all_weights_combibation():
     all_weights_combination = []
     max_weight = 10
-    for i in range(int(max_weight * 1 / 2), max_weight, 1):
-        for j in range(0, max_weight - i, 1):
-            for k in range(0, max_weight - i - j, 1):
+    for i in range(1, max_weight, 1):
+        for j in range(1, max_weight - i, 1):
+            for k in range(1, max_weight - i - j, 1):
                 l = max_weight - i - j - k
+                if l == 0:
+                    continue
                 all_weights_combination.append([i, j, k, l])
     return all_weights_combination
+
+
+def get_grade_given_weights(dir_path, func1, func2, weights):
+    file_path = os.path.join(dir_path, str(func1.id) + "_" + str(func2.id))
+    block_attrs_similarities = json.load(open(file_path))
+    block_similarities = \
+         calc_weighted_block_similarities(block_attrs_similarities,
+                                          weights)
+
+    grade = generate_matching_grade_by_id(func1.id, func2.id,
+                block_similarity_tuples=block_similarities, weights=weights)
+    return grade
+
+
+def test_weight(weight_list, func_set_1, func_set_2,
+                dir_path, names_similarity_threshold):
+
+    weights = {}
+    weights["itypes"] = weight_list[0]
+    weights["strings"] = weight_list[1]
+    weights["calls"] = weight_list[2]
+    weights["imms"] = weight_list[3]
+
+    step = 0.02
+    should_be_equal_grades = []
+    should_be_different_grades = []
+
+    print "testing weight: " + str(weights)
+    for func1 in func_set_1:
+        for func2 in func_set_2:
+            grade = get_grade_given_weights(dir_path, func1, func2, weights)
+            name_similarity = SequenceMatcher(a=func1.func_name,
+                                              b=func2.func_name).ratio()
+            if (name_similarity >= names_similarity_threshold):
+                should_be_equal_grades.append(grade)
+            else:
+                should_be_different_grades.append(grade)
+
+    min_max_false_ratio = 2.0  # worst ratio
+    min_max_false_ratio_threshold = 0
+
+    for threshold in pl.frange(0.01, 1, step):
+
+        pos = (len(filter(lambda x: x > threshold, should_be_different_grades)) +
+               len(filter(lambda x: x > threshold, should_be_equal_grades)))
+
+        neg = (len(filter(lambda x: x < threshold, should_be_different_grades)) +
+               len(filter(lambda x: x < threshold, should_be_equal_grades)))
+
+        false_pos = len(filter(lambda x: x > threshold, should_be_different_grades))
+
+        false_neg = len(filter(lambda x: x < threshold, should_be_equal_grades))
+
+        false_pos_ratio = false_pos / float(pos) if float(pos) != 0 else 1.0
+        false_neg_ratio = false_neg / float(neg) if float(neg) != 0 else 1.0
+
+        max_false_ratio = max(false_pos_ratio, false_neg_ratio)
+
+        if min_max_false_ratio >= max_false_ratio:
+            min_max_false_ratio = max_false_ratio
+            min_max_false_ratio_threshold = threshold
+    print [min_max_false_ratio, min_max_false_ratio_threshold]
+    return min_max_false_ratio, min_max_false_ratio_threshold
 
 
 def tune_to_optimal_weights(func_set_1, func_set_2, dir_path,
                             names_similarity_threshold):
 
     all_weights_combination = get_all_weights_combibation()
-    min_mistakes_for_specific_weights = float("+infinity")
-    min_mistakes_total = float("+infinity")
-    min_mistakes_for_specific_weights_threshold = 0
-    min_mistakes_total_threshold = 0
-    best_weights = {}
+
+    best_weights = []
+    min_max_false_ratio_total = 2.0
+    min_max_false_ratio_threshold_total = 0
 
     for weight_list in all_weights_combination:
-        weights = {}
-        weights["itypes"] = weight_list[0]
-        weights["strings"] = weight_list[1]
-        weights["calls"] = weight_list[2]
-        weights["imms"] = weight_list[3]
 
-        step = 0.05
-        should_be_equal_grades = []
-        should_be_different_grades = []
+        (min_max_false_ratio, min_max_false_ratio_threshold) = \
+            test_weight(weight_list, func_set_1, func_set_2, dir_path,
+                        names_similarity_threshold)
 
-        print "testing weight: " + str(weights)
-        for func1 in func_set_1:
-            for func2 in func_set_2:
-                file_path = os.path.join(dir_path, str(func1.id) + "_" + str(func2.id))
-                block_attrs_similarities = json.load(open(file_path))
-                block_similarities = \
-                     calc_weighted_block_similarities(block_attrs_similarities,
-                                                      weights)
+        if min_max_false_ratio_total >= min_max_false_ratio:
+            min_max_false_ratio_total = min_max_false_ratio
+            min_max_false_ratio_threshold_total = min_max_false_ratio_threshold
+            best_weights = weight_list
+            print "best weights: " + str(best_weights)
 
-                grade = generate_matching_grade_by_id(func1.id, func2.id,
-                                                      block_similarity_tuples=block_similarities,
-                                                      weights=weights)
-                name_similarity = SequenceMatcher(a=func1.func_name,
-                                                  b=func2.func_name).ratio()
-                if (name_similarity >= names_similarity_threshold):
-                    should_be_equal_grades.append(grade)
-                else:
-                    should_be_different_grades.append(grade)
-
-        for threshold in pl.frange(0, 1, step):
-            mistakes = len(filter(lambda x: x > threshold,
-                                  should_be_different_grades) +
-                           filter(lambda x: x < threshold,
-                                  should_be_equal_grades))
-            print mistakes,
-            print ""
-            if mistakes < min_mistakes_for_specific_weights:
-                min_mistakes_for_specific_weights = mistakes
-                min_mistakes_for_specific_weights_threshold = threshold
-        print "min mistakes: " + str(min_mistakes_for_specific_weights)
-        if min_mistakes_total > min_mistakes_for_specific_weights:
-            min_mistakes_total = min_mistakes_for_specific_weights
-            min_mistakes_total_threshold = min_mistakes_for_specific_weights_threshold
-            best_weights = weights
-            print "best: " + str(best_weights)
-
-        min_mistakes_for_specific_weights = ("+infinity")
-    print (min_mistakes_total, min_mistakes_total_threshold, best_weights)
+    print (min_max_false_ratio_total,
+           min_max_false_ratio_threshold_total,
+           best_weights)
 
 
 def compare_function_sets(func_set_1, func_set_2):
