@@ -8,6 +8,7 @@ import networkx as nx
 import json
 from django.utils.encoding import smart_text
 import utils
+from utils import Immediate, Itype
 
 MAX_EXE_NAME_LENGTH = 255
 EXE_DIGEST_SIZE_IN_BYTES = 32
@@ -204,11 +205,13 @@ class Graph(models.Model):
 
             data["block_data"] = []
             for ins in ins_data_in_block:
-                data["block_data"].append(ins["itype"])
-                data["block_data"].append(ins["string"])
-                data["block_data"].append(ins["call"])
-                data["block_data"].append(ins["imm"])
-            data["block_data"] = filter(none_filter, data["block_data"])
+                data["block_data"].append(Itype(ins["itype"]))
+                if ins["string"] is not None:
+                    data["block_data"].append(ins["string"])
+                if ins["call"] is not None:
+                    data["block_data"].append(ins["call"])
+                if ins["imm"] is not None:
+                    data["block_data"].append(Immediate(ins["imm"]))
             blocks.append(data)
         print blocks
         return blocks

@@ -255,3 +255,13 @@ class FlexibleSequenceMatcher(SequenceMatcher):
                 b[i] = flexible_string
 
         SequenceMatcher.__init__(self, isjunk, a, b, autojunk)
+
+
+class Itype(int):
+    def __eq__(self, other):
+        return type(self) == type(other) and int(self) == int(other)
+
+
+class Immediate(long):
+    def __eq__(self, other):
+        return type(self) == type(other) and long(self) == long(other)
