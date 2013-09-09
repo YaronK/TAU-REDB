@@ -280,12 +280,12 @@ class FlexibleSequenceMatcher(SequenceMatcher):
         SequenceMatcher.__init__(self, isjunk, a, b, autojunk)
 
 
-<<<<<<< HEAD
 def test_log(string):
     log_path = r"C:\Users\Yaron\Desktop\test_log.txt"
     log_row = time.asctime() + ": " + string + "\n"
     open(log_path, 'a').write(log_row)
-=======
+
+
 class Itype(int):
     def __eq__(self, other):
         return type(self) == type(other) and int(self) == int(other)
@@ -294,4 +294,3 @@ class Itype(int):
 class Immediate(long):
     def __eq__(self, other):
         return type(self) == type(other) and long(self) == long(other)
->>>>>>> a4157088728a56abea89666ecc5425d417817a70
