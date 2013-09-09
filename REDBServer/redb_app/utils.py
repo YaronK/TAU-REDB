@@ -93,8 +93,10 @@ class CliquerGraph:
 
         int_ptr = ctypes.cast(int_ptr, ctypes.POINTER(ctypes.c_int))
 
-        clique_size = int_ptr[0]
-
+        try:
+            clique_size = int_ptr[0]
+        except:
+            return []
         clique = [int_ptr[i] for i in range(1, 1 + clique_size)]
 
         self.lib.free_redb(int_ptr)
@@ -233,25 +235,52 @@ def log_timing():
 
 class FlexibleSequenceMatcher(SequenceMatcher):
     class FlexibleString(str):
+        def __hash__(self):
+            return 0
+
         def __eq__(self, other):
-            return (SequenceMatcher(a=self, b=other).ratio() >
-                    self.flexibility)
+            return (type(self) == type(other) and
+                    SequenceMatcher(a=self, b=other).ratio() > self.flexibility)
 
         def set_flexibility(self, flexibility):
             self.flexibility = flexibility
 
-    def __init__(self, str_flexibility, isjunk=None, a='', b='',
-                 autojunk=True):
+    class FlexibleUnicode(unicode):
+        def __hash__(self):
+            return 0
+
+        def __eq__(self, other):
+            return (type(self) == type(other) and
+                    SequenceMatcher(a=self, b=other).ratio() > self.flexibility)
+
+        def set_flexibility(self, flexibility):
+            self.flexibility = flexibility
+
+    def __init__(self, flexibility, isjunk=None, a='', b='', autojunk=True):
         for i in range(len(a)):
             if isinstance(a[i], str):
                 flexible_string = FlexibleSequenceMatcher.FlexibleString(a[i])
-                flexible_string.set_flexibility(str_flexibility)
+                flexible_string.set_flexibility(flexibility)
                 a[i] = flexible_string
+            elif isinstance(a[i], unicode):
+                flexible_unicode = FlexibleSequenceMatcher.FlexibleUnicode(a[i])
+                flexible_unicode.set_flexibility(flexibility)
+                a[i] = flexible_unicode
 
         for i in range(len(b)):
             if isinstance(b[i], str):
                 flexible_string = FlexibleSequenceMatcher.FlexibleString(b[i])
-                flexible_string.set_flexibility(str_flexibility)
+                flexible_string.set_flexibility(flexibility)
                 b[i] = flexible_string
+            elif isinstance(b[i], unicode):
+                flexible_unicode = FlexibleSequenceMatcher.FlexibleUnicode(b[i])
+                flexible_unicode.set_flexibility(flexibility)
+                b[i] = flexible_unicode
 
         SequenceMatcher.__init__(self, isjunk, a, b, autojunk)
+
+
+def test_log(string):
+    log_path = r"C:\Users\Yaron\Desktop\test_log.txt"
+    log_row = time.asctime() + ": " + string + "\n"
+    open(log_path, 'a').write(log_row)

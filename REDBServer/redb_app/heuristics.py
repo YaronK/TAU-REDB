@@ -5,9 +5,7 @@ Heuristics for comparing attribute instances.
 # standard library imports
 from difflib import SequenceMatcher
 import networkx as nx
-import networkx.algorithms as graph_alg
-from utils import CliquerGraph, FlexibleSequenceMatcher
-import copy
+from utils import CliquerGraph, FlexibleSequenceMatcher, test_log
 
 import constants
 
@@ -134,30 +132,14 @@ class BlockSimilarity(Heuristic):
         self.graph_height_2 = graph_height_2
         self._ratio = None
 
-    def ratio(self, test_dict=None):
+    def ratio(self):
         if self._ratio == None:
-
-            if test_dict and "min_block_dist_similarity" in test_dict:
-                self.min_block_dist_similarity = \
-                    test_dict["min_block_dist_similarity"]
-            else:
-                self.min_block_dist_similarity = \
-                    constants.block_similarity.MIN_BLOCK_DIST_SIMILARITY
-
-            distance_from_root_similarity = \
-                self.distance_from_root_similarity()
-
-            if (distance_from_root_similarity <
-                self.min_block_dist_similarity):
-                return 0.0
-
             if self.block_data_1 == self.block_data_2:
                 return 1.0
-
-            self._ratio = \
-                FlexibleSequenceMatcher(str_flexibility=constants.block_similarity.STR_FLEXIBILITY,
-                                        a=self.block_data_1["block_data"],
-                                        b=self.block_data_2["block_data"]).ratio()
+            self._ratio = FlexibleSequenceMatcher(
+                flexibility=constants.block_similarity.STR_UNICODE_FLEXIBILITY,
+                a=self.block_data_1["block_data"],
+                b=self.block_data_2["block_data"]).ratio()
         return self._ratio
 
     def get_similarities(self):
@@ -232,9 +214,60 @@ class GraphSimilarity(Heuristic):
 
     def ratio(self, test_dict=None):
         """
-        if the block_similarities arg is not supplied, the block similarities
-        are computed.
+        if the block_pairs_similarities arg is not supplied, the block
+        similarities are computed.
         """
+
+        self.set_constants(test_dict=test_dict)
+
+        if self.structure_and_attribues_are_equal():
+            self.log_decision("structure_and_attribues_are_equal")
+            return 1.0
+
+        if self.structure_is_equal():
+            self.log_decision("structure_is_equal, ratio_given_similar_structures")
+            ratio = self.ratio_given_similar_structures()
+            self.log_decision("ratio: " + str(ratio))
+            return ratio
+
+        self.block_pairs_similarities = self.calc_block_similarities()
+        self.filter_non_similar_block_pairs()
+        self.filter_distant_block_pairs()
+
+        self.log_decision("remaining block pairs = " +
+                          str(len(self.block_pairs_similarities)))
+        if len(self.block_pairs_similarities) == 0:
+            self.log_decision("ratio_treat_as_one_block")
+            ratio = self.ratio_treat_as_one_block()
+            self.log_decision("ratio: " + str(ratio))
+            return ratio
+
+        self.calc_association_graph(self.block_pairs_similarities)
+        self.log_decision("association_graph.edge_count(): " +
+                          str(self.association_graph.edge_count()))
+
+        if self.association_graph_too_few_edges():
+            self.log_decision("association_graph_too_few_edges, " +
+                              "ratio_treat_as_one_block")
+            self.association_graph.free()
+            ratio = self.ratio_treat_as_one_block()
+            self.log_decision("ratio: " + str(ratio))
+            return ratio
+        elif self.association_graph_too_many_edges():
+            self.log_decision("association_graph_too_many_edges, " +
+                              "ratio_treat_as_one_block")
+            self.association_graph.free()
+            ratio = self.ratio_treat_as_one_block()
+            self.log_decision("ratio: " + str(ratio))
+            return ratio
+        else:
+            self.log_decision("ratio_using_association_graph")
+            ratio = self.ratio_using_association_graph()
+            self.log_decision("ratio: " + str(ratio))
+            return ratio
+
+    def set_constants(self, test_dict=None):
+        self.log_decisions = test_dict and "log_decisions" in test_dict
 
         if test_dict and "block_similarity_threshold" in test_dict:
             self.block_similarity_threshold = \
@@ -250,27 +283,21 @@ class GraphSimilarity(Heuristic):
             self.association_graph_max_size = \
                 constants.graph_similarity.ASSOCIATION_GRAPH_MAX_SIZE
 
-        if self.structure_and_attribues_are_equal():
-            return 1.0
-
-        if self.structure_is_equal():
-            return self.ratio_given_similar_structures()
-
-        self.block_similarities = self.calc_block_similarities()
-
-        self.compared_block_pairs = self.get_similar_block_pairs()
-        if len(self.compared_block_pairs) == 0:
-            return self.ratio_treat_as_one_block()
-            # return 0.0
-
-        self.calc_association_graph(self.compared_block_pairs)
-        if self.association_graph_too_big():
-            self.association_graph.free()
-            return self.ratio_treat_as_one_block()
+        if test_dict and "min_block_dist_similarity" in test_dict:
+            self.min_block_dist_similarity = \
+                test_dict["min_block_dist_similarity"]
         else:
-            return self.ratio_using_association_graph()
+            self.min_block_dist_similarity = \
+                constants.block_similarity.MIN_BLOCK_DIST_SIMILARITY
 
-    def ratio_given_similar_structures(self, test_dict=None):
+        self.log_decision("block_similarity_threshold: " +
+                          str(self.block_similarity_threshold) +
+                          ", association_graph_max_size: " +
+                          str(self.association_graph_max_size) +
+                          ", min_block_dist_similarity: " +
+                          str(self.min_block_dist_similarity))
+
+    def ratio_given_similar_structures(self):
         f_sum = 0
         d_sum = 0
 
@@ -281,46 +308,37 @@ class GraphSimilarity(Heuristic):
 
             ratio = BlockSimilarity(block_data_1, block_data_2,
                                     self.graph_height_1,
-                                    self.graph_height_2).ratio(test_dict=test_dict)
+                                    self.graph_height_2).ratio()
+
             len_1 = float(len(block_data_1["block_data"]))
             len_2 = float(len(block_data_2["block_data"]))
             f_sum += (len_1 + len_2)
             d_sum += (len_1 + len_2) * ratio
         return d_sum / f_sum
 
-    def ratio_treat_as_one_block(self, test_dict=None):
+    def ratio_treat_as_one_block(self):
         merged_block_graph1 = self.merge_all_blocks(self.graph_1)
         merged_block_graph2 = self.merge_all_blocks(self.graph_2)
 
         return BlockSimilarity(merged_block_graph1,
                                merged_block_graph2,
                                self.graph_height_1,
-                               self.graph_height_2).ratio(test_dict=test_dict)
+                               self.graph_height_2).ratio()
 
-    def calc_block_similarities(self, test_dict=None):
+    def calc_block_similarities(self):
         block_pairs = []
         for i in range(self.num_nodes_graph_1):
             block_data_1 = self.graph_1.node[i]['data']
             for j in range(self.num_nodes_graph_2):
                 block_data_2 = self.graph_2.node[j]['data']
-                sim = BlockSimilarity(block_data_1, block_data_2,
+                block_sim = BlockSimilarity(block_data_1, block_data_2,
                                       self.graph_height_1,
-                                      self.graph_height_2).ratio(test_dict=test_dict)
-                block_pairs.append((i, j, sim))
+                                      self.graph_height_2)
+                data_similarity = block_sim.ratio()
+                distance_similarity = block_sim.distance_from_root_similarity()
+                block_pairs.append((i, j, data_similarity,
+                                    distance_similarity))
         return block_pairs
-
-    def find_more_cliques(self):
-        if self.first_iteration:
-            self.first_iteration = False
-            return True
-
-        # not first iteration
-        clique_graph_ratio = (self.size_of_last_clique_found /
-                              float(self.size_of_min_graph))
-        if (clique_graph_ratio <
-            constants.graph_similarity.MIN_CLIQUE_GRAPH_RATIO):
-            return False
-        return True
 
     def merge_all_blocks(self, graph):
         merged_block = {}
@@ -332,88 +350,56 @@ class GraphSimilarity(Heuristic):
         merged_block["dist_from_root"] = 0
         return merged_block
 
-    def get_similar_block_pairs(self):
+    def filter_non_similar_block_pairs(self):
         pairs = []
-        for (a, b, w) in self.block_similarities:
-            if w >= self.block_similarity_threshold:
-                pairs.append((a, b, w))
-        return pairs
+        for (a, b, data_sim, distance_sim) in self.block_pairs_similarities:
+            if data_sim >= self.block_similarity_threshold:
+                pairs.append((a, b, data_sim, distance_sim))
+        self.block_pairs_similarities = pairs
+
+    def filter_distant_block_pairs(self):
+        pairs = []
+        for (a, b, data_sim, distance_sim) in self.block_pairs_similarities:
+            if distance_sim >= self.min_block_dist_similarity:
+                pairs.append((a, b, data_sim, distance_sim))
+        self.block_pairs_similarities = pairs
 
     def calc_association_graph(self, nodes):
         num_of_nodes = len(nodes)
         graph = CliquerGraph(num_of_nodes)
         for node_index in range(num_of_nodes):
-            w = nodes[node_index][2]
-            graph.set_vertex_weight(node_index, int(w * 1000))
+            data_similarity = nodes[node_index][2]
+            graph.set_vertex_weight(node_index, int(data_similarity * 1000))
 
         for x in range(num_of_nodes):
-            (i, s, _) = nodes[x]
+            (i, s, data_sim, _) = nodes[x]
             for y in range(num_of_nodes):
-                (j, t, _) = nodes[y]
+                (j, t, data_sim, _) = nodes[y]
                 if s != t and i != j:
-                    if ((((i, j) in self.graph_1_edges) and
-                         ((s, t) in self.graph_2_edges)) or
-                        (((i, j) not in self.graph_1_edges) and
-                         ((s, t) not in self.graph_2_edges))):
+                    if ((self.graph_1.has_edge(i, j) and
+                         self.graph_2.has_edge(s, t)) or
+                        (not self.graph_1.has_edge(i, j) and
+                         not self.graph_2.has_edge(s, t))):
                         graph.add_edge(x, y)
         self.association_graph = graph
-
-    def get_max_clique_wrt_weight(self):
-        def clique_weight(c):
-            node_weights = [self.association_graph.node[n]['weight']
-                            for n in c]
-            return sum(node_weights)
-
-        cliques = list(graph_alg.find_cliques(self.association_graph))
-        clique_weights = [clique_weight(c) for c in cliques]
-        max_weight = max(clique_weights)
-        max_clique = cliques[clique_weights.index(max_weight)]
-
-        return max_clique, max_weight
-
-    def filter_out_clique(self, clique):
-        temp_pairs = copy.deepcopy(self.compared_block_pairs)
-        filtered_pairs = copy.deepcopy(self.compared_block_pairs)
-        for node_index in clique:
-            b1, b2, _ = self.compared_block_pairs[node_index]
-            for x, y, w in temp_pairs:
-                if x == b1 or y == b2:
-                    if (x, y, w) in filtered_pairs:
-                        filtered_pairs.remove((x, y, w))
-        return filtered_pairs
 
     def get_clique_weight(self, clique):
         weight = 0.0
         for i in clique:
-            weight += self.compared_block_pairs[i][2]
+            weight += self.block_pairs_similarities[i][2]
         return weight
 
     def ratio_using_association_graph(self):
-        self.first_iteration = True
-        self.num_of_cliques_found = 0
-        self.total_weight = 0.0
-        self.total_size = 0
+        #print "in cliquer"
+        clique = self.association_graph.get_maximum_clique()
+        #print "out cliquer"
 
-        while self.find_more_cliques() and (self.num_of_cliques_found == 0):
-            # print "in cliquer"
-            clique = self.association_graph.get_maximum_clique()
-            # print "out cliquer"
+        weight = self.get_clique_weight(clique)
 
-            weight = self.get_clique_weight(clique)
-            self.size_of_last_clique_found = len(clique)
-            self.total_weight += weight
-            self.total_size += self.size_of_last_clique_found
-            self.num_of_cliques_found += 1
-            filtered_pairs = self.filter_out_clique(clique)
-            if len(filtered_pairs) == 0:
-                break
+        self.association_graph.free()
 
-            self.association_graph.free()
-            self.calc_association_graph(filtered_pairs)
-
-        res = self.total_weight / (float(self.num_nodes_graph_1 +
-                                   self.num_nodes_graph_2 -
-                                   self.total_weight))
+        res = weight / (float(self.num_nodes_graph_1 +
+                              self.num_nodes_graph_2 - weight))
         # print res
         return res
 
@@ -426,9 +412,13 @@ class GraphSimilarity(Heuristic):
     def attributes_are_equal(self):
         return self.graph_1.nodes(data=True) == self.graph_2.nodes(data=True)
 
-    def equal_number_of_nodes(self):
-        return self.num_nodes_graph_1 == self.num_nodes_graph_2
-
-    def association_graph_too_big(self):
+    def association_graph_too_many_edges(self):
         return (self.association_graph.edge_count() >=
                 self.association_graph_max_size)
+
+    def association_graph_too_few_edges(self):
+        return (self.association_graph.edge_count() == 0)
+
+    def log_decision(self, string):
+        if self.log_decisions:
+            test_log(string)
