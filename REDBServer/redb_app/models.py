@@ -8,7 +8,8 @@ import networkx as nx
 import json
 from django.utils.encoding import smart_text
 import utils
-from utils import Immediate, Itype
+from difflib import SequenceMatcher as SM
+import constants
 
 MAX_EXE_NAME_LENGTH = 255
 EXE_DIGEST_SIZE_IN_BYTES = 32
@@ -112,11 +113,25 @@ class Function(models.Model):
 class String(models.Model):
     value = models.TextField(unique=True)
 
+    class ComparableString(unicode):
+        def __hash__(self):
+            return 0
+
+        def __eq__(self, other):
+            return (type(self) == type(other) and
+                    (SM(a=self, b=other).ratio() > self.flexibility))
+
+        def set_flexibility(self, flexibility):
+            self.flexibility = flexibility
+
     def initialize(self, value):
         self.value = smart_text(value)
 
     def get_data(self):
-        return self.value
+        comparable_string = String.ComparableString(self.value)
+        flexibility = constants.block_similarity.STRING_VALUE_FLEXIBILITY
+        comparable_string.set_flexibility(flexibility)
+        return comparable_string
 
     def __unicode__(self):
         return self.value
@@ -126,11 +141,25 @@ class Call(models.Model):
     name = models.CharField(max_length=MAX_CALL_NAME_LENGTH,
                             unique=True)
 
+    class ComparableCall(unicode):
+        def __hash__(self):
+            return 0
+
+        def __eq__(self, other):
+            return (type(self) == type(other) and
+                    (SM(a=self, b=other).ratio() > self.flexibility))
+
+        def set_flexibility(self, flexibility):
+            self.flexibility = flexibility
+
     def initialize(self, name):
         self.name = smart_text(name)
 
     def get_data(self):
-        return self.name
+        comparable_call = Call.ComparableCall(self.name)
+        flexibility = constants.block_similarity.CALL_NAME_FLEXIBILITY
+        comparable_call.set_flexibility(flexibility)
+        return comparable_call
 
     def __unicode__(self):
         return self.name
@@ -168,6 +197,7 @@ class Graph(models.Model):
         if self.pk:
             self.edges = json.loads(self.edges)
         nx_g = nx.DiGraph()
+        # TODO: add list
         for i in range(self.num_of_blocks):
             nx_g.add_node(i)
         for (x, y) in self.edges:
@@ -187,7 +217,6 @@ class Graph(models.Model):
         else:
             instructions = self.function.instructions
 
-        none_filter = lambda x: x is not None
         ins_data = [instruction.get_data() for instruction in instructions]
         blocks = []
         for block_id in range(self.num_of_blocks):
@@ -205,15 +234,14 @@ class Graph(models.Model):
 
             data["block_data"] = []
             for ins in ins_data_in_block:
-                data["block_data"].append(Itype(ins["itype"]))
+                data["block_data"].append(ins["itype"])
                 if ins["string"] is not None:
                     data["block_data"].append(ins["string"])
                 if ins["call"] is not None:
                     data["block_data"].append(ins["call"])
                 if ins["imm"] is not None:
-                    data["block_data"].append(Immediate(ins["imm"]))
+                    data["block_data"].append(ins["imm"])
             blocks.append(data)
-        print blocks
         return blocks
 
     def _attach_data_to_nx_graph(self):
@@ -232,6 +260,14 @@ class Instruction(models.Model):
     immediate = models.PositiveIntegerField(blank=True, null=True)
     string = models.ForeignKey(to=String, blank=True, null=True)
     call = models.ForeignKey(to=Call, blank=True, null=True)
+
+    class ComparableImmediate(long):
+        def __eq__(self, other):
+            return type(self) == type(other) and long(self) == long(other)
+
+    class ComparableItype(int):
+        def __eq__(self, other):
+            return type(self) == type(other) and int(self) == int(other)
 
     def initialize(self, function, itype, offset, immediate=None, string=None,
                    call=None):
@@ -252,16 +288,12 @@ class Instruction(models.Model):
 
     def get_data(self):
         tmp_data = {}
-        tmp_data["itype"] = self.itype
-        if self.string is not None:
-            tmp_data["string"] = self.string.get_data()
-        else:
-            tmp_data["string"] = None
-        if self.call is not None:
-            tmp_data["call"] = self.call.get_data()
-        else:
-            tmp_data["call"] = None
-        tmp_data["imm"] = self.immediate
+        tmp_data["itype"] = Instruction.ComparableItype(self.itype)
+
+        tmp_data["string"] = self.string.get_data() if self.string else None
+        tmp_data["call"] = self.call.get_data() if self.call else None
+        tmp_data["imm"] = (Instruction.ComparableImmediate(self.immediate) if
+                           self.immediate else None)
         return tmp_data
 
     def __unicode__(self):

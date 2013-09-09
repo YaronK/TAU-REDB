@@ -54,7 +54,8 @@ class block_similarity:
     """
     Constants which affect the block similarity.
     """
-    STR_UNICODE_FLEXIBILITY = 0.7
+    STRING_VALUE_FLEXIBILITY = 0.7
+    CALL_NAME_FLEXIBILITY = 0.7
 
     BLOCK_SIMILARITY_THRESHOLD = 0.75
     MIN_BLOCK_DIST_SIMILARITY = 0.75

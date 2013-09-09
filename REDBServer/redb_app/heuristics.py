@@ -137,7 +137,7 @@ class BlockSimilarity(Heuristic):
             if self.block_data_1 == self.block_data_2:
                 return 1.0
             self._ratio = FlexibleSequenceMatcher(
-                flexibility=constants.block_similarity.STR_UNICODE_FLEXIBILITY,
+                flexibility=constants.block_similarity.STRING_VALUE_FLEXIBILITY,
                 a=self.block_data_1["block_data"],
                 b=self.block_data_2["block_data"]).ratio()
         return self._ratio
