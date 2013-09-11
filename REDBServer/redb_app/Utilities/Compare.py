@@ -13,6 +13,12 @@ import redb_app.constants as constants
 NAME_SIMILARITY_THRESHOLD = 0.8
 import copy
 from redb_app.utils import test_log
+import scipy.cluster.hierarchy as sch
+import pylab
+from cluster import HierarchicalClustering
+import random
+import networkx as nx
+from networkx.utils import cuthill_mckee_ordering, reverse_cuthill_mckee_ordering
 
 
 def get_function_graph_by_id(func_id):
@@ -33,6 +39,7 @@ def generate_matching_grade_by_id(a_id, b_id, test_dict=None):
         test_log("start: " +
                  a_name + " (" + str(a_id) + "), " +
                  b_name + " (" + str(b_id) + ")")
+    print (a_id, b_id)
     similarity = GraphSimilarity(a_graph, b_graph).ratio(test_dict=test_dict)
     if log_decisions:
         test_log("finish: " +
@@ -41,20 +48,37 @@ def generate_matching_grade_by_id(a_id, b_id, test_dict=None):
     return similarity
 
 
-EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_"]
+EXCLUDED_ON_EXE_COMPARISON = ["unknown", "sub_", "lock"]
 
 
-def get_intersecting_func_names(func_set, exe_name1, exe_name2):
+def get_intersecting_func_names(exe_name1, exe_name2):
+    func_set = Function.objects.exclude(num_of_insns__range=(1, 4))
     exe1_funcs = func_set.filter(exe_name=exe_name1)
     exe2_funcs = func_set.filter(exe_name=exe_name2)
     exe1_func_names = [func.func_name for func in exe1_funcs]
     exe2_func_names = [func.func_name for func in exe2_funcs]
     intersected_func_names = set(exe1_func_names) & set(exe2_func_names)
+
     for excluded in EXCLUDED_ON_EXE_COMPARISON:
         intersected_func_names = filter(lambda n: excluded not in n,
                                         intersected_func_names)
+
+    index_list = random.sample(range(len(intersected_func_names)), 60)
+    intersected_func_names = [intersected_func_names[i] for i in index_list]
+    # cluster similar names
+    """
+    index_list = random.sample(range(len(intersected_func_names)), 30)
+    intersected_func_names = [intersected_func_names[i] for i in index_list];
+
+    hc = HierarchicalClustering(intersected_func_names, distance)
+    print "in cluster"
+    clusters = hc.getlevel(0.3)
+    print clusters
+    intersected_func_names = reduce(lambda x, y: x + y, clusters)
+    """
     exe1 = []
     exe2 = []
+
     for n in intersected_func_names:
         exe1.append(exe1_funcs.get(func_name=n))
         exe2.append(exe2_funcs.get(func_name=n))
@@ -67,13 +91,19 @@ def get_functions_with_similar_name(func_name, function_set):
                   NAME_SIMILARITY_THRESHOLD, function_set)
 
 
-def compare_function_sets(func_set_1, func_set_2, test_dict=None):
+def compare_function_sets(func_set_1, func_set_2, test_dict=None, path=None):
 
     gmgbi = generate_matching_grade_by_id
 
     res_matrix = [[gmgbi(func1.id, func2.id, test_dict=test_dict)
                    for func1 in func_set_1] for func2 in func_set_2]
 
+    names = []
+    names.append([func.func_name for func in func_set_1])
+    names.append([func.func_name for func in func_set_2])
+    if path is not None:
+        json.dump(res_matrix, open(path, 'w'))
+        json.dump(names, open(path + "_names", 'w'))
     return res_matrix
 
 
@@ -98,7 +128,7 @@ def get_optimal_threshold(func_set_1, func_set_2, test_dict=None):
     return delta
 
 
-def compare_function_set_excel(path, func_set_1, func_set_2):
+def compare_function_sets_excel(path, func_set_1, func_set_2):
     book = xlwt.Workbook(encoding="utf-8")
     sheet1 = book.add_sheet("Sheet1")
     xlwt.Alignment.HORZ_CENTER
@@ -125,16 +155,92 @@ def compare_function_sets_heat_map(path, func_set_1, func_set_2):
     data = np.array(res_mat)
     fig, ax = plt.subplots()
     heatmap = ax.pcolor(data, cmap=plt.cm.Blues)  # @UndefinedVariable
+    ax.invert_yaxis()
+
     ax.set_xticks(np.arange(data.shape[0]) + 0.5, minor=False)
     ax.set_yticks(np.arange(data.shape[1]) + 0.5, minor=False)
-    ax.invert_yaxis()
+
     ax.xaxis.tick_top()
     ax.set_yticklabels(func_set_names_1, minor=False)
     ax.set_xticklabels(func_set_names_2, minor=False)
     plt.xticks(rotation=90)
     plt.rcParams.update({'font.size': 4})
     # fig.tight_layout()
+
     plt.savefig(path, bbox_inches='tight', dpi=100)
+    plt.show()
+
+
+def compare_functions_clustering(path, func_set_1, func_set_2, res_path=None):
+    if res_path is not None:
+        res_mat = json.load(open(res_path))
+        names = json.load(open(res_path + "_names", 'r'))
+        names_1 = names[0]
+        names_2 = names[1]
+    else:
+        res_mat = compare_function_sets(func_set_1, func_set_2)
+
+    D = np.array(res_mat)
+    # Compute and plot first dendrogram.
+
+    fig = pylab.figure()
+    axdendro = fig.add_axes([0.09, 0.1, 0.2, 0.8])
+    Y = sch.linkage(D, method='centroid')
+    Z = sch.dendrogram(Y, orientation='right')
+    axdendro.set_xticks([])
+    axdendro.set_yticks([])
+
+    # Plot distance matrix.
+    axmatrix = fig.add_axes([0.3, 0.1, 0.6, 0.8])
+    index = Z['leaves']
+    D = D[index, :]
+    D = D[:, index]
+    im = axmatrix.matshow(D, aspect='auto', origin='lower', cmap=pylab.cm.Blues)
+    axmatrix.set_xticks([])
+    axmatrix.set_yticks([])
+    names_1 = [names_1[i] for i in index]
+    names_2 = [names_2[i] for i in index]
+    axmatrix.set_xticklabels(names_1, rotation=90)
+    axmatrix.set_yticklabels(names_2)
+    # Plot colorbar.
+    axcolor = fig.add_axes([0.91, 0.1, 0.02, 0.8])
+    pylab.colorbar(im, cax=axcolor)
+
+    # Display and save figure.
+    fig.show()
+    fig.savefig(path)
+
+
+def reorder_matrix(path_res):
+    data = json.load(open(path_res, 'r'))
+    names = json.load(open(path_res + "_names", 'r'))
+    names_1 = names[0]
+    names_2 = names[1]
+    np_array = np.array(data)
+    nx_graph = nx.to_networkx_graph(np_array)
+    rcm = list(cuthill_mckee_ordering(nx_graph))
+    reordered_names_1 = [names_1[i] for i in rcm]
+    reordered_names_2 = [names_2[i] for i in rcm]
+    reordered_matrix = nx.adjacency_matrix(nx_graph, nodelist=rcm)
+    reordered_array = np.array(reordered_matrix)
+    Fig1, ax1 = plt.subplots()
+    ax1.set_xticks(np.arange(np_array.shape[0]) + 0.5, minor=False)
+    ax1.set_yticks(np.arange(np_array.shape[1]) + 0.5, minor=False)
+    ax1.set_xticklabels(names_1, minor=False)
+    ax1.set_yticklabels(names_2, minor=False)
+    plt.xticks(rotation=90)
+    Fig1.tight_layout()
+
+    Fig2, ax2 = plt.subplots()
+    ax2.set_xticks(np.arange(reordered_array.shape[0]) + 0.5, minor=False)
+    ax2.set_yticks(np.arange(reordered_array.shape[1]) + 0.5, minor=False)
+    ax2.set_xticklabels(reordered_names_1, minor=False)
+    ax2.set_yticklabels(reordered_names_2, minor=False)
+    plt.xticks(rotation=90)
+    Fig2.tight_layout()
+
+    heatmap1 = ax1.pcolor(np_array, cmap=plt.cm.Blues)
+    heatmap2 = ax2.pcolor(reordered_array, cmap=plt.cm.Blues)
     plt.show()
 
 
@@ -280,10 +386,11 @@ def filter_stage(func, func_set, filter_func, deviation):
     return (diff, func_set)
 
 
-def filter_several_stages(func_set, filter_functions, deviation=None):
+def filter_several_stages(func_set, filtered_func_set,
+                          filter_functions, deviation=None):
     diffs = []
     for func in func_set:
-        func_set_copy = copy.deepcopy(func_set)
+        func_set_copy = copy.deepcopy(filtered_func_set)
         for filter_function in filter_functions:
             diff, func_set_copy = filter_stage(func, func_set_copy, filter_function,
                                           deviation)
@@ -311,7 +418,7 @@ def optimal_block_sim_threshold_min_block_dist_similarity(exe_name_1,
         for min_block_dist_similarity in pl.frange(0.5, 0.8, 0.1):
             print ("current", block_sim_threshold, min_block_dist_similarity)
             print ("best", best_block_sim_threshold, best_min_block_dist_similarity)
-            test_dict = {#"log_decisions": True,
+            test_dict = {  # "log_decisions": True,
                          "block_similarity_threshold": block_sim_threshold,
                          "min_block_dist_similarity": min_block_dist_similarity,
                          "association_graph_max_size": 5000}
@@ -330,3 +437,8 @@ def optimal_block_sim_threshold_min_block_dist_similarity(exe_name_1,
            str(best_block_sim_threshold) +
            ", best_min_block_dist_similarity: " +
            str(best_min_block_dist_similarity))
+
+
+def distance(s1, s2):
+    ratio = SequenceMatcher(None, s1, s2).ratio()
+    return 1.0 - ratio
