@@ -8,7 +8,6 @@ import ctypes
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login
 import base64
-from difflib import SequenceMatcher
 
 
 #==============================================================================
@@ -233,64 +232,7 @@ def log_timing():
     return decorator
 
 
-class FlexibleSequenceMatcher(SequenceMatcher):
-    class FlexibleString(str):
-        def __hash__(self):
-            return 0
-
-        def __eq__(self, other):
-            return (type(self) == type(other) and
-                    SequenceMatcher(a=self, b=other).ratio() > self.flexibility)
-
-        def set_flexibility(self, flexibility):
-            self.flexibility = flexibility
-
-    class FlexibleUnicode(unicode):
-        def __hash__(self):
-            return 0
-
-        def __eq__(self, other):
-            return (type(self) == type(other) and
-                    SequenceMatcher(a=self, b=other).ratio() > self.flexibility)
-
-        def set_flexibility(self, flexibility):
-            self.flexibility = flexibility
-
-    def __init__(self, flexibility, isjunk=None, a='', b='', autojunk=True):
-        for i in range(len(a)):
-            if isinstance(a[i], str):
-                flexible_string = FlexibleSequenceMatcher.FlexibleString(a[i])
-                flexible_string.set_flexibility(flexibility)
-                a[i] = flexible_string
-            elif isinstance(a[i], unicode):
-                flexible_unicode = FlexibleSequenceMatcher.FlexibleUnicode(a[i])
-                flexible_unicode.set_flexibility(flexibility)
-                a[i] = flexible_unicode
-
-        for i in range(len(b)):
-            if isinstance(b[i], str):
-                flexible_string = FlexibleSequenceMatcher.FlexibleString(b[i])
-                flexible_string.set_flexibility(flexibility)
-                b[i] = flexible_string
-            elif isinstance(b[i], unicode):
-                flexible_unicode = FlexibleSequenceMatcher.FlexibleUnicode(b[i])
-                flexible_unicode.set_flexibility(flexibility)
-                b[i] = flexible_unicode
-
-        SequenceMatcher.__init__(self, isjunk, a, b, autojunk)
-
-
 def test_log(string):
     log_path = r"C:\Users\Yaron\Desktop\test_log.txt"
     log_row = time.asctime() + ": " + string + "\n"
     open(log_path, 'a').write(log_row)
-
-
-class Itype(int):
-    def __eq__(self, other):
-        return type(self) == type(other) and int(self) == int(other)
-
-
-class Immediate(long):
-    def __eq__(self, other):
-        return type(self) == type(other) and long(self) == long(other)

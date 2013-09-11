@@ -5,7 +5,7 @@ Heuristics for comparing attribute instances.
 # standard library imports
 from difflib import SequenceMatcher
 import networkx as nx
-from utils import CliquerGraph, FlexibleSequenceMatcher, test_log
+from utils import CliquerGraph, test_log
 
 import constants
 
@@ -136,49 +136,10 @@ class BlockSimilarity(Heuristic):
         if self._ratio == None:
             if self.block_data_1 == self.block_data_2:
                 return 1.0
-            self._ratio = FlexibleSequenceMatcher(
-                flexibility=constants.block_similarity.STRING_VALUE_FLEXIBILITY,
-                a=self.block_data_1["block_data"],
-                b=self.block_data_2["block_data"]).ratio()
+            self._ratio = \
+                SequenceMatcher(a=self.block_data_1["block_data"],
+                                b=self.block_data_2["block_data"]).ratio()
         return self._ratio
-
-    def get_similarities(self):
-        return [self.itypes_similarity(),
-                self.strings_similarity(),
-                self.calls_similarity(),
-                self.immediates_similarity()]
-
-    def itypes_similarity(self):
-        if ((len(self.block_data_1["itypes"]) == 0) and
-            (len(self.block_data_2["itypes"]) == 0)):
-            return None
-        else:
-            return SequenceMatcher(a=self.block_data_1["itypes"],
-                                   b=self.block_data_2["itypes"]).ratio()
-
-    def strings_similarity(self):
-        if ((len(self.block_data_1["strings"]) == 0) and
-            (len(self.block_data_2["strings"]) == 0)):
-            return None
-        else:
-            return SequenceMatcher(a=self.block_data_1["strings"],
-                                   b=self.block_data_2["strings"]).ratio()
-
-    def calls_similarity(self):
-        if ((len(self.block_data_1["calls"]) == 0) and
-            (len(self.block_data_2["calls"]) == 0)):
-            return None
-        else:
-            return SequenceMatcher(a=self.block_data_1["calls"],
-                                   b=self.block_data_2["calls"]).ratio()
-
-    def immediates_similarity(self):
-        if ((len(self.block_data_1["imms"]) == 0) and
-            (len(self.block_data_2["imms"]) == 0)):
-            return None
-        else:
-            return SequenceMatcher(a=self.block_data_1["imms"],
-                                   b=self.block_data_2["imms"]).ratio()
 
     def distance_from_root_similarity(self):
         block_dist_delta = abs(self.block_data_1["dist_from_root"] -
@@ -232,6 +193,7 @@ class GraphSimilarity(Heuristic):
 
         self.block_pairs_similarities = self.calc_block_similarities()
         self.filter_non_similar_block_pairs()
+        self.filter_non_similar_block_pairs_in_term_of_self_loop()
         self.filter_distant_block_pairs()
 
         self.log_decision("remaining block pairs = " +
@@ -326,6 +288,8 @@ class GraphSimilarity(Heuristic):
                                self.graph_height_2).ratio()
 
     def calc_block_similarities(self):
+        # TODO: don't calculate blocks similarity if blocks are too distant or
+        # if one block contains self loop and the other block doesn't.
         block_pairs = []
         for i in range(self.num_nodes_graph_1):
             block_data_1 = self.graph_1.node[i]['data']
@@ -361,6 +325,16 @@ class GraphSimilarity(Heuristic):
         pairs = []
         for (a, b, data_sim, distance_sim) in self.block_pairs_similarities:
             if distance_sim >= self.min_block_dist_similarity:
+                pairs.append((a, b, data_sim, distance_sim))
+        self.block_pairs_similarities = pairs
+
+    def filter_non_similar_block_pairs_in_term_of_self_loop(self):
+        pairs = []
+        for (a, b, data_sim, distance_sim) in self.block_pairs_similarities:
+            if ((self.graph_1.has_edge(a, a) and
+                 self.graph_2.has_edge(b, b)) or
+                (not self.graph_1.has_edge(a, a) and
+                 not self.graph_2.has_edge(b, b))):
                 pairs.append((a, b, data_sim, distance_sim))
         self.block_pairs_similarities = pairs
 
