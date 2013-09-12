@@ -142,7 +142,6 @@ class BlockSimilarity(Heuristic):
         return self._ratio
 
 
-
 class GraphSimilarity(Heuristic):
     def __init__(self, graph_1, graph_2):
         self.graph_1 = graph_1
@@ -180,6 +179,13 @@ class GraphSimilarity(Heuristic):
         if self.structure_is_equal():
             self.log_decision("structure_is_equal, ratio_given_similar_structures")
             ratio = self.ratio_given_similar_structures()
+            self.log_decision("ratio: " + str(ratio))
+            return ratio
+
+        if self.graph_product_is_too_big():
+            self.log_decision("graph_product_is_too_big, " +
+                              "ratio_treat_as_one_block")
+            ratio = self.ratio_treat_as_one_block()
             self.log_decision("ratio: " + str(ratio))
             return ratio
 
@@ -236,6 +242,13 @@ class GraphSimilarity(Heuristic):
         else:
             self.association_graph_max_size = \
                 constants.graph_similarity.ASSOCIATION_GRAPH_MAX_SIZE
+
+        if test_dict and "graph_product_max_size" in test_dict:
+            self.graph_product_max_size = \
+                test_dict["graph_product_max_size"]
+        else:
+            self.graph_product_max_size = \
+                constants.graph_similarity.GRAPH_PRODUCT_MAX_SIZE
 
         if test_dict and "min_block_dist_similarity" in test_dict:
             self.min_block_dist_similarity = \
@@ -318,6 +331,8 @@ class GraphSimilarity(Heuristic):
         block_dist_delta = abs(block_1_dist_from_root -
                                block_2_dist_from_root)
         if (self.max_height == 0):  # both graphs contain only a single node
+            return 1.0
+        elif (block_dist_delta <= 1):
             return 1.0
         else:
             return (1.0 - block_dist_delta / float(self.max_height))
@@ -411,6 +426,10 @@ class GraphSimilarity(Heuristic):
 
     def association_graph_too_few_edges(self):
         return (self.association_graph.edge_count() == 0)
+
+    def graph_product_is_too_big(self):
+        return (self.num_nodes_graph_1 * self.num_nodes_graph_2 >=
+                self.graph_product_max_size)
 
     def log_decision(self, string):
         if self.log_decisions:
