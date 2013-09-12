@@ -24,11 +24,10 @@
             <property name="icon_size">4</property>
             <child>
               <object class="GtkToolButton" id="tbSubmit">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Submit the user's description.</property>
-                <property name="label" translatable="yes">Submit</property>
+                <property name="label" translatable="yes">Push</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-goto-top</property>
                 <signal name="clicked" handler="on_Submit" swapped="no"/>
@@ -40,11 +39,10 @@
             </child>
             <child>
               <object class="GtkToolButton" id="tbRequest">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Request public descriptions.</property>
-                <property name="label" translatable="yes">Request</property>
+                <property name="label" translatable="yes">Pull</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-goto-bottom</property>
                 <signal name="clicked" handler="on_Request" swapped="no"/>
@@ -56,7 +54,6 @@
             </child>
             <child>
               <object class="GtkToolButton" id="tbSettings">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Plugin settings.</property>
@@ -72,7 +69,6 @@
             </child>
             <child>
               <object class="GtkToolButton" id="tbEmbed">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">Embed</property>
@@ -87,7 +83,6 @@
             </child>
             <child>
               <object class="GtkToolButton" id="tbUndo">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="sensitive">False</property>
                 <property name="can_focus">False</property>
@@ -103,7 +98,6 @@
             </child>
             <child>
               <object class="GtkToolButton" id="tbRedo">
-                <property name="use_action_appearance">False</property>
                 <property name="visible">True</property>
                 <property name="sensitive">False</property>
                 <property name="can_focus">False</property>
