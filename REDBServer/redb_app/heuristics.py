@@ -141,15 +141,6 @@ class BlockSimilarity(Heuristic):
                                 b=self.block_data_2["block_data"]).ratio()
         return self._ratio
 
-    def distance_from_root_similarity(self):
-        block_dist_delta = abs(self.block_data_1["dist_from_root"] -
-                               self.block_data_2["dist_from_root"])
-        graph_max_height = max(self.graph_height_1, self.graph_height_2)
-
-        if (graph_max_height == 0):  # both graphs contain only a single node
-            return 1.0
-        else:
-            return (1.0 - block_dist_delta / float(graph_max_height))
 
 
 class GraphSimilarity(Heuristic):
@@ -172,6 +163,7 @@ class GraphSimilarity(Heuristic):
         self.graph_height_2 = \
             max(nx.single_source_dijkstra_path_length(self.graph_2,
                                                       0).values())
+        self.max_height = max(self.graph_height_1, self.graph_height_2)
 
     def ratio(self, test_dict=None):
         """
@@ -293,15 +285,22 @@ class GraphSimilarity(Heuristic):
         block_pairs = []
         for i in range(self.num_nodes_graph_1):
             block_data_1 = self.graph_1.node[i]['data']
+            block_dist_from_root_1 = block_data_1['dist_from_root']
             for j in range(self.num_nodes_graph_2):
                 block_data_2 = self.graph_2.node[j]['data']
-                block_sim = BlockSimilarity(block_data_1, block_data_2,
-                                      self.graph_height_1,
-                                      self.graph_height_2)
-                data_similarity = block_sim.ratio()
-                distance_similarity = block_sim.distance_from_root_similarity()
-                block_pairs.append((i, j, data_similarity,
-                                    distance_similarity))
+                block_dist_from_root_2 = block_data_2['dist_from_root']
+                distance_similarity = \
+                    self.distance_from_root_similarity(block_dist_from_root_1,
+                                                   block_dist_from_root_2)
+                if not (self.blocks_are_too_distant(distance_similarity) or
+                        self.blocks_are_non_similar_in_term_of_self_loop(i, j)):
+                    block_sim = BlockSimilarity(block_data_1, block_data_2,
+                                                self.graph_height_1,
+                                                self.graph_height_2)
+                    data_similarity = block_sim.ratio()
+                    block_pairs.append((i, j, data_similarity,
+                                        distance_similarity))
+
         return block_pairs
 
     def merge_all_blocks(self, graph):
@@ -313,6 +312,15 @@ class GraphSimilarity(Heuristic):
             merged_block["block_data"] += block_data["block_data"]
         merged_block["dist_from_root"] = 0
         return merged_block
+
+    def distance_from_root_similarity(self, block_1_dist_from_root,
+                                      block_2_dist_from_root):
+        block_dist_delta = abs(block_1_dist_from_root -
+                               block_2_dist_from_root)
+        if (self.max_height == 0):  # both graphs contain only a single node
+            return 1.0
+        else:
+            return (1.0 - block_dist_delta / float(self.max_height))
 
     def filter_non_similar_block_pairs(self):
         pairs = []
@@ -338,9 +346,20 @@ class GraphSimilarity(Heuristic):
                 pairs.append((a, b, data_sim, distance_sim))
         self.block_pairs_similarities = pairs
 
+    def blocks_are_too_distant(self, distance_similarity):
+        return distance_similarity < self.min_block_dist_similarity
+
+    def blocks_are_non_similar_in_term_of_self_loop(self, block_1_id,
+                                                    block_2_id):
+        return (not((self.graph_1.has_edge(block_1_id, block_1_id) and
+                self.graph_2.has_edge(block_2_id, block_2_id)) or
+                (not self.graph_1.has_edge(block_1_id, block_1_id) and
+                 not self.graph_2.has_edge(block_2_id, block_2_id))))
+
     def calc_association_graph(self, nodes):
         num_of_nodes = len(nodes)
         graph = CliquerGraph(num_of_nodes)
+
         for node_index in range(num_of_nodes):
             data_similarity = nodes[node_index][2]
             graph.set_vertex_weight(node_index, int(data_similarity * 1000))
@@ -364,9 +383,9 @@ class GraphSimilarity(Heuristic):
         return weight
 
     def ratio_using_association_graph(self):
-        #print "in cliquer"
+        # print "in cliquer"
         clique = self.association_graph.get_maximum_clique()
-        #print "out cliquer"
+        # print "out cliquer"
 
         weight = self.get_clique_weight(clique)
 
