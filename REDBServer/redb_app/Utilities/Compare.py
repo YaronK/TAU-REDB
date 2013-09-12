@@ -17,7 +17,6 @@ import copy
 from redb_app.utils import test_log
 import scipy.cluster.hierarchy as sch
 import pylab
-from cluster import HierarchicalClustering
 import random
 import networkx as nx
 from networkx.utils import cuthill_mckee_ordering, reverse_cuthill_mckee_ordering
@@ -41,7 +40,7 @@ def generate_matching_grade_by_id(a_id, b_id, test_dict=None):
         test_log("start: " +
                  a_name + " (" + str(a_id) + "), " +
                  b_name + " (" + str(b_id) + ")")
-    print (a_id, b_id)
+    #print (a_id, b_id)
     similarity = GraphSimilarity(a_graph, b_graph).ratio(test_dict=test_dict)
     if log_decisions:
         test_log("finish: " +
@@ -444,19 +443,20 @@ def distance(s1, s2):
     ratio = SequenceMatcher(None, s1, s2).ratio()
     return 1.0 - ratio
 
+
 def timings(exe_name_1, exe_name_2, num_of_funcs):
-    func_set = Function.objects.exclude(graph__num_of_blocks=1)
-    exe1, exe2 = get_intersecting_func_names(func_set, exe_name_1,
-                                             exe_name_2)
+    exe1, exe2 = get_intersecting_func_names(exe_name_1, exe_name_2)
 
     index_list = random.sample(range(len(exe1)), num_of_funcs)
-    funcs1 = [exe1[i] for i in index_list];
-    funcs2 = [exe2[i] for i in index_list];
+    funcs1 = [exe1[i] for i in index_list]
+    funcs2 = [exe2[i] for i in index_list]
 
-    timing_dict = {}
+    bst = []
     for block_sim_threshold in pl.frange(0, 0.8, 0.1):
-        timing_dict[block_sim_threshold] = {}
+        block_sim_threshold = round(block_sim_threshold, 1)
+        mbds = []
         for min_block_dist_similarity in pl.frange(0, 0.8, 0.1):
+            min_block_dist_similarity = round(min_block_dist_similarity, 1)
             test_dict = {#"log_decisions": True,
                          "block_similarity_threshold": block_sim_threshold,
                          "min_block_dist_similarity": min_block_dist_similarity,
@@ -464,7 +464,7 @@ def timings(exe_name_1, exe_name_2, num_of_funcs):
             start = time.time()
             delta = get_optimal_threshold(funcs1, funcs2, test_dict=test_dict)
             elapsed = (time.time() - start)
-            timing_dict[block_sim_threshold][min_block_dist_similarity] = (delta, elapsed)
-            print elapsed
-    return timing_dict
-
+            mbds.append(elapsed)
+            print (block_sim_threshold, min_block_dist_similarity, elapsed)
+        bst.append(mbds)
+    return bst
