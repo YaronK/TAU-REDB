@@ -8,8 +8,10 @@ from difflib import SequenceMatcher
 import heapq
 import json
 import pylab as pl
+import random
 import os
 import redb_app.constants as constants
+import time
 NAME_SIMILARITY_THRESHOLD = 0.8
 import copy
 from redb_app.utils import test_log
@@ -407,7 +409,6 @@ def optimal_block_sim_threshold_min_block_dist_similarity(exe_name_1,
     func_set = Function.objects.exclude(graph__num_of_blocks=1)
     exe1, exe2 = get_intersecting_func_names(func_set, exe_name_1,
                                              exe_name_2)
-    import random
     index_list = random.sample(range(len(exe1)), num_of_funcs)
     funcs1 = [exe1[i] for i in index_list];
     funcs2 = [exe2[i] for i in index_list];
@@ -439,6 +440,32 @@ def optimal_block_sim_threshold_min_block_dist_similarity(exe_name_1,
            str(best_min_block_dist_similarity))
 
 
+<<<<<<< HEAD
 def distance(s1, s2):
     ratio = SequenceMatcher(None, s1, s2).ratio()
     return 1.0 - ratio
+=======
+def timings(exe_name_1, exe_name_2, num_of_funcs):
+    func_set = Function.objects.exclude(graph__num_of_blocks=1)
+    exe1, exe2 = get_intersecting_func_names(func_set, exe_name_1,
+                                             exe_name_2)
+
+    index_list = random.sample(range(len(exe1)), num_of_funcs)
+    funcs1 = [exe1[i] for i in index_list];
+    funcs2 = [exe2[i] for i in index_list];
+
+    timing_dict = {}
+    for block_sim_threshold in pl.frange(0, 0.8, 0.1):
+        timing_dict[block_sim_threshold] = {}
+        for min_block_dist_similarity in pl.frange(0, 0.8, 0.1):
+            test_dict = {#"log_decisions": True,
+                         "block_similarity_threshold": block_sim_threshold,
+                         "min_block_dist_similarity": min_block_dist_similarity,
+                         "association_graph_max_size": 5000}
+            start = time.time()
+            delta = get_optimal_threshold(funcs1, funcs2, test_dict=test_dict)
+            elapsed = (time.time() - start)
+            timing_dict[block_sim_threshold][min_block_dist_similarity] = (delta, elapsed)
+            print elapsed
+    return timing_dict
+>>>>>>> Compare timings
