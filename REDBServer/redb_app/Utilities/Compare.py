@@ -440,11 +440,10 @@ def optimal_block_sim_threshold_min_block_dist_similarity(exe_name_1,
            str(best_min_block_dist_similarity))
 
 
-<<<<<<< HEAD
 def distance(s1, s2):
     ratio = SequenceMatcher(None, s1, s2).ratio()
     return 1.0 - ratio
-=======
+
 def timings(exe_name_1, exe_name_2, num_of_funcs):
     func_set = Function.objects.exclude(graph__num_of_blocks=1)
     exe1, exe2 = get_intersecting_func_names(func_set, exe_name_1,
@@ -468,4 +467,4 @@ def timings(exe_name_1, exe_name_2, num_of_funcs):
             timing_dict[block_sim_threshold][min_block_dist_similarity] = (delta, elapsed)
             print elapsed
     return timing_dict
->>>>>>> Compare timings
+
