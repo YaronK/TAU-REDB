@@ -15,7 +15,7 @@ import time
 NAME_SIMILARITY_THRESHOLD = 0.8
 import copy
 from redb_app.utils import test_log
-import scipy.cluster.hierarchy as sch
+import scipy.cluster.hierarchy as sch  # @UnresolvedImport
 import pylab
 import random
 import networkx as nx
@@ -196,7 +196,7 @@ def compare_functions_clustering(path, func_set_1, func_set_2, res_path=None):
     index = Z['leaves']
     D = D[index, :]
     D = D[:, index]
-    im = axmatrix.matshow(D, aspect='auto', origin='lower', cmap=pylab.cm.Blues)
+    im = axmatrix.matshow(D, aspect='auto', origin='lower', cmap=pylab.cm.Blues)  # @UndefinedVariable
     axmatrix.set_xticks([])
     axmatrix.set_yticks([])
     names_1 = [names_1[i] for i in index]
@@ -240,8 +240,8 @@ def reorder_matrix(path_res):
     plt.xticks(rotation=90)
     Fig2.tight_layout()
 
-    heatmap1 = ax1.pcolor(np_array, cmap=plt.cm.Blues)
-    heatmap2 = ax2.pcolor(reordered_array, cmap=plt.cm.Blues)
+    heatmap1 = ax1.pcolor(np_array, cmap=plt.cm.Blues)  # @UndefinedVariable
+    heatmap2 = ax2.pcolor(reordered_array, cmap=plt.cm.Blues)  # @UndefinedVariable
     plt.show()
 
 
@@ -283,7 +283,7 @@ def insns_num_filter(func, func_set,
                      deviation=con_db.MAX_NUM_INSNS_DEVIATION):
     insns_num = func.num_of_insns
     lower_bound, upper_bound = get_bounds(insns_num, deviation)
-    func_set = func_set.filter(num_of_insns__range=  # @IgnorePep8
+    func_set = func_set.filter(num_of_insns__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -292,7 +292,7 @@ def blocks_num_filter(func, func_set,
                       deviation=con_db.MAX_NUM_BLOCKS_DEVIATION):
     num_of_blocks = func.graph_set.all()[0].num_of_blocks
     lower_bound, upper_bound = get_bounds(num_of_blocks, deviation)
-    func_set = func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
+    func_set = func_set.filter(graph__num_of_blocks__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -301,7 +301,7 @@ def edges_num_filter(func, func_set,
                      deviation=con_db.MAX_NUM_EDGES_DEVIATION):
     num_of_edges = func.graph_set.all()[0].num_of_edges
     lower_bound, upper_bound = get_bounds(num_of_edges, deviation)
-    func_set = func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
+    func_set = func_set.filter(graph__num_of_edges__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -310,7 +310,7 @@ def vars_size_filter(func, func_set,
                      deviation=con_db.MAX_VARS_SIZE_DEVIATION):
     vars_size = func.vars_size
     lower_bound, upper_bound = get_bounds(vars_size, deviation)
-    func_set = func_set.filter(vars_size__range=  # @IgnorePep8
+    func_set = func_set.filter(vars_size__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -319,7 +319,7 @@ def args_size_filter(func, func_set,
                      deviation=con_db.MAX_ARGS_SIZE_DEVIATION):
     args_size = func.args_size
     lower_bound, upper_bound = get_bounds(args_size, deviation)
-    func_set = func_set.filter(args_size__range=  # @IgnorePep8
+    func_set = func_set.filter(args_size__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -328,7 +328,7 @@ def regs_size_filter(func, func_set,
                      deviation=con_db.MAX_REGS_SIZE_DEVIATION):
     regs_size = func.regs_size
     lower_bound, upper_bound = get_bounds(regs_size, deviation)
-    func_set = func_set.filter(regs_size__range=  # @IgnorePep8
+    func_set = func_set.filter(regs_size__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -337,7 +337,7 @@ def calls_num_filter(func, func_set,
                      deviation=con_db.MAX_NUM_CALLS_DEVIATION):
     num_of_calls = func.num_of_calls
     lower_bound, upper_bound = get_bounds(num_of_calls, deviation)
-    func_set = func_set.filter(num_of_calls__range=  # @IgnorePep8
+    func_set = func_set.filter(num_of_calls__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -346,7 +346,7 @@ def strings_num_filter(func, func_set,
                        deviation=con_db.MAX_NUM_STRINGS_DEVIATION):
     num_of_strings = func.num_of_strings
     lower_bound, upper_bound = get_bounds(num_of_strings, deviation)
-    func_set = func_set.filter(num_of_strings__range=  # @IgnorePep8
+    func_set = func_set.filter(num_of_strings__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -355,7 +355,7 @@ def imms_num_filter(func, func_set,
                     deviation=con_db.MAX_NUM_IMMS_DEVIATION):
     num_of_imms = func.num_of_imms
     lower_bound, upper_bound = get_bounds(num_of_imms, deviation)
-    func_set = func_set.filter(num_of_imms__range=  # @IgnorePep8
+    func_set = func_set.filter(num_of_imms__range=# @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
