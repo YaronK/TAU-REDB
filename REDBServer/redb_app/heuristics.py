@@ -99,28 +99,28 @@ class FrameSimilarity(Heuristic):
                 self.regs_size_similarity()]
 
     def regs_size_similarity(self):
-        max_regs_size = max(self.regs_size_func_1, self.regs_size_func_2)
-        if  max_regs_size == 0:
+        if self.regs_size_func_1 == self.regs_size_func_2:
             return 1.0
-        else:
-            return (1 - abs(self.regs_size_func_1 -
-                            self.regs_size_func_2) / float(max_regs_size))
+        
+        max_regs_size = max(self.regs_size_func_1, self.regs_size_func_2)
+        return (1 - abs(self.regs_size_func_1 -
+                        self.regs_size_func_2) / float(max_regs_size))
 
     def args_size_similarity(self):
-        max_args_size = max(self.args_size_func_1, self.args_size_func_2)
-        if  max_args_size == 0:
+        if self.args_size_func_1 == self.args_size_func_2:
             return 1.0
-        else:
-            return (1 - abs(self.args_size_func_1 -
-                            self.args_size_func_2) / float(max_args_size))
+        
+        max_args_size = max(self.args_size_func_1, self.args_size_func_2)
+        return (1 - abs(self.args_size_func_1 -
+                        self.args_size_func_2) / float(max_args_size))
 
     def vars_size_similarity(self):
-        max_vars_size = max(self.vars_size_func_1, self.vars_size_func_2)
-        if  max_vars_size == 0:
+        if self.vars_size_func_1 == self.vars_size_func_2:
             return 1.0
-        else:
-            return (1 - abs(self.vars_size_func_1 -
-                            self.vars_size_func_2) / float(max_vars_size))
+            
+        max_vars_size = max(self.vars_size_func_1, self.vars_size_func_2)
+        return (1 - abs(self.vars_size_func_1 -
+                        self.vars_size_func_2) / float(max_vars_size))
 
 
 class BlockSimilarity(Heuristic):
