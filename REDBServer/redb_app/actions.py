@@ -172,6 +172,7 @@ class RequestAction:
 
     @classmethod
     def strings_num_filter(cls, func, func_set):
+        #TODO: handle the special case of 0
         num_of_strings = func.num_of_strings
         deviation = constants.db_filter.MAX_NUM_STRINGS_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(num_of_strings, deviation)
