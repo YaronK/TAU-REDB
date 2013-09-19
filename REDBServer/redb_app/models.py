@@ -252,7 +252,14 @@ class Graph(models.Model):
     def __unicode__(self):
         return unicode(self.function) + u"'s graph"
 
+class ComparableImmediate(long):
+    def __eq__(self, other):
+        return type(self) == type(other) and long(self) == long(other)
 
+class ComparableItype(int):
+    def __eq__(self, other):
+        return type(self) == type(other) and int(self) == int(other)
+            
 class Instruction(models.Model):
     function = models.ForeignKey(Function)
     itype = models.PositiveSmallIntegerField()
@@ -261,13 +268,7 @@ class Instruction(models.Model):
     string = models.ForeignKey(to=String, blank=True, null=True)
     call = models.ForeignKey(to=Call, blank=True, null=True)
 
-    class ComparableImmediate(long):
-        def __eq__(self, other):
-            return type(self) == type(other) and long(self) == long(other)
 
-    class ComparableItype(int):
-        def __eq__(self, other):
-            return type(self) == type(other) and int(self) == int(other)
 
     def initialize(self, function, itype, offset, immediate=None, string=None,
                    call=None):
@@ -288,11 +289,11 @@ class Instruction(models.Model):
 
     def get_data(self):
         tmp_data = {}
-        tmp_data["itype"] = Instruction.ComparableItype(self.itype)
+        tmp_data["itype"] = ComparableItype(self.itype)
 
         tmp_data["string"] = self.string.get_data() if self.string else None
         tmp_data["call"] = self.call.get_data() if self.call else None
-        tmp_data["imm"] = (Instruction.ComparableImmediate(self.immediate) if
+        tmp_data["imm"] = (ComparableImmediate(self.immediate) if
                            self.immediate else None)
         return tmp_data
 
