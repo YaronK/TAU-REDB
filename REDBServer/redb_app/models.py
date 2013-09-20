@@ -252,14 +252,17 @@ class Graph(models.Model):
     def __unicode__(self):
         return unicode(self.function) + u"'s graph"
 
+
 class ComparableImmediate(long):
     def __eq__(self, other):
         return type(self) == type(other) and long(self) == long(other)
 
+
 class ComparableItype(int):
     def __eq__(self, other):
         return type(self) == type(other) and int(self) == int(other)
-            
+
+
 class Instruction(models.Model):
     function = models.ForeignKey(Function)
     itype = models.PositiveSmallIntegerField()
@@ -267,8 +270,6 @@ class Instruction(models.Model):
     immediate = models.PositiveIntegerField(blank=True, null=True)
     string = models.ForeignKey(to=String, blank=True, null=True)
     call = models.ForeignKey(to=Call, blank=True, null=True)
-
-
 
     def initialize(self, function, itype, offset, immediate=None, string=None,
                    call=None):

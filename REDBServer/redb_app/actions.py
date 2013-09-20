@@ -208,10 +208,10 @@ class RequestAction:
         pool = Pool()
         results = []
         frame_grade = []
-        
+
         for func in self.filtered_function_set:
-            second_graph_nx = func.graph_set.all()[0].get_data()
-            result = pool.apply_async(do_graph_similarity, (temp_graph_nx, func))
+            result = pool.apply_async(do_graph_similarity,
+                                      (temp_graph_nx, func))
             results.append(result)
 
             frame_similarity = \
@@ -222,7 +222,7 @@ class RequestAction:
                                           func.vars_size,
                                           func.regs_size).ratio()
             frame_grade.append(frame_similarity)
-            
+
         pool.close()
         pool.join()
         for result, frame_similarity in zip(results, frame_grade):
@@ -260,7 +260,8 @@ class RequestAction:
 def do_graph_similarity(func_graph, second_func):
     second_graph_nx = second_func.graph_set.all()[0].get_data()
     return GraphSimilarity(func_graph, second_graph_nx).ratio()
-    
+
+
 def general_process_attributes(attributes):
     temp_attributes = {}
 
