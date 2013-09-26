@@ -233,6 +233,6 @@ def log_timing():
 
 
 def test_log(string):
-    log_path = r"C:\Users\Yaron\Desktop\test_log.txt"
+    log_path = r"C:\test_log.txt"
     log_row = time.asctime() + ": " + string + "\n"
     open(log_path, 'a').write(log_row)

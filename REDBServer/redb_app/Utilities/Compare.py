@@ -1,6 +1,5 @@
 from redb_app.models import Function, String, Call, Instruction, Executable, Graph, Description
 import xlwt
-import redb_app.utils
 from redb_app.heuristics import GraphSimilarity
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,9 +16,8 @@ import copy
 from redb_app.utils import test_log
 import scipy.cluster.hierarchy as sch  # @UnresolvedImport
 import pylab
-import random
-import networkx as nx
-from networkx.utils import cuthill_mckee_ordering, reverse_cuthill_mckee_ordering
+from textwrap import wrap
+import math
 
 
 def get_function_graph_by_id(func_id):
@@ -40,7 +38,7 @@ def generate_matching_grade_by_id(a_id, b_id, test_dict=None):
         test_log("start: " +
                  a_name + " (" + str(a_id) + "), " +
                  b_name + " (" + str(b_id) + ")")
-    #print (a_id, b_id)
+    # print (a_id, b_id)
     similarity = GraphSimilarity(a_graph, b_graph).ratio(test_dict=test_dict)
     if log_decisions:
         test_log("finish: " +
@@ -64,25 +62,19 @@ def get_intersecting_func_names(exe_name1, exe_name2):
         intersected_func_names = filter(lambda n: excluded not in n,
                                         intersected_func_names)
 
-    index_list = random.sample(range(len(intersected_func_names)), 60)
+    index_list = random.sample(range(len(intersected_func_names)), 300)
     intersected_func_names = [intersected_func_names[i] for i in index_list]
-    # cluster similar names
-    """
-    index_list = random.sample(range(len(intersected_func_names)), 30)
-    intersected_func_names = [intersected_func_names[i] for i in index_list];
-
-    hc = HierarchicalClustering(intersected_func_names, distance)
-    print "in cluster"
-    clusters = hc.getlevel(0.3)
-    print clusters
-    intersected_func_names = reduce(lambda x, y: x + y, clusters)
     """
     exe1 = []
     exe2 = []
 
-    for n in intersected_func_names:
-        exe1.append(exe1_funcs.get(func_name=n))
-        exe2.append(exe2_funcs.get(func_name=n))
+    for name in intersected_func_names:
+        exe1.append(exe1_funcs.get(func_name=name))
+        exe2.append(exe2_funcs.get(func_name=name))
+    """
+    exe1 = exe1_funcs.filter(func_name__in=intersected_func_names)
+    exe2 = exe2_funcs.filter(func_name__in=intersected_func_names)
+
     return (exe1, exe2)
 
 
@@ -106,6 +98,38 @@ def compare_function_sets(func_set_1, func_set_2, test_dict=None, path=None):
         json.dump(res_matrix, open(path, 'w'))
         json.dump(names, open(path + "_names", 'w'))
     return res_matrix
+
+
+def compare_function_sets_using_filtering(func_set_1, func_set_2, path_dump_res,
+                                          path_res_no_filtering):
+    names = []
+    names.append([func.func_name for func in func_set_1])
+    names.append([func.func_name for func in func_set_2])
+    res_mat = [[0 for col in range(len(func_set_1))] for row in range(len(func_set_2))]
+    no_filtering_res_mat = json.load(open(path_res_no_filtering))
+    counter = 0
+    for func1 in func_set_1:
+        func_set = func_set_2
+        func_set = insns_num_filter(func1, func_set, get_bounds_rough)
+        func_set = edges_num_filter(func1, func_set, get_bounds_fine_tuning)
+        func_set = blocks_num_filter(func1, func_set, get_bounds_fine_tuning)
+        # func_set = vars_size_filter(func1, func_set)
+        # func_set = args_size_filter(func1, func_set)
+        # func_set = regs_size_filter(func1, func_set)
+        func_set = calls_num_filter(func1, func_set, get_bounds_rough)
+        func_set = imms_num_filter(func1, func_set, get_bounds_rough)
+        func_set = strings_num_filter(func1, func_set, get_bounds_rough)
+        print "no. of functions left after filtering: " + str(len(func_set))
+        for func in func_set:
+            col = names[0].index(func1.func_name)
+            row = names[1].index(func.func_name)
+            res_mat[row][col] = no_filtering_res_mat[row][col]
+            counter += 1
+
+    json.dump(res_mat, open(path_dump_res, 'w'))
+    json.dump(names, open(path_dump_res + "_names", 'w'))
+    print counter
+    return res_mat
 
 
 def get_optimal_threshold(func_set_1, func_set_2, test_dict=None):
@@ -182,67 +206,36 @@ def compare_functions_clustering(path, func_set_1, func_set_2, res_path=None):
         res_mat = compare_function_sets(func_set_1, func_set_2)
 
     D = np.array(res_mat)
-    # Compute and plot first dendrogram.
 
     fig = pylab.figure()
-    axdendro = fig.add_axes([0.09, 0.1, 0.2, 0.8])
     Y = sch.linkage(D, method='centroid')
-    Z = sch.dendrogram(Y, orientation='right')
-    axdendro.set_xticks([])
-    axdendro.set_yticks([])
+
+    Z = sch.dendrogram(Y, orientation='right', no_plot=True, no_labels=True)
 
     # Plot distance matrix.
     axmatrix = fig.add_axes([0.3, 0.1, 0.6, 0.8])
     index = Z['leaves']
     D = D[index, :]
     D = D[:, index]
-    im = axmatrix.matshow(D, aspect='auto', origin='lower', cmap=pylab.cm.Blues)  # @UndefinedVariable
-    axmatrix.set_xticks([])
-    axmatrix.set_yticks([])
+
+    im = axmatrix.matshow(D, aspect='auto', origin='lower', cmap=pylab.cm.Blues)
+    axmatrix.set_xticks(np.arange(D.shape[0]) + 0.5, minor=False)
+    axmatrix.set_yticks(np.arange(D.shape[1]) + 0.5, minor=False)
+
     names_1 = [names_1[i] for i in index]
     names_2 = [names_2[i] for i in index]
-    axmatrix.set_xticklabels(names_1, rotation=90)
-    axmatrix.set_yticklabels(names_2)
+    axmatrix.set_xticklabels(names_1, rotation=90, minor=False)
+    axmatrix.set_yticklabels(names_2, minor=False)
+    axmatrix.invert_yaxis()
+
     # Plot colorbar.
     axcolor = fig.add_axes([0.91, 0.1, 0.02, 0.8])
     pylab.colorbar(im, cax=axcolor)
+    plt.rcParams.update({'font.size': 4})
 
     # Display and save figure.
     fig.show()
     fig.savefig(path)
-
-
-def reorder_matrix(path_res):
-    data = json.load(open(path_res, 'r'))
-    names = json.load(open(path_res + "_names", 'r'))
-    names_1 = names[0]
-    names_2 = names[1]
-    np_array = np.array(data)
-    nx_graph = nx.to_networkx_graph(np_array)
-    rcm = list(cuthill_mckee_ordering(nx_graph))
-    reordered_names_1 = [names_1[i] for i in rcm]
-    reordered_names_2 = [names_2[i] for i in rcm]
-    reordered_matrix = nx.adjacency_matrix(nx_graph, nodelist=rcm)
-    reordered_array = np.array(reordered_matrix)
-    Fig1, ax1 = plt.subplots()
-    ax1.set_xticks(np.arange(np_array.shape[0]) + 0.5, minor=False)
-    ax1.set_yticks(np.arange(np_array.shape[1]) + 0.5, minor=False)
-    ax1.set_xticklabels(names_1, minor=False)
-    ax1.set_yticklabels(names_2, minor=False)
-    plt.xticks(rotation=90)
-    Fig1.tight_layout()
-
-    Fig2, ax2 = plt.subplots()
-    ax2.set_xticks(np.arange(reordered_array.shape[0]) + 0.5, minor=False)
-    ax2.set_yticks(np.arange(reordered_array.shape[1]) + 0.5, minor=False)
-    ax2.set_xticklabels(reordered_names_1, minor=False)
-    ax2.set_yticklabels(reordered_names_2, minor=False)
-    plt.xticks(rotation=90)
-    Fig2.tight_layout()
-
-    heatmap1 = ax1.pcolor(np_array, cmap=plt.cm.Blues)  # @UndefinedVariable
-    heatmap2 = ax2.pcolor(reordered_array, cmap=plt.cm.Blues)  # @UndefinedVariable
-    plt.show()
 
 
 def get_top_similarities_for_single_function(num_of_tops, func, func_set):
@@ -273,89 +266,141 @@ def get_top_similarities_for_all_functions(func_set_1, func_set_2, num_of_tops, 
     f.close()
 
 
-def get_bounds(mean, deviation):
-    return mean * (1 - deviation), mean * (1 + deviation)
+def create_heat_map_from_matrix(path_matrix, path_save, xlabel, ylabel, title):
+    matrix = json.load(open(path_matrix))
+    arr = np.array(matrix)
+    fig, ax = plt.subplots()
+    heatmap = ax.pcolor(arr, cmap=pylab.cm.Blues)
+    """
+    axcolor = fig.add_axes([0.91, 0.1, 0.02, 0.8])
+    ax.set_xticks(np.arange(arr.shape[0]) + 0.5, minor=False)
+    ax.set_yticks(np.arange(arr.shape[1]) + 0.5, minor=False)
+    labels = pl.frange(0, 1, 0.1)
+    ax.set_yticklabels(labels, minor=False)
+    ax.set_xticklabels(labels, minor=False)
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel)
+    ax.set_title('\n'.join(wrap(title, 60)))
+    pylab.colorbar(heatmap, cax=axcolor)
+    """
+    plt.show()
+    plt.savefig(path_save)
+
+
+def get_bounds_rough(mean):
+    if mean == 0:
+        delta = 6
+    elif mean <= 10:
+        delta = mean * 3
+    elif mean <= 15:
+        delta = mean * 2
+    elif mean <= 20:
+        delta = math.ceil(mean * 1.5)
+    elif mean <= 60:
+        delta = math.ceil(mean * 0.5)
+    elif mean <= 100:
+        delta = math.ceil(mean * 0.4)
+    elif mean <= 200:
+        delta = math.ceil(mean * 0.3)
+    else:
+        delta = math.ceil(mean * 0.2)
+    lower_bound = mean - delta
+    upper_bound = mean + delta
+    # lower_bound =  math.floor(mean * (1 - deviation))
+    # upper_bound = math.ceil(mean * (1 + deviation))
+    return lower_bound, upper_bound
+
+
+def get_bounds_fine_tuning(mean):
+    if mean == 0:
+        delta = 4
+    else:
+        delta = math.ceil(mean * 0.2)
+    lower_bound = mean - delta
+    upper_bound = mean + delta
+    return lower_bound, upper_bound
+
 
 con_db = constants.db_filter
 
 
-def insns_num_filter(func, func_set,
+def insns_num_filter(func, func_set, get_bounds_func,
                      deviation=con_db.MAX_NUM_INSNS_DEVIATION):
     insns_num = func.num_of_insns
-    lower_bound, upper_bound = get_bounds(insns_num, deviation)
-    func_set = func_set.filter(num_of_insns__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(insns_num)
+    func_set = func_set.filter(num_of_insns__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
 
-def blocks_num_filter(func, func_set,
+def blocks_num_filter(func, func_set, get_bounds_func,
                       deviation=con_db.MAX_NUM_BLOCKS_DEVIATION):
     num_of_blocks = func.graph_set.all()[0].num_of_blocks
-    lower_bound, upper_bound = get_bounds(num_of_blocks, deviation)
-    func_set = func_set.filter(graph__num_of_blocks__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(num_of_blocks)
+    func_set = func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
 
-def edges_num_filter(func, func_set,
+def edges_num_filter(func, func_set, get_bounds_func,
                      deviation=con_db.MAX_NUM_EDGES_DEVIATION):
     num_of_edges = func.graph_set.all()[0].num_of_edges
-    lower_bound, upper_bound = get_bounds(num_of_edges, deviation)
-    func_set = func_set.filter(graph__num_of_edges__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(num_of_edges)
+    func_set = func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
 
-def vars_size_filter(func, func_set,
+def vars_size_filter(func, func_set, get_bounds_func,
                      deviation=con_db.MAX_VARS_SIZE_DEVIATION):
     vars_size = func.vars_size
-    lower_bound, upper_bound = get_bounds(vars_size, deviation)
-    func_set = func_set.filter(vars_size__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(vars_size)
+    func_set = func_set.filter(vars_size__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
 
-def args_size_filter(func, func_set,
+def args_size_filter(func, func_set, get_bounds_func,
                      deviation=con_db.MAX_ARGS_SIZE_DEVIATION):
     args_size = func.args_size
-    lower_bound, upper_bound = get_bounds(args_size, deviation)
-    func_set = func_set.filter(args_size__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(args_size)
+    func_set = func_set.filter(args_size__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
 
-def regs_size_filter(func, func_set,
+def regs_size_filter(func, func_set, get_bounds_func,
                      deviation=con_db.MAX_REGS_SIZE_DEVIATION):
     regs_size = func.regs_size
-    lower_bound, upper_bound = get_bounds(regs_size, deviation)
-    func_set = func_set.filter(regs_size__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(regs_size)
+    func_set = func_set.filter(regs_size__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
 
-def calls_num_filter(func, func_set,
+def calls_num_filter(func, func_set, get_bounds_func,
                      deviation=con_db.MAX_NUM_CALLS_DEVIATION):
     num_of_calls = func.num_of_calls
-    lower_bound, upper_bound = get_bounds(num_of_calls, deviation)
-    func_set = func_set.filter(num_of_calls__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(num_of_calls)
+    func_set = func_set.filter(num_of_calls__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
 
-def strings_num_filter(func, func_set,
+def strings_num_filter(func, func_set, get_bounds_func,
                        deviation=con_db.MAX_NUM_STRINGS_DEVIATION):
     num_of_strings = func.num_of_strings
-    lower_bound, upper_bound = get_bounds(num_of_strings, deviation)
-    func_set = func_set.filter(num_of_strings__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(num_of_strings)
+    func_set = func_set.filter(num_of_strings__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
 
-def imms_num_filter(func, func_set,
+def imms_num_filter(func, func_set, get_bounds_func,
                     deviation=con_db.MAX_NUM_IMMS_DEVIATION):
     num_of_imms = func.num_of_imms
-    lower_bound, upper_bound = get_bounds(num_of_imms, deviation)
-    func_set = func_set.filter(num_of_imms__range=# @IgnorePep8
+    lower_bound, upper_bound = get_bounds_func(num_of_imms)
+    func_set = func_set.filter(num_of_imms__range=  # @IgnorePep8
                                (lower_bound, upper_bound))
     return func_set
 
@@ -452,12 +497,13 @@ def timings(exe_name_1, exe_name_2, num_of_funcs):
     funcs2 = [exe2[i] for i in index_list]
 
     bst = []
+    timing_dict = {}
     for block_sim_threshold in pl.frange(0, 0.8, 0.1):
         block_sim_threshold = round(block_sim_threshold, 1)
         mbds = []
         for min_block_dist_similarity in pl.frange(0, 0.8, 0.1):
             min_block_dist_similarity = round(min_block_dist_similarity, 1)
-            test_dict = {#"log_decisions": True,
+            test_dict = {  # "log_decisions": True,
                          "block_similarity_threshold": block_sim_threshold,
                          "min_block_dist_similarity": min_block_dist_similarity,
                          "association_graph_max_size": 5000}
@@ -466,5 +512,30 @@ def timings(exe_name_1, exe_name_2, num_of_funcs):
             elapsed = (time.time() - start)
             mbds.append(elapsed)
             print (block_sim_threshold, min_block_dist_similarity, elapsed)
+            timing_dict[block_sim_threshold][min_block_dist_similarity] = (delta, elapsed)
+            print elapsed
         bst.append(mbds)
-    return bst
+    return timing_dict
+
+
+def generate_historgram(xlabel, ylabel, res_path):
+    res_mat = json.load(open(res_path))
+    """
+    for row in range(len(res_mat)):
+        res_mat[row].pop(row)
+    """
+    res_mat = [[res_mat[row][row]] for row in range(len(res_mat))]
+    res_list = reduce(lambda x, y: x + y, res_mat)
+    res_arr = np.array(res_list)
+    fig = plt.figure()
+    x = res_arr
+    hist, bins = np.histogram(x, bins=50)
+    width = 0.7 * (bins[1] - bins[0])
+    center = (bins[:-1] + bins[1:]) / 2
+    plt.bar(center, hist, align='center', width=width)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.show()
+    fig.savefig(res_path + "_histogram" + ".pdf")
+
+
