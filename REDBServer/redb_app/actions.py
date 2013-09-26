@@ -8,6 +8,7 @@ import utils
 from models import Function, Description
 from heuristics import DictionarySimilarity, GraphSimilarity, FrameSimilarity
 import constants
+import math
 
 
 class Query:
@@ -105,15 +106,17 @@ class RequestAction:
         self.filtered_function_set = func_set.all()
 
     @classmethod
-    def get_bounds(cls, mean, deviation):
-        return mean * (1 - deviation), mean * (1 + deviation)
+    def get_bounds(mean, deviation):
+        lower_bound = math.floor(mean * (1 - deviation))
+        upper_bound = math.ceil(mean * (1 + deviation))
+        return lower_bound, upper_bound
 
     @classmethod
     def insns_num_filter(cls, func, func_set):
         insns_num = func.num_of_insns
         deviation = constants.db_filter.MAX_NUM_INSNS_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(insns_num, deviation)
-        func_set = func_set.filter(num_of_insns__range=# @IgnorePep8
+        func_set = func_set.filter(num_of_insns__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -122,7 +125,7 @@ class RequestAction:
         num_of_blocks = func.graph.num_of_blocks
         deviation = constants.db_filter.MAX_NUM_BLOCKS_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(num_of_blocks, deviation)
-        func_set = func_set.filter(graph__num_of_blocks__range=# @IgnorePep8
+        func_set = func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -131,7 +134,7 @@ class RequestAction:
         num_of_edges = func.graph.num_of_edges
         deviation = constants.db_filter.MAX_NUM_EDGES_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(num_of_edges, deviation)
-        func_set = func_set.filter(graph__num_of_edges__range=# @IgnorePep8
+        func_set = func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -140,7 +143,7 @@ class RequestAction:
         vars_size = func.vars_size
         deviation = constants.db_filter.MAX_VARS_SIZE_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(vars_size, deviation)
-        func_set = func_set.filter(vars_size__range=# @IgnorePep8
+        func_set = func_set.filter(vars_size__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -149,7 +152,7 @@ class RequestAction:
         args_size = func.args_size
         deviation = constants.db_filter.MAX_ARGS_SIZE_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(args_size, deviation)
-        func_set = func_set.filter(args_size__range=# @IgnorePep8
+        func_set = func_set.filter(args_size__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -158,7 +161,7 @@ class RequestAction:
         regs_size = func.regs_size
         deviation = constants.db_filter.MAX_REGS_SIZE_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(regs_size, deviation)
-        func_set = func_set.filter(regs_size__range=# @IgnorePep8
+        func_set = func_set.filter(regs_size__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -167,7 +170,7 @@ class RequestAction:
         num_of_calls = func.num_of_calls
         deviation = constants.db_filter.MAX_NUM_CALLS_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(num_of_calls, deviation)
-        func_set = func_set.filter(num_of_calls__range=# @IgnorePep8
+        func_set = func_set.filter(num_of_calls__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -177,7 +180,7 @@ class RequestAction:
         num_of_strings = func.num_of_strings
         deviation = constants.db_filter.MAX_NUM_STRINGS_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(num_of_strings, deviation)
-        func_set = func_set.filter(num_of_strings__range=# @IgnorePep8
+        func_set = func_set.filter(num_of_strings__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -186,7 +189,7 @@ class RequestAction:
         num_of_imms = func.num_of_imms
         deviation = constants.db_filter.MAX_NUM_IMMS_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(num_of_imms, deviation)
-        func_set = func_set.filter(num_of_imms__range=# @IgnorePep8
+        func_set = func_set.filter(num_of_imms__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 

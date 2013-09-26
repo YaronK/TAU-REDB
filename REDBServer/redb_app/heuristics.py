@@ -206,14 +206,7 @@ class GraphSimilarity(Heuristic):
         self.log_decision("association_graph.edge_count(): " +
                           str(self.association_graph.edge_count()))
 
-        if self.association_graph_too_few_edges():
-            self.log_decision("association_graph_too_few_edges, " +
-                              "ratio_treat_as_one_block")
-            self.association_graph.free()
-            ratio = self.ratio_treat_as_one_block()
-            self.log_decision("ratio: " + str(ratio))
-            return ratio
-        elif self.association_graph_too_many_edges():
+        if self.association_graph_too_many_edges():
             self.log_decision("association_graph_too_many_edges, " +
                               "ratio_treat_as_one_block")
             self.association_graph.free()
