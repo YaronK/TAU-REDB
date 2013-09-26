@@ -166,4 +166,5 @@ pip-log.txt
 ## REDB
 #############
 *.db
-CliquerReduced.dll
+CliquerReduced*
+*.o

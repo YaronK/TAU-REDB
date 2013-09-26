@@ -39,6 +39,7 @@ class matching_grade:
     MATCHING_THRESHOLD = 0.65
 
     GRAPH_SIMILARITY_WEIGHT = 0.95
+    #TODO: maybe give frame similarity more weight?
     FRAME_SIMILARITY_WEIGHT = 0.05
 
 

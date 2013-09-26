@@ -113,22 +113,11 @@ class Function(models.Model):
 class String(models.Model):
     value = models.TextField(unique=True)
 
-    class ComparableString(unicode):
-        def __hash__(self):
-            return 0
-
-        def __eq__(self, other):
-            return (type(self) == type(other) and
-                    (SM(a=self, b=other).ratio() > self.flexibility))
-
-        def set_flexibility(self, flexibility):
-            self.flexibility = flexibility
-
     def initialize(self, value):
         self.value = smart_text(value)
 
     def get_data(self):
-        comparable_string = String.ComparableString(self.value)
+        comparable_string = ComparableString(self.value)
         flexibility = constants.block_similarity.STRING_VALUE_FLEXIBILITY
         comparable_string.set_flexibility(flexibility)
         return comparable_string
@@ -137,11 +126,7 @@ class String(models.Model):
         return self.value
 
 
-class Call(models.Model):
-    name = models.CharField(max_length=MAX_CALL_NAME_LENGTH,
-                            unique=True)
-
-    class ComparableCall(unicode):
+class ComparableString(unicode):
         def __hash__(self):
             return 0
 
@@ -152,17 +137,34 @@ class Call(models.Model):
         def set_flexibility(self, flexibility):
             self.flexibility = flexibility
 
+
+class Call(models.Model):
+    name = models.CharField(max_length=MAX_CALL_NAME_LENGTH,
+                            unique=True)
+
     def initialize(self, name):
         self.name = smart_text(name)
 
     def get_data(self):
-        comparable_call = Call.ComparableCall(self.name)
+        comparable_call = ComparableCall(self.name)
         flexibility = constants.block_similarity.CALL_NAME_FLEXIBILITY
         comparable_call.set_flexibility(flexibility)
         return comparable_call
 
     def __unicode__(self):
         return self.name
+
+
+class ComparableCall(unicode):
+        def __hash__(self):
+            return 0
+
+        def __eq__(self, other):
+            return (type(self) == type(other) and
+                    (SM(a=self, b=other).ratio() > self.flexibility))
+
+        def set_flexibility(self, flexibility):
+            self.flexibility = flexibility
 
 
 class Graph(models.Model):
@@ -253,6 +255,16 @@ class Graph(models.Model):
         return unicode(self.function) + u"'s graph"
 
 
+class ComparableImmediate(long):
+    def __eq__(self, other):
+        return type(self) == type(other) and long(self) == long(other)
+
+
+class ComparableItype(int):
+    def __eq__(self, other):
+        return type(self) == type(other) and int(self) == int(other)
+
+
 class Instruction(models.Model):
     function = models.ForeignKey(Function)
     itype = models.PositiveSmallIntegerField()
@@ -260,14 +272,6 @@ class Instruction(models.Model):
     immediate = models.PositiveIntegerField(blank=True, null=True)
     string = models.ForeignKey(to=String, blank=True, null=True)
     call = models.ForeignKey(to=Call, blank=True, null=True)
-
-    class ComparableImmediate(long):
-        def __eq__(self, other):
-            return type(self) == type(other) and long(self) == long(other)
-
-    class ComparableItype(int):
-        def __eq__(self, other):
-            return type(self) == type(other) and int(self) == int(other)
 
     def initialize(self, function, itype, offset, immediate=None, string=None,
                    call=None):
@@ -288,11 +292,11 @@ class Instruction(models.Model):
 
     def get_data(self):
         tmp_data = {}
-        tmp_data["itype"] = Instruction.ComparableItype(self.itype)
+        tmp_data["itype"] = ComparableItype(self.itype)
 
         tmp_data["string"] = self.string.get_data() if self.string else None
         tmp_data["call"] = self.call.get_data() if self.call else None
-        tmp_data["imm"] = (Instruction.ComparableImmediate(self.immediate) if
+        tmp_data["imm"] = (ComparableImmediate(self.immediate) if
                            self.immediate else None)
         return tmp_data
 

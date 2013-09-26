@@ -1,5 +1,6 @@
 # Python
 from collections import Counter
+from multiprocessing import Pool
 import json
 
 # REDB
@@ -175,6 +176,7 @@ class RequestAction:
 
     @classmethod
     def strings_num_filter(cls, func, func_set):
+        #TODO: handle the special case of 0
         num_of_strings = func.num_of_strings
         deviation = constants.db_filter.MAX_NUM_STRINGS_DEVIATION
         lower_bound, upper_bound = cls.get_bounds(num_of_strings, deviation)
@@ -203,13 +205,18 @@ class RequestAction:
         self.filtered_function_set = function_set
 
     def matching_grade_filtering(self):
+        print "in matching_grade_filtering"
         self.matching_funcs = []
         temp_graph_nx = self.function.graph.get_data()
+        pool = Pool()
+        results = []
+        frame_grade = []
 
         for func in self.filtered_function_set:
-            second_graph_nx = func.graph_set.all()[0].get_data()
-            graph_simialrity_grade = \
-                GraphSimilarity(temp_graph_nx, second_graph_nx).ratio()
+            result = pool.apply_async(do_graph_similarity,
+                                      (temp_graph_nx, func))
+            results.append(result)
+
             frame_similarity = \
                 FrameSimilarity(self.function.args_size,
                                           self.function.vars_size,
@@ -217,7 +224,12 @@ class RequestAction:
                                           func.args_size,
                                           func.vars_size,
                                           func.regs_size).ratio()
+            frame_grade.append(frame_similarity)
 
+        pool.close()
+        pool.join()
+        for result, frame_similarity in zip(results, frame_grade):
+            graph_simialrity_grade = result.get()
             grade = (constants.matching_grade.GRAPH_SIMILARITY_WEIGHT *
                      graph_simialrity_grade +
                      constants.matching_grade.FRAME_SIMILARITY_WEIGHT *
@@ -246,6 +258,11 @@ class RequestAction:
                                      "data": desc_data,
                                      "exe_names": exe_names})
         return descriptions
+
+
+def do_graph_similarity(func_graph, second_func):
+    second_graph_nx = second_func.graph_set.all()[0].get_data()
+    return GraphSimilarity(func_graph, second_graph_nx).ratio()
 
 
 def general_process_attributes(attributes):
