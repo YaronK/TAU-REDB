@@ -15,6 +15,9 @@ import actions
 from redb_app.utils import logged_in_or_basicauth
 from django.http.response import HttpResponseBadRequest
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 #==============================================================================
 # Handlers
@@ -32,7 +35,7 @@ def general_handler(request):
         elif query_type == "submit":
             return submit_handler(request)
     except Exception as e:
-        print e
+        logger.error(str(e))
         return HttpResponseBadRequest()
 
 
