@@ -46,7 +46,7 @@ def _decode_dict(data):
 #==============================================================================
 class CliquerGraph:
     DLL_DIR_PATH = os.path.dirname(__file__)
-    DLL_FILE_PATH = os.path.join(DLL_DIR_PATH, 'CliquerReduced.dll')
+    DLL_FILE_PATH = os.path.join(DLL_DIR_PATH, 'CliquerReduced')
 
     def __init__(self, n):
         """ n : number of vertices """
