@@ -95,27 +95,48 @@ class RequestAction:
         func_set = RequestAction.insns_num_filter(func, func_set)
         func_set = RequestAction.blocks_num_filter(func, func_set)
         func_set = RequestAction.edges_num_filter(func, func_set)
-        func_set = RequestAction.vars_size_filter(func, func_set)
-        func_set = RequestAction.args_size_filter(func, func_set)
-        func_set = RequestAction.regs_size_filter(func, func_set)
         func_set = RequestAction.calls_num_filter(func, func_set)
         func_set = RequestAction.strings_num_filter(func, func_set)
         func_set = RequestAction.imms_num_filter(func, func_set)
-
         self.filtered_function_set = func_set.all()
 
     @classmethod
-    def get_bounds(cls, mean, deviation):
-        lower_bound = math.floor(mean * (1 - deviation))
-        upper_bound = math.ceil(mean * (1 + deviation))
+    def get_bounds_coarse_filter(cls, mean):
+        if mean == 0:
+            delta = constants.db_filter.COARSE_FILTER_ZERO_RANGE_DEV
+        elif mean <= constants.db_filter.COARSE_FILTER_FIRST_RANGE:
+            delta = mean * constants.db_filter.COARSE_FILTER_FIRST_RANGE_DEV
+        elif mean <= constants.db_filter.COARSE_FILTER_SECOND_RANGE:
+            delta = mean * constants.db_filter.COARSE_FILTER_SECOND_RANGE_DEV
+        elif mean <= constants.db_filter.COARSE_FILTER_THIRD_RANGE:
+            delta = math.ceil(mean * constants.db_filter.COARSE_FILTER_THIRD_RANGE_DEV)
+        elif mean <= constants.db_filter.COARSE_FILTER_FOURTH_RANGE:
+            delta = math.ceil(mean * constants.db_filter.COARSE_FILTER_FOURTH_RANGE_DEV)
+        elif mean <= constants.db_filter.COARSE_FILTER_FIFTH_RANGE:
+            delta = math.ceil(mean * constants.db_filter.COARSE_FILTER_FIFTH_RANGE_DEV)
+        elif mean <= constants.db_filter.COARSE_FILTER_SIXTH_RANGE:
+            delta = math.ceil(mean * constants.db_filter.COARSE_FILTER_SIXTH_RANGE_DEV)
+        else:
+            delta = math.ceil(mean * constants.db_filter.COARSE_FILTER_SEVENTH_RANGE_DEV)
+        lower_bound = mean - delta
+        upper_bound = mean + delta
+        return lower_bound, upper_bound
+
+    @classmethod
+    def get_bounds_fine_filter(cls, mean, deviation):
+        if mean == 0:
+            delta = constants.db_filter.FINE_FILTER_ZERO_RANGE_DEV
+        else:
+            delta = math.ceil(mean * deviation)
+        lower_bound = mean - delta
+        upper_bound = mean + delta
         return lower_bound, upper_bound
 
     @classmethod
     def insns_num_filter(cls, func, func_set):
         insns_num = func.num_of_insns
-        deviation = constants.db_filter.MAX_NUM_INSNS_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(insns_num, deviation)
-        func_set = func_set.filter(num_of_insns__range=# @IgnorePep8
+        lower_bound, upper_bound = cls.get_bounds_coarse_filter(insns_num)
+        func_set = func_set.filter(num_of_insns__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -123,8 +144,8 @@ class RequestAction:
     def blocks_num_filter(cls, func, func_set):
         num_of_blocks = func.graph.num_of_blocks
         deviation = constants.db_filter.MAX_NUM_BLOCKS_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(num_of_blocks, deviation)
-        func_set = func_set.filter(graph__num_of_blocks__range=# @IgnorePep8
+        lower_bound, upper_bound = cls.get_bounds_fine_filter(num_of_blocks, deviation)
+        func_set = func_set.filter(graph__num_of_blocks__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -132,63 +153,33 @@ class RequestAction:
     def edges_num_filter(cls, func, func_set):
         num_of_edges = func.graph.num_of_edges
         deviation = constants.db_filter.MAX_NUM_EDGES_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(num_of_edges, deviation)
-        func_set = func_set.filter(graph__num_of_edges__range=# @IgnorePep8
-                                   (lower_bound, upper_bound))
-        return func_set
-
-    @classmethod
-    def vars_size_filter(cls, func, func_set):
-        vars_size = func.vars_size
-        deviation = constants.db_filter.MAX_VARS_SIZE_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(vars_size, deviation)
-        func_set = func_set.filter(vars_size__range=# @IgnorePep8
-                                   (lower_bound, upper_bound))
-        return func_set
-
-    @classmethod
-    def args_size_filter(cls, func, func_set):
-        args_size = func.args_size
-        deviation = constants.db_filter.MAX_ARGS_SIZE_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(args_size, deviation)
-        func_set = func_set.filter(args_size__range=# @IgnorePep8
-                                   (lower_bound, upper_bound))
-        return func_set
-
-    @classmethod
-    def regs_size_filter(cls, func, func_set):
-        regs_size = func.regs_size
-        deviation = constants.db_filter.MAX_REGS_SIZE_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(regs_size, deviation)
-        func_set = func_set.filter(regs_size__range=# @IgnorePep8
+        lower_bound, upper_bound = cls.get_bounds_fine_filter(num_of_edges, deviation)
+        func_set = func_set.filter(graph__num_of_edges__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
     @classmethod
     def calls_num_filter(cls, func, func_set):
         num_of_calls = func.num_of_calls
-        deviation = constants.db_filter.MAX_NUM_CALLS_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(num_of_calls, deviation)
-        func_set = func_set.filter(num_of_calls__range=# @IgnorePep8
+        lower_bound, upper_bound = cls.get_bounds_coarse_filter(num_of_calls)
+        func_set = func_set.filter(num_of_calls__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
     @classmethod
     def strings_num_filter(cls, func, func_set):
-        #TODO: handle the special case of 0
+        # TODO: handle the special case of 0
         num_of_strings = func.num_of_strings
-        deviation = constants.db_filter.MAX_NUM_STRINGS_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(num_of_strings, deviation)
-        func_set = func_set.filter(num_of_strings__range=# @IgnorePep8
+        lower_bound, upper_bound = cls.get_bounds_coarse_filter(num_of_strings)
+        func_set = func_set.filter(num_of_strings__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
     @classmethod
     def imms_num_filter(cls, func, func_set):
         num_of_imms = func.num_of_imms
-        deviation = constants.db_filter.MAX_NUM_IMMS_DEVIATION
-        lower_bound, upper_bound = cls.get_bounds(num_of_imms, deviation)
-        func_set = func_set.filter(num_of_imms__range=# @IgnorePep8
+        lower_bound, upper_bound = cls.get_bounds_coarse_filter(num_of_imms)
+        func_set = func_set.filter(num_of_imms__range=  # @IgnorePep8
                                    (lower_bound, upper_bound))
         return func_set
 
@@ -204,17 +195,15 @@ class RequestAction:
         self.filtered_function_set = function_set
 
     def matching_grade_filtering(self):
+        print "in matching grade filtering"
         self.matching_funcs = []
         temp_graph_nx = self.function.graph.get_data()
-        pool = Pool()
-        results = []
-        frame_grade = []
-
         for func in self.filtered_function_set:
-            result = pool.apply_async(do_graph_similarity,
-                                      (temp_graph_nx, func))
-            results.append(result)
-
+            second_graph_nx = func.graph_set.all()[0].get_data()
+            print "in graph similarity"
+            graph_simialrity_grade = \
+                GraphSimilarity(temp_graph_nx, second_graph_nx).ratio()
+            print "out of graph similarity"
             frame_similarity = \
                 FrameSimilarity(self.function.args_size,
                                           self.function.vars_size,
@@ -222,12 +211,7 @@ class RequestAction:
                                           func.args_size,
                                           func.vars_size,
                                           func.regs_size).ratio()
-            frame_grade.append(frame_similarity)
 
-        pool.close()
-        pool.join()
-        for result, frame_similarity in zip(results, frame_grade):
-            graph_simialrity_grade = result.get()
             grade = (constants.matching_grade.GRAPH_SIMILARITY_WEIGHT *
                      graph_simialrity_grade +
                      constants.matching_grade.FRAME_SIMILARITY_WEIGHT *
